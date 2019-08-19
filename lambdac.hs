@@ -37,14 +37,14 @@ data Coercion = Id Type |
                 DistArrow Type Type Type
                 deriving (Eq)
 
-data Value = LambdaValue Variable Type Term |
-             UnitValue |
-             NatValue Int |
-             TupleValue Value Value |
-             CoercionValue Coercion Coercion Value |
-             DistArrowValue Value |
-             TopArrowValue Value
-             deriving (Eq)
+-- data Value = LambdaValue Variable Type Term |
+--              UnitValue |
+--              NatValue Int |
+--              TupleValue Value Value |
+--              CoercionValue Coercion Coercion Value |
+--              DistArrowValue Value |
+--              TopArrowValue Value
+--              deriving (Eq)
 
 instance Show Type where
   show NatType              = "Nat"
@@ -82,14 +82,14 @@ instance Show Coercion where
   show (DistLabel l t1 t2)   = "dist{" ++ show l ++ "} (" ++ show t1 ++ ", " ++ show t2 ++ ")"
   show (DistArrow t1 t2 t3)  = "dist-> (" ++ show t1 ++ "->" ++ show t2 ++ ", " ++ show t1 ++ "->" ++ show t3 ++ ")"
 
-instance Show Value where
-  show (LambdaValue v ty te)   = "\\{" ++ show v ++ " : " ++ show ty ++ "}" ++ "." ++ show te
-  show UnitValue               = "()"
-  show (NatValue i)            = show i
-  show (TupleValue v1 v2)      = "(" ++ show v1 ++ ", " ++ show v2 ++ ")"
-  show (CoercionValue c1 c2 v) = "(" ++ show c1 ++ " -> " ++ show c2 ++ ") " ++ show v
-  show (DistArrowValue v)      = "dist-> " ++ show v
-  show (TopArrowValue v)       = "top-> " ++ show v
+-- instance Show Value where
+--   show (LambdaValue v ty te)   = "\\{" ++ show v ++ " : " ++ show ty ++ "}" ++ "." ++ show te
+--   show UnitValue               = "()"
+--   show (NatValue i)            = show i
+--   show (TupleValue v1 v2)      = "(" ++ show v1 ++ ", " ++ show v2 ++ ")"
+--   show (CoercionValue c1 c2 v) = "(" ++ show c1 ++ " -> " ++ show c2 ++ ") " ++ show v
+--   show (DistArrowValue v)      = "dist-> " ++ show v
+--   show (TopArrowValue v)       = "top-> " ++ show v
 
 replaceVar :: Term -> Variable -> Term -> Term
 replaceVar (Var v1) v e
@@ -106,47 +106,51 @@ replaceVar (CoercionTerm c t) v e = CoercionTerm c (replaceVar t v e)
 
 eval :: Term -> Maybe Term
 -- STEP-ID
-eval (CoercionTerm (Id xt) t) = Just t
+eval (CoercionTerm (Id xt) v) = Just v
 -- STEP-TRANS
-eval (CoercionTerm (Composition c1 c2) t) = Just (CoercionTerm c1 (CoercionTerm c2 t))
+eval (CoercionTerm (Composition c1 c2) v) = Just (CoercionTerm c1 (CoercionTerm c2 v))
 -- SET-TOP
-eval (CoercionTerm (Top xt) t) = Just UnitTerm
+eval (CoercionTerm (Top _) v) = Just UnitTerm
 -- STEP-TOPARR
 eval (Application (CoercionTerm TopArrow UnitTerm) UnitTerm) = Just UnitTerm
 -- STEP-TOPRCD
 eval (CoercionTerm (TopLabel l) UnitTerm) = Just (Assign l UnitTerm)
 -- STEP-ARR
-eval (Application (CoercionTerm (Function c1 c2) t1) t2) = Just (CoercionTerm c2 (Application t1 (CoercionTerm c1 t2)))
+eval (Application (CoercionTerm (Function c1 c2) v1) v2) = Just (CoercionTerm c2 (Application v1 (CoercionTerm c1 v2)))
 -- STEP-PAIR
-eval (CoercionTerm (TupleCoercion c1 c2) t) = Just (TupleTerm (CoercionTerm c1 t) (CoercionTerm c2 t))
+eval (CoercionTerm (TupleCoercion c1 c2) v) = Just (TupleTerm (CoercionTerm c1 v) (CoercionTerm c2 v))
 -- STEP-DISTARR
-eval (Application (CoercionTerm (DistArrow _ _ _) (TupleTerm t1 t2)) t3) = Just (TupleTerm (Application t1 t3) (Application t2 t3))
+eval (Application (CoercionTerm (DistArrow _ _ _) (TupleTerm v1 v2)) v3) = Just (TupleTerm (Application v1 v3) (Application v2 v3))
 -- STEP-DISTRCD
-eval (CoercionTerm (DistLabel l _ _) (TupleTerm (Assign l1 t1) (Assign l2 t2)))
-  | l == l1 && l1 == l2 = Just (Assign l (TupleTerm t1 t2))
+eval (CoercionTerm (DistLabel l _ _) (TupleTerm (Assign l1 v1) (Assign l2 v2)))
+  | l == l1 && l1 == l2 = Just (Assign l (TupleTerm v1 v2))
   | otherwise = Nothing
 -- STEP-PROJL
-eval (CoercionTerm (Project1 _ _) (TupleTerm t1 t2)) = Just t1
+eval (CoercionTerm (Project1 _ _) (TupleTerm v1 v2)) = Just v1
 -- STEP-PROJR
-eval (CoercionTerm (Project2 _ _) (TupleTerm t1 t2)) = Just t2
+eval (CoercionTerm (Project2 _ _) (TupleTerm v1 v2)) = Just v2
 -- STEP-CRCD
-eval (CoercionTerm (RecordCoercion l c) (Assign l1 t))
-  | l == l1 = Just (Assign l (CoercionTerm c t))
+eval (CoercionTerm (RecordCoercion l c) (Assign l1 v))
+  | l == l1 = Just (Assign l (CoercionTerm c v))
   | otherwise = Nothing
 -- STEP-BETA
-eval (Application (LambdaTerm x xt e) t) = Just e' where e' = replaceVar e x t
+eval (Application (LambdaTerm x xt e) v) = Just e' where e' = replaceVar e x v
 -- STEP-PROJRCD
-eval (Extract (Assign l t) l1)
-  | l == l1 = Just t
+eval (Extract (Assign l v) l1)
+  | l == l1 = Just v
   | otherwise = Nothing
--- STEP-APP1
-eval (Application e1 e2) = Just (Application e1' e2) where Just e1' = eval e1
--- STEP-APP2
-eval (Application e1 e2) = Just (Application e1 e2') where Just e2' = eval e2
--- STEP-PAIR1
-eval (TupleTerm e1 e2) = Just (TupleTerm e1' e2) where Just e1' = eval e1
--- STEP-PAIR2
-eval (TupleTerm e1 e2) = Just (TupleTerm e1 e2') where Just e2' = eval e2
+-- STEP-APP1 & STEP-APP2
+eval (Application e1 e2) = case eval e1 of
+  Just e1' -> Just (Application e1' e2)
+  Nothing -> case eval e2 of
+    Just e2' -> Just (Application e1 e2')
+    Nothing -> Nothing
+-- STEP-PAIR1 & STEP-PAIR2
+eval (TupleTerm e1 e2) = case eval e1 of
+  Just e1' -> Just (TupleTerm e1' e2)
+  Nothing -> case eval e2 of
+    Just e2' -> Just (TupleTerm e1 e2')
+    Nothing -> Nothing
 -- STEP-CAPP
 eval (CoercionTerm c e) = Just (CoercionTerm c e') where Just e' = eval e
 -- STEP-RCD1
