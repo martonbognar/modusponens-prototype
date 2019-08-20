@@ -6,9 +6,7 @@ type Variable = String
 type Label    = String
 
 -- TODOs:
---   3. Fix order in evaluation functions
 --   4. Re-enable -Wall
---   5. Careful with the guards in eval
 
 data Type
   = TyNat
@@ -100,7 +98,6 @@ replaceVar (TmRecFld t l) v e = TmRecFld (replaceVar t v e) l
 replaceVar (TmCast c t) v e = TmCast c (replaceVar t v e)
 
 eval :: Term -> Maybe Term
--- STEP-APP1 & STEP-APP2
 eval (TmApp e1 e2)
   -- STEP-APP1
   | Just e1' <- eval e1
@@ -108,61 +105,69 @@ eval (TmApp e1 e2)
   -- STEP-APP2
   | Just e2' <- eval e2
   = Just (TmApp e1 e2')
-
-
-
- -- STEP-CoRefl
-eval (TmCast (CoRefl xt) v) = Just v
--- STEP-TRANS
-eval (TmCast (CoTrans c1 c2) v) = Just (TmCast c1 (TmCast c2 v))
--- SET-CoAnyTop
-eval (TmCast (CoAnyTop _) v) = Just TmTop
--- STEP-TOPARR
-eval (TmApp (TmCast CoTopArr TmTop) TmTop) = Just TmTop
-
-
--- STEP-TOPRCD
-eval (TmCast (CoTopRec l) TmTop) = Just (TmRecCon l TmTop)
--- STEP-ARR
-eval (TmApp (TmCast (CoArr c1 c2) v1) v2)
+  -- STEP-TOPARR
+  | (TmCast CoTopArr TmTop, TmTop) <- (e1, e2)
+  = Just TmTop
+  -- STEP-ARR
+  | (TmCast (CoArr c1 c2) v1, v2) <- (e1, e2)
   = Just (TmCast c2 (TmApp v1 (TmCast c1 v2)))
+  -- STEP-DISTARR
+  | (TmCast (CoDistArr _ _ _) (TmTup v1 v2), v3) <- (e1, e2)
+  = Just (TmTup (TmApp v1 v3) (TmApp v2 v3))
+  -- STEP-BETA
+  | (TmAbs x xt e, v) <- (e1, e2)
+  = Just (replaceVar e x v)
 
--- STEP-PAIR
-eval (TmCast (CoPair c1 c2) v) = Just (TmTup (TmCast c1 v) (TmCast c2 v))
--- STEP-DISTARR
-eval (TmApp (TmCast (CoDistArr _ _ _) (TmTup v1 v2)) v3) = Just (TmTup (TmApp v1 v3) (TmApp v2 v3))
--- STEP-DISTRCD
-eval (TmCast (CoDistRec l _ _) (TmTup (TmRecCon l1 v1) (TmRecCon l2 v2)))
-  | l == l1 && l1 == l2 = Just (TmRecCon l (TmTup v1 v2))
-  | otherwise = Nothing
--- STEP-PROJL
-eval (TmCast (CoLeft _ _) (TmTup v1 v2)) = Just v1
--- STEP-PROJR
-eval (TmCast (CoRight _ _) (TmTup v1 v2)) = Just v2
--- STEP-CRCD
-eval (TmCast (CoRec l c) (TmRecCon l1 v))
-  | l == l1 = Just (TmRecCon l (TmCast c v))
-  | otherwise = Nothing
--- STEP-BETA
-eval (TmApp (TmAbs x xt e) v) = Just e' where e' = replaceVar e x v
+-- STEP-PAIR1 & STEP-PAIR2
+eval (TmTup e1 e2)
+  | Just e1' <- eval e1
+  = Just (TmTup e1' e2)
+  | Just e2' <- eval e2
+  = Just (TmTup e1 e2')
+
 -- STEP-PROJRCD
 eval (TmRecFld (TmRecCon l v) l1)
   | l == l1 = Just v
-  | otherwise = Nothing
--- STEP-PAIR1 & STEP-PAIR2
-eval (TmTup e1 e2) = case eval e1 of
-  Just e1' -> Just (TmTup e1' e2)
-  Nothing -> case eval e2 of
-    Just e2' -> Just (TmTup e1 e2')
-    Nothing -> Nothing
--- STEP-CAPP
-eval (TmCast c e) = Just (TmCast c e') where Just e' = eval e
+
 -- STEP-RCD1
 eval (TmRecCon l e) = Just (TmRecCon l e') where Just e' = eval e
+
 -- STEP-RCD2
 eval (TmRecFld e l) = Just (TmRecFld e' l) where Just e' = eval e
 
--- eval _ = Nothing
+-- STEP-CAPP
+eval (TmCast c e)
+  | Just e' <- eval e
+  = Just (TmCast c e')
+  -- STEP-ID
+  | (CoRefl xt, v) <- (c, e)
+  = Just v
+-- STEP-TRANS
+  | (CoTrans c1 c2, v) <- (c, e)
+  = Just (TmCast c1 (TmCast c2 v))
+-- SET-TOP
+  | (CoAnyTop _, v) <- (c, e)
+  = Just TmTop
+-- STEP-TOPRCD
+  | (CoTopRec l, TmTop) <- (c, e)
+  = Just (TmRecCon l TmTop)
+-- STEP-PAIR
+  | (CoPair c1 c2, v) <- (c, e)
+  = Just (TmTup (TmCast c1 v) (TmCast c2 v))
+-- STEP-DISTRCD
+  | (CoDistRec l _ _, (TmTup (TmRecCon l1 v1) (TmRecCon l2 v2))) <- (c, e)
+  = if l == l1 && l1 == l2 then Just (TmRecCon l (TmTup v1 v2)) else Nothing
+-- STEP-PROJL
+  | (CoLeft _ _, (TmTup v1 v2)) <- (c, e)
+  = Just v1
+-- STEP-PROJR
+  | (CoRight _ _, (TmTup v1 v2)) <- (c, e)
+  = Just v2
+-- STEP-CRCD
+  | (CoRec l c, (TmRecCon l1 v)) <- (c, e)
+  = if l == l1 then Just (TmRecCon l (TmCast c v)) else Nothing
+
+eval _ = Nothing
 
 fullEval :: Term -> Term
 fullEval t = case eval t of
