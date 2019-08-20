@@ -272,34 +272,29 @@ termType _ (TmLit _)
 termType c (TmVar x)
   = typeFromContext c (TmVar x)
 -- TYP-ABS
-termType c (TmAbs x xt e)
-  | Just et <- typeFromContext (Snoc c (TmVar x) xt) e
-  = Just (TyArr xt et)
-  | otherwise
-  = Nothing
+termType c (TmAbs x t1 e)
+  | Just t2 <- termType (Snoc c (TmVar x) t1) e
+  = Just (TyArr t1 t2)
 -- TYP-APP
 termType c (TmApp e1 e2)
-  = if t1 == t3 then Just t2 else Nothing where
-    Just (TyArr t1 t2) = typeFromContext c e1
-    Just t3 = typeFromContext c e2
+  | (Just (TyArr t1 t2), Just t3) <- (termType c e1, termType c e2)
+  = if t1 == t3 then Just t2 else Nothing
 -- TYP-PAIR
 termType c (TmTup e1 e2)
-  = Just (TyTup t1 t2) where
-    Just t1 = typeFromContext c e1
-    Just t2 = typeFromContext c e2
+  | (Just t1, Just t2) <- (termType c e1, termType c e2)
+  = Just (TyTup t1 t2)
 -- TYP-CAPP
 termType c (TmCast co e)
-  = if t1 == t2 then Just t' else Nothing where
-    Just t1 = typeFromContext c e
-    Just (t2, t') = coercionType co
+  | (Just t, Just (t1, t1')) <- (termType c e, coercionType co)
+  = if t == t1 then Just t1' else Nothing
 -- TYP-RCD
 termType c (TmRecCon l e)
-  = Just (TyRec l t) where
-    Just t = typeFromContext c e
+  | Just t <- termType c e
+  = Just (TyRec l t)
 -- TYP--PROJ
 termType c (TmRecFld e l)
-  = if l == l1 then Just t else Nothing where
-    Just (TyRec l1 t) = typeFromContext c e
+  | Just (TyRec l1 t) <- termType c e
+  = if l == l1 then Just t else Nothing
 
 
 coercionType :: Coercion -> Maybe (Type, Type)
