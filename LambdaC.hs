@@ -1,12 +1,9 @@
--- {-# OPTIONS_GHC -Wall #-}
+{-# OPTIONS_GHC -Wall #-}
 
 module LambdaC where
 
 type Variable = String
 type Label    = String
-
--- TODOs:
---   4. Re-enable -Wall
 
 data Type
   = TyNat
@@ -88,8 +85,8 @@ replaceVar :: Term -> Variable -> Term -> Term
 replaceVar (TmVar v1) v e
   | v == v1 = e
   | otherwise = TmVar v
-replaceVar (TmLit i) v e = TmLit i
-replaceVar TmTop v e = TmTop
+replaceVar (TmLit i) _ _ = TmLit i
+replaceVar TmTop _ _ = TmTop
 replaceVar (TmAbs v1 v1t t) v e = TmAbs v1 v1t (replaceVar t v e)
 replaceVar (TmApp t1 t2) v e = TmApp (replaceVar t1 v e) (replaceVar t2 v e)
 replaceVar (TmTup t1 t2) v e = TmTup (replaceVar t1 v e) (replaceVar t2 v e)
@@ -115,7 +112,7 @@ eval (TmApp e1 e2)
   | (TmCast (CoDistArr _ _ _) (TmTup v1 v2), v3) <- (e1, e2)
   = Just (TmTup (TmApp v1 v3) (TmApp v2 v3))
   -- STEP-BETA
-  | (TmAbs x xt e, v) <- (e1, e2)
+  | (TmAbs x _ e, v) <- (e1, e2)
   = Just (replaceVar e x v)
 
 -- STEP-PAIR1 & STEP-PAIR2
@@ -140,13 +137,13 @@ eval (TmCast c e)
   | Just e' <- eval e
   = Just (TmCast c e')
   -- STEP-ID
-  | (CoRefl xt, v) <- (c, e)
+  | (CoRefl _, v) <- (c, e)
   = Just v
 -- STEP-TRANS
   | (CoTrans c1 c2, v) <- (c, e)
   = Just (TmCast c1 (TmCast c2 v))
 -- SET-TOP
-  | (CoAnyTop _, v) <- (c, e)
+  | (CoAnyTop _, _) <- (c, e)
   = Just TmTop
 -- STEP-TOPRCD
   | (CoTopRec l, TmTop) <- (c, e)
@@ -158,14 +155,14 @@ eval (TmCast c e)
   | (CoDistRec l _ _, (TmTup (TmRecCon l1 v1) (TmRecCon l2 v2))) <- (c, e)
   = if l == l1 && l1 == l2 then Just (TmRecCon l (TmTup v1 v2)) else Nothing
 -- STEP-PROJL
-  | (CoLeft _ _, (TmTup v1 v2)) <- (c, e)
+  | (CoLeft _ _, (TmTup v1 _)) <- (c, e)
   = Just v1
 -- STEP-PROJR
-  | (CoRight _ _, (TmTup v1 v2)) <- (c, e)
+  | (CoRight _ _, (TmTup _ v2)) <- (c, e)
   = Just v2
 -- STEP-CRCD
-  | (CoRec l c, (TmRecCon l1 v)) <- (c, e)
-  = if l == l1 then Just (TmRecCon l (TmCast c v)) else Nothing
+  | (CoRec l co, (TmRecCon l1 v)) <- (c, e)
+  = if l == l1 then Just (TmRecCon l (TmCast co v)) else Nothing
 
 eval _ = Nothing
 
@@ -207,8 +204,8 @@ termType c (TmCast co e) = if t1 == t2 then Just t' else Nothing where
 termType c (TmRecCon l e) = Just (TyRec l t) where
   Just t = typeFromContext c e
 -- TYP--PROJ
-termType c (TmRecFld e l) = Just t where
-  Just (TyRec l t) = typeFromContext c e
+termType c (TmRecFld e l) = if l == l1 then Just t else Nothing where
+  Just (TyRec l1 t) = typeFromContext c e
 
 coercionType :: Coercion -> Maybe (Type, Type)
 -- COTYP-REFL
