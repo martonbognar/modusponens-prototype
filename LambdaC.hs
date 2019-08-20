@@ -5,6 +5,25 @@ module LambdaC where
 type Variable = String
 type Label    = String
 
+-- TODOs:
+--   1. Best if you remove the "deriving (Eq)" from the datatypes. There are
+--      many different ways in which they be considered equal so it's best if
+--      equality is not supported at all, to avoid the confusion.
+--   2. Contexts should contain term variables with their types, not terms with
+--      their types. Thus, function "typeFromContext" should actually have
+--      type:
+--
+--        typeFromContext :: Context -> Variable -> Maybe Type
+--
+--   3. I slightly rewrote function "fullEval" to use pattern matching instead
+--      of pattern guards. A general note: if your function is meant to be
+--      exhaustive (not like function "eval"), use pattern matching instead of
+--      pattern guards, so that you get better warnings from the compiler.
+--   4. Added some comments to separate the sections in the code. Some more
+--      top-level comments would be nice to have.
+
+-- * Main LambdaC types
+-- ----------------------------------------------------------------------------
 
 data Type
   = TyNat
@@ -118,6 +137,8 @@ instance Show Coercion where
     = "dist-> (" ++ show t1 ++ "->" ++ show t2 ++ ", "
       ++ show t1 ++ "->" ++ show t3 ++ ")"
 
+-- * LambdaC Operational Semantics
+-- ----------------------------------------------------------------------------
 
 replaceVar :: Term -> Variable -> Term -> Term
 replaceVar (TmVar x') x v
@@ -221,13 +242,14 @@ eval (TmCast c e)
 eval _ = Nothing
 
 
+-- | Fully evaluate an expression.
 fullEval :: Term -> Term
-fullEval t
-  | Just st <- eval t
-  = fullEval st
-  | otherwise
-  = t
+fullEval t = case eval t of
+  Just st -> fullEval st
+  Nothing -> t
 
+-- * LambdaC Typing
+-- ----------------------------------------------------------------------------
 
 typeFromContext :: Context -> Term -> Maybe Type
 typeFromContext Empty _
