@@ -140,28 +140,18 @@ instance Show Coercion where
 isValue :: Term -> Bool
 isValue _ = True
 
-replaceVar :: Term -> Variable -> Term -> Term
-replaceVar (TmVar x') x v
-  | x' == x
-  = v
-  | otherwise
-  = TmVar x'
-replaceVar (TmLit i) _ _
-  = TmLit i
-replaceVar TmTop _ _
-  = TmTop
-replaceVar (TmAbs x' x't e) x v
-  = TmAbs x' x't (replaceVar e x v)
-replaceVar (TmApp e1 e2) x v
-  = TmApp (replaceVar e1 x v) (replaceVar e2 x v)
-replaceVar (TmTup e1 e2) x v
-  = TmTup (replaceVar e1 x v) (replaceVar e2 x v)
-replaceVar (TmRecCon l e) x v
-  = TmRecCon l (replaceVar e x v)
-replaceVar (TmRecFld e l) x v
-  = TmRecFld (replaceVar e x v) l
-replaceVar (TmCast c e) x v
-  = TmCast c (replaceVar e x v)
+subst :: Term -> Variable -> Term -> Term
+subst expr x v = case expr of
+  TmVar x' | x' == x   -> v
+           | otherwise -> TmVar x'
+  TmLit i        -> TmLit i
+  TmTop          -> TmTop
+  TmAbs x' x't e -> TmAbs x' x't (subst e x v)
+  TmApp e1 e2    -> TmApp (subst e1 x v) (subst e2 x v)
+  TmTup e1 e2    -> TmTup (subst e1 x v) (subst e2 x v)
+  TmRecCon l e   -> TmRecCon l (subst e x v)
+  TmRecFld e l   -> TmRecFld (subst e x v) l
+  TmCast c e     -> TmCast c (subst e x v)
 
 
 eval :: Term -> Maybe Term
@@ -184,7 +174,7 @@ eval (TmApp e1 e2)
   = Just (TmTup (TmApp v1 e2) (TmApp v2 e2))
   -- STEP-BETA
   | TmAbs x _ e <- e1
-  = Just (replaceVar e x e2)
+  = Just (subst e x e2)
 
 -- STEP-PAIR1 & STEP-PAIR2
 eval (TmTup e1 e2)
