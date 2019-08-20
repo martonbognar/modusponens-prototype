@@ -6,10 +6,6 @@ type Variable = String
 type Label    = String
 
 -- TODOs:
---   3. I slightly rewrote function "fullEval" to use pattern matching instead
---      of pattern guards. A general note: if your function is meant to be
---      exhaustive (not like function "eval"), use pattern matching instead of
---      pattern guards, so that you get better warnings from the compiler.
 --   4. Added some comments to separate the sections in the code. Some more
 --      top-level comments would be nice to have.
 
@@ -22,7 +18,14 @@ data Type
   | TyTup Type Type
   | TyArr Type Type
   | TyRec Label Type
-  deriving (Eq)
+
+eqTypes :: Type -> Type -> Bool
+eqTypes TyNat TyNat = True
+eqTypes TyTop TyTop = True
+eqTypes (TyTup t1 t2) (TyTup t3 t4) = eqTypes t1 t3 && eqTypes t2 t4
+eqTypes (TyArr t1 t2) (TyArr t3 t4) = eqTypes t1 t3 && eqTypes t2 t4
+eqTypes (TyRec l1 t1) (TyRec l2 t2) = eqTypes t1 t2 && l1 == l2
+eqTypes _ _ = False
 
 
 data Context
@@ -127,6 +130,9 @@ instance Show Coercion where
 
 -- * LambdaC Operational Semantics
 -- ----------------------------------------------------------------------------
+
+isValue :: Term -> Bool
+isValue _ = True
 
 replaceVar :: Term -> Variable -> Term -> Term
 replaceVar (TmVar x') x v
@@ -273,7 +279,7 @@ termType c (TmAbs x t1 e)
 termType c (TmApp e1 e2)
   | Just (TyArr t1 t2) <- termType c e1
   , Just t3            <- termType c e2
-  = if t1 == t3 then Just t2 else Nothing
+  = if eqTypes t1 t3 then Just t2 else Nothing
 -- TYP-PAIR
 termType c (TmTup e1 e2)
   | Just t1 <- termType c e1
@@ -283,7 +289,7 @@ termType c (TmTup e1 e2)
 termType c (TmCast co e)
   | Just t <- termType c e
   , Just (t1, t1') <- coercionType co
-  = if t == t1 then Just t1' else Nothing
+  = if eqTypes t t1 then Just t1' else Nothing
 -- TYP-RCD
 termType c (TmRecCon l e)
   | Just t <- termType c e
@@ -300,7 +306,7 @@ coercionType (CoRefl t)
   = Just (t, t)
 -- COTYP-TRANS
 coercionType (CoTrans c1 c2)
-  = if t2 == t2' then Just (t1, t3) else Nothing where
+  = if eqTypes t2 t2' then Just (t1, t3) else Nothing where
     Just (t2, t3) = coercionType c1
     Just (t1, t2') = coercionType c2
 -- COTYP-CoAnyTop
@@ -319,7 +325,7 @@ coercionType (CoArr c1 c2)
     Just (t2, t2') = coercionType c2
 -- COTYP-PAIR
 coercionType (CoPair c1 c2)
-  = if t1 == t1' then Just (t1, TyTup t2 t3) else Nothing where
+  = if eqTypes t1 t1' then Just (t1, TyTup t2 t3) else Nothing where
     Just (t1, t2) = coercionType c1
     Just (t1', t3) = coercionType c2
 -- COTYP-PROJL
