@@ -138,7 +138,14 @@ instance Show Coercion where
 -- ----------------------------------------------------------------------------
 
 isValue :: Term -> Bool
-isValue _ = True
+isValue (TmAbs _ _ _)            = True
+isValue TmTop                    = True
+isValue (TmLit _)                = True
+isValue (TmTup v1 v2)            = isValue v1 && isValue v2
+isValue (TmCast CoArr{} v) = isValue v
+isValue (TmCast CoDistArr{} v)     = isValue v
+isValue (TmCast CoTopArr v)      = isValue v
+isValue _                        = False
 
 subst :: Term -> Variable -> Term -> Term
 subst expr x v = case expr of
@@ -161,6 +168,7 @@ eval (TmApp e1 e2)
   = Just (TmApp e1' e2)
   -- STEP-APP2
   | Just e2' <- eval e2
+  , isValue e1
   = Just (TmApp e1 e2')
   -- STEP-TOPARR
   | TmCast CoTopArr TmTop <- e1
@@ -168,12 +176,18 @@ eval (TmApp e1 e2)
   = Just TmTop
   -- STEP-ARR
   | TmCast (CoArr c1 c2) v1 <- e1
+  , isValue v1
+  , isValue e2
   = Just (TmCast c2 (TmApp v1 (TmCast c1 e2)))
   -- STEP-DISTARR
   | TmCast CoDistArr{} (TmTup v1 v2) <- e1
+  , isValue v1
+  , isValue v2
+  , isValue e2
   = Just (TmTup (TmApp v1 e2) (TmApp v2 e2))
   -- STEP-BETA
   | TmAbs x _ e <- e1
+  , isValue e2
   = Just (subst e x e2)
 
 -- STEP-PAIR1 & STEP-PAIR2
@@ -181,11 +195,13 @@ eval (TmTup e1 e2)
   | Just e1' <- eval e1
   = Just (TmTup e1' e2)
   | Just e2' <- eval e2
+  , isValue e1
   = Just (TmTup e1 e2')
 
 -- STEP-PROJRCD
 eval (TmRecFld (TmRecCon l v) l1)
   | l == l1
+  , isValue v
   = Just v
 
 -- STEP-RCD1
@@ -204,12 +220,15 @@ eval (TmCast c e)
   = Just (TmCast c e')
   -- STEP-ID
   | CoRefl _ <- c
+  , isValue e
   = Just e
 -- STEP-TRANS
   | CoTrans c1 c2 <- c
+  , isValue e
   = Just (TmCast c1 (TmCast c2 e))
 -- SET-TOP
   | CoAnyTop _ <- c
+  , isValue e
   = Just TmTop
 -- STEP-TOPRCD
   | CoTopRec l <- c
@@ -217,22 +236,30 @@ eval (TmCast c e)
   = Just (TmRecCon l TmTop)
 -- STEP-PAIR
   | CoPair c1 c2 <- c
+  , isValue e
   = Just (TmTup (TmCast c1 e) (TmCast c2 e))
 -- STEP-DISTRCD
   | CoDistRec l _ _ <- c
   , TmTup (TmRecCon l1 v1) (TmRecCon l2 v2) <- e
+  , isValue v1
+  , isValue v2
   = if l == l1 && l1 == l2 then Just (TmRecCon l (TmTup v1 v2)) else Nothing
 -- STEP-PROJL
   | CoLeft _ _ <- c
-  , TmTup v1 _ <- e
+  , TmTup v1 v2 <- e
+  , isValue v1
+  , isValue v2
   = Just v1
 -- STEP-PROJR
   | CoRight _ _ <- c
-  , TmTup _ v2 <- e
+  , TmTup v1 v2 <- e
+  , isValue v1
+  , isValue v2
   = Just v2
 -- STEP-CRCD
   | CoRec l co <- c
   , TmRecCon l1 v <- e
+  , isValue v
   = if l == l1 then Just (TmRecCon l (TmCast co v)) else Nothing
 
 eval _ = Nothing
