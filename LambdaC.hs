@@ -88,7 +88,7 @@ instance Show Term where
   show (TmRecFld t l)
     = show t ++ "." ++ show l
   show (TmCast c t)
-  = show c ++ " " ++ show t
+    = show c ++ " " ++ show t
 
 
 instance Show Coercion where
