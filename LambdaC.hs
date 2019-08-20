@@ -10,6 +10,7 @@ type Label    = String
 --   2. Naming conventions for all data types
 --   3. Fix order in evaluation functions
 --   4. Re-enable -Wall
+--   5. Careful with the guards in eval
 
 data Type
   = TyNat
@@ -179,6 +180,8 @@ eval (TmCast c e) = Just (TmCast c e') where Just e' = eval e
 eval (TmRecCon l e) = Just (TmRecCon l e') where Just e' = eval e
 -- STEP-RCD2
 eval (TmRecFld e l) = Just (TmRecFld e' l) where Just e' = eval e
+
+-- eval _ = Nothing
 
 fullEval :: Term -> Term
 fullEval t = case eval t of
