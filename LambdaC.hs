@@ -330,10 +330,12 @@ coercionType :: Coercion -> Maybe (Type, Type)
 coercionType (CoRefl t)
   = Just (t, t)
 -- COTYP-TRANS
-coercionType (CoTrans c1 c2)
-  = if eqTypes t2 t2' then Just (t1, t3) else Nothing where
-    Just (t2, t3) = coercionType c1
-    Just (t1, t2') = coercionType c2
+coercionType (CoTrans c1 c2) = do
+  (t2, t3)  <- coercionType c1
+  (t1, t2') <- coercionType c2
+  if eqTypes t2 t2'
+    then return (t1, t3)
+    else Nothing
 -- COTYP-CoAnyTop
 coercionType (CoAnyTop t)
   = Just (t, TyTop)
