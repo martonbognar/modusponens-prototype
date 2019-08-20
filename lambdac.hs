@@ -1,27 +1,35 @@
 type Variable = String
 type Label    = String
 
-data Type = NatType |
-            UnitType |
-            TupleType Type Type |
-            FunctionType Type Type |
-            RecordType Label Type
-            deriving (Eq)
+-- TODOs:
+--   1. Unit ==> Top
+--   2. Naming conventions for all data types
+--   3. Fix order in evaluation functions
 
-data Context = Empty |
-               Extended Context Term Type
-               deriving (Eq)
+data Type
+  = TyNat
+  | TyUnit
+  | TyTup Type Type
+  | TyArr Type Type
+  | TyRec Label Type
+  deriving (Eq)
 
-data Term = Var Variable |
-            Num Int |
-            UnitTerm |
-            LambdaTerm Variable Type Term |
-            Application Term Term |
-            TupleTerm Term Term |
-            Assign Label Term |
-            Extract Term Label |
-            CoercionTerm Coercion Term
-            deriving (Eq)
+data Context
+  = Empty
+  | Snoc Context Term Type
+  deriving (Eq)
+
+data Term
+  = Var Variable
+  | Num Int
+  | UnitTerm
+  | TmAbs Variable Type Term
+  | Application Term Term
+  | TupleTerm Term Term
+  | TmRecCon Label Term
+  | TmRecFld Term Label
+  | TmCast Coercion Term
+  deriving (Eq)
 
 data Coercion = Id Type |
                 Composition Coercion Coercion |
@@ -47,26 +55,26 @@ data Coercion = Id Type |
 --              deriving (Eq)
 
 instance Show Type where
-  show NatType              = "Nat"
-  show UnitType             = "Unit"
-  show (TupleType t1 t2)    = show t1 ++ "x" ++ show t2
-  show (FunctionType t1 t2) = show t1 ++ "->" ++ show t2
-  show (RecordType l t)     = "{" ++ show l ++ " : " ++ show t ++ "}"
+  show TyNat         = "Nat"
+  show TyUnit        = "Unit"
+  show (TyTup t1 t2) = show t1 ++ "x" ++ show t2
+  show (TyArr t1 t2) = show t1 ++ "->" ++ show t2
+  show (TyRec l t)   = "{" ++ show l ++ " : " ++ show t ++ "}"
 
 instance Show Context where
   show Empty            = "(.)"
-  show (Extended c v t) = show c ++ ", " ++ show v ++ " : " ++ show t
+  show (Snoc c v t) = show c ++ ", " ++ show v ++ " : " ++ show t
 
 instance Show Term where
   show (Var v)             = show v
   show (Num i)             = show i
   show UnitTerm            = "()"
-  show (LambdaTerm v vt t) = "\\(" ++ show v ++ " : " ++ show vt ++ ")." ++ show t
+  show (TmAbs v vt t) = "\\(" ++ show v ++ " : " ++ show vt ++ ")." ++ show t
   show (Application t1 t2) = show t1 ++ " " ++ show t2
   show (TupleTerm t1 t2)   = "(" ++ show t1 ++ ", " ++ show t2 ++ ")"
-  show (Assign l t)        = "{" ++ show l ++ " = " ++ show t ++ "}"
-  show (Extract t l)       = show t ++ "." ++ show l
-  show (CoercionTerm c t)  = show c ++ " " ++ show t
+  show (TmRecCon l t)        = "{" ++ show l ++ " = " ++ show t ++ "}"
+  show (TmRecFld t l)       = show t ++ "." ++ show l
+  show (TmCast c t)  = show c ++ " " ++ show t
 
 instance Show Coercion where
   show (Id t)                = "id{" ++ show t ++ "}"
@@ -97,54 +105,63 @@ replaceVar (Var v1) v e
   | otherwise = Var v
 replaceVar (Num i) v e = Num i
 replaceVar UnitTerm v e = UnitTerm
-replaceVar (LambdaTerm v1 v1t t) v e = LambdaTerm v1 v1t (replaceVar t v e)
+replaceVar (TmAbs v1 v1t t) v e = TmAbs v1 v1t (replaceVar t v e)
 replaceVar (Application t1 t2) v e = Application (replaceVar t1 v e) (replaceVar t2 v e)
 replaceVar (TupleTerm t1 t2) v e = TupleTerm (replaceVar t1 v e) (replaceVar t2 v e)
-replaceVar (Assign l t) v e = Assign l (replaceVar t v e)
-replaceVar (Extract t l) v e = Extract (replaceVar t v e) l
-replaceVar (CoercionTerm c t) v e = CoercionTerm c (replaceVar t v e)
+replaceVar (TmRecCon l t) v e = TmRecCon l (replaceVar t v e)
+replaceVar (TmRecFld t l) v e = TmRecFld (replaceVar t v e) l
+replaceVar (TmCast c t) v e = TmCast c (replaceVar t v e)
 
 eval :: Term -> Maybe Term
--- STEP-ID
-eval (CoercionTerm (Id xt) v) = Just v
+-- STEP-APP1 & STEP-APP2
+eval (Application e1 e2)
+  -- STEP-APP1
+  | Just e1' <- eval e1
+  = Just (Application e1' e2)
+  -- STEP-APP2
+  | Just e2' <- eval e2
+  = Just (Application e1 e2')
+
+
+
+ -- STEP-ID
+eval (TmCast (Id xt) v) = Just v
 -- STEP-TRANS
-eval (CoercionTerm (Composition c1 c2) v) = Just (CoercionTerm c1 (CoercionTerm c2 v))
+eval (TmCast (Composition c1 c2) v) = Just (TmCast c1 (TmCast c2 v))
 -- SET-TOP
-eval (CoercionTerm (Top _) v) = Just UnitTerm
+eval (TmCast (Top _) v) = Just UnitTerm
 -- STEP-TOPARR
-eval (Application (CoercionTerm TopArrow UnitTerm) UnitTerm) = Just UnitTerm
+eval (Application (TmCast TopArrow UnitTerm) UnitTerm) = Just UnitTerm
+
+
 -- STEP-TOPRCD
-eval (CoercionTerm (TopLabel l) UnitTerm) = Just (Assign l UnitTerm)
+eval (TmCast (TopLabel l) UnitTerm) = Just (TmRecCon l UnitTerm)
 -- STEP-ARR
-eval (Application (CoercionTerm (Function c1 c2) v1) v2) = Just (CoercionTerm c2 (Application v1 (CoercionTerm c1 v2)))
+eval (Application (TmCast (Function c1 c2) v1) v2) 
+  = Just (TmCast c2 (Application v1 (TmCast c1 v2)))
+
 -- STEP-PAIR
-eval (CoercionTerm (TupleCoercion c1 c2) v) = Just (TupleTerm (CoercionTerm c1 v) (CoercionTerm c2 v))
+eval (TmCast (TupleCoercion c1 c2) v) = Just (TupleTerm (TmCast c1 v) (TmCast c2 v))
 -- STEP-DISTARR
-eval (Application (CoercionTerm (DistArrow _ _ _) (TupleTerm v1 v2)) v3) = Just (TupleTerm (Application v1 v3) (Application v2 v3))
+eval (Application (TmCast (DistArrow _ _ _) (TupleTerm v1 v2)) v3) = Just (TupleTerm (Application v1 v3) (Application v2 v3))
 -- STEP-DISTRCD
-eval (CoercionTerm (DistLabel l _ _) (TupleTerm (Assign l1 v1) (Assign l2 v2)))
-  | l == l1 && l1 == l2 = Just (Assign l (TupleTerm v1 v2))
+eval (TmCast (DistLabel l _ _) (TupleTerm (TmRecCon l1 v1) (TmRecCon l2 v2)))
+  | l == l1 && l1 == l2 = Just (TmRecCon l (TupleTerm v1 v2))
   | otherwise = Nothing
 -- STEP-PROJL
-eval (CoercionTerm (Project1 _ _) (TupleTerm v1 v2)) = Just v1
+eval (TmCast (Project1 _ _) (TupleTerm v1 v2)) = Just v1
 -- STEP-PROJR
-eval (CoercionTerm (Project2 _ _) (TupleTerm v1 v2)) = Just v2
+eval (TmCast (Project2 _ _) (TupleTerm v1 v2)) = Just v2
 -- STEP-CRCD
-eval (CoercionTerm (RecordCoercion l c) (Assign l1 v))
-  | l == l1 = Just (Assign l (CoercionTerm c v))
+eval (TmCast (RecordCoercion l c) (TmRecCon l1 v))
+  | l == l1 = Just (TmRecCon l (TmCast c v))
   | otherwise = Nothing
 -- STEP-BETA
-eval (Application (LambdaTerm x xt e) v) = Just e' where e' = replaceVar e x v
+eval (Application (TmAbs x xt e) v) = Just e' where e' = replaceVar e x v
 -- STEP-PROJRCD
-eval (Extract (Assign l v) l1)
+eval (TmRecFld (TmRecCon l v) l1)
   | l == l1 = Just v
   | otherwise = Nothing
--- STEP-APP1 & STEP-APP2
-eval (Application e1 e2) = case eval e1 of
-  Just e1' -> Just (Application e1' e2)
-  Nothing -> case eval e2 of
-    Just e2' -> Just (Application e1 e2')
-    Nothing -> Nothing
 -- STEP-PAIR1 & STEP-PAIR2
 eval (TupleTerm e1 e2) = case eval e1 of
   Just e1' -> Just (TupleTerm e1' e2)
@@ -152,11 +169,11 @@ eval (TupleTerm e1 e2) = case eval e1 of
     Just e2' -> Just (TupleTerm e1 e2')
     Nothing -> Nothing
 -- STEP-CAPP
-eval (CoercionTerm c e) = Just (CoercionTerm c e') where Just e' = eval e
+eval (TmCast c e) = Just (TmCast c e') where Just e' = eval e
 -- STEP-RCD1
-eval (Assign l e) = Just (Assign l e') where Just e' = eval e
+eval (TmRecCon l e) = Just (TmRecCon l e') where Just e' = eval e
 -- STEP-RCD2
-eval (Extract e l) = Just (Extract e' l) where Just e' = eval e
+eval (TmRecFld e l) = Just (TmRecFld e' l) where Just e' = eval e
 
 fullEval :: Term -> Term
 fullEval t = case eval t of
@@ -165,39 +182,39 @@ fullEval t = case eval t of
 
 typeFromContext :: Context -> Term -> Maybe Type
 typeFromContext Empty _ = Nothing
-typeFromContext (Extended c te ty) t
+typeFromContext (Snoc c te ty) t
   | t == te = Just ty
   | otherwise = typeFromContext c t
 
 termType :: Context -> Term -> Maybe Type
 -- TYP-UNIT
-termType _ UnitTerm = Just UnitType
+termType _ UnitTerm = Just TyUnit
 -- TYP-LIT
-termType _ (Num _) = Just NatType
+termType _ (Num _) = Just TyNat
 -- TYP-VAR
 termType c (Var x) = typeFromContext c (Var x)
 -- TYP-ABS
-termType c (LambdaTerm x xt e) = case typeFromContext (Extended c (Var x) xt) e of
-  Just et -> Just (FunctionType xt et)
+termType c (TmAbs x xt e) = case typeFromContext (Snoc c (Var x) xt) e of
+  Just et -> Just (TyArr xt et)
   Nothing -> Nothing
 -- TYP-APP
 termType c (Application e1 e2) = if t1 == t3 then Just t2 else Nothing where
-    Just (FunctionType t1 t2) = typeFromContext c e1
+    Just (TyArr t1 t2) = typeFromContext c e1
     Just t3 = typeFromContext c e2
 -- TYP-PAIR
-termType c (TupleTerm e1 e2) = Just (TupleType t1 t2) where
+termType c (TupleTerm e1 e2) = Just (TyTup t1 t2) where
   Just t1 = typeFromContext c e1
   Just t2 = typeFromContext c e2
 -- TYP-CAPP
-termType c (CoercionTerm co e) = if t1 == t2 then Just t' else Nothing where
+termType c (TmCast co e) = if t1 == t2 then Just t' else Nothing where
   Just t1 = typeFromContext c e
   Just (t2, t') = coercionType co
 -- TYP-RCD
-termType c (Assign l e) = Just (RecordType l t) where
+termType c (TmRecCon l e) = Just (TyRec l t) where
   Just t = typeFromContext c e
 -- TYP--PROJ
-termType c (Extract e l) = Just t where
-  Just (RecordType l t) = typeFromContext c e
+termType c (TmRecFld e l) = Just t where
+  Just (TyRec l t) = typeFromContext c e
 
 coercionType :: Coercion -> Maybe (Type, Type)
 -- COTYP-REFL
@@ -207,27 +224,27 @@ coercionType (Composition c1 c2) = if t2 == t2' then Just (t1, t3) else Nothing 
   Just (t2, t3) = coercionType c1
   Just (t1, t2') = coercionType c2
 -- COTYP-TOP
-coercionType (Top t) = Just (t, UnitType)
+coercionType (Top t) = Just (t, TyUnit)
 -- COTYP-TOPARR
-coercionType TopArrow = Just (UnitType, FunctionType UnitType UnitType)
+coercionType TopArrow = Just (TyUnit, TyArr TyUnit TyUnit)
 -- COTYP-TOPRCD
-coercionType (TopLabel l) = Just (UnitType, RecordType l UnitType)
+coercionType (TopLabel l) = Just (TyUnit, TyRec l TyUnit)
 -- COTYP-ARR
-coercionType (Function c1 c2) = Just (FunctionType t1 t2, FunctionType t1' t2') where
+coercionType (Function c1 c2) = Just (TyArr t1 t2, TyArr t1' t2') where
   Just (t1', t1) = coercionType c1
   Just (t2, t2') = coercionType c2
 -- COTYP-PAIR
-coercionType (TupleCoercion c1 c2) = if t1 == t1' then Just (t1, TupleType t2 t3) else Nothing where
+coercionType (TupleCoercion c1 c2) = if t1 == t1' then Just (t1, TyTup t2 t3) else Nothing where
   Just (t1, t2) = coercionType c1
   Just (t1', t3) = coercionType c2
 -- COTYP-PROJL
-coercionType (Project1 t1 t2) = Just (TupleType t1 t2, t1)
+coercionType (Project1 t1 t2) = Just (TyTup t1 t2, t1)
 -- COTYP-PROJR
-coercionType (Project2 t1 t2) = Just (TupleType t1 t2, t2)
+coercionType (Project2 t1 t2) = Just (TyTup t1 t2, t2)
 -- COTYP-RCD
-coercionType (RecordCoercion l c) = Just (RecordType l t1, RecordType l t2) where
+coercionType (RecordCoercion l c) = Just (TyRec l t1, TyRec l t2) where
   Just (t1, t2) = coercionType c
 -- COTYP-DISTRCD
-coercionType (DistLabel l t1 t2) = Just (TupleType (RecordType l t1) (RecordType l t2), RecordType l (TupleType t1 t2))
+coercionType (DistLabel l t1 t2) = Just (TyTup (TyRec l t1) (TyRec l t2), TyRec l (TyTup t1 t2))
 -- COTYP-DISTARR
-coercionType (DistArrow t1 t2 t3) = Just (TupleType (FunctionType t1 t2) (FunctionType t1 t3), FunctionType t1 (TupleType t2 t3))
+coercionType (DistArrow t1 t2 t3) = Just (TyTup (TyArr t1 t2) (TyArr t1 t3), TyArr t1 (TyTup t2 t3))
