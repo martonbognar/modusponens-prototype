@@ -36,7 +36,7 @@ data Type
 
 data Context
   = Empty
-  | Snoc Context Term Type
+  | Snoc Context Variable Type
   deriving (Eq)
 
 
@@ -251,14 +251,14 @@ fullEval t = case eval t of
 -- * LambdaC Typing
 -- ----------------------------------------------------------------------------
 
-typeFromContext :: Context -> Term -> Maybe Type
+typeFromContext :: Context -> Variable -> Maybe Type
 typeFromContext Empty _
   = Nothing
-typeFromContext (Snoc c te ty) t
-  | t == te
-  = Just ty
+typeFromContext (Snoc c v vt) x
+  | v == x
+  = Just vt
   | otherwise
-  = typeFromContext c t
+  = typeFromContext c x
 
 
 termType :: Context -> Term -> Maybe Type
@@ -270,10 +270,10 @@ termType _ (TmLit _)
   = Just TyNat
 -- TYP-TmVar
 termType c (TmVar x)
-  = typeFromContext c (TmVar x)
+  = typeFromContext c x
 -- TYP-ABS
 termType c (TmAbs x t1 e)
-  | Just t2 <- termType (Snoc c (TmVar x) t1) e
+  | Just t2 <- termType (Snoc c x t1) e
   = Just (TyArr t1 t2)
 -- TYP-APP
 termType c (TmApp e1 e2)
