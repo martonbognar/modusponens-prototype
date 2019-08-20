@@ -5,13 +5,10 @@ module LambdaC where
 type Variable = String
 type Label    = String
 
--- TODOs:
---   4. Added some comments to separate the sections in the code. Some more
---      top-level comments would be nice to have.
-
 -- * Main LambdaC types
 -- ----------------------------------------------------------------------------
 
+-- | Target types
 data Type
   = TyNat
   | TyTop
@@ -19,26 +16,14 @@ data Type
   | TyArr Type Type
   | TyRec Label Type
 
-eqTypes :: Type -> Type -> Bool
-eqTypes TyNat TyNat
-  = True
-eqTypes TyTop TyTop
-  = True
-eqTypes (TyTup t1 t2) (TyTup t3 t4)
-  = eqTypes t1 t3 && eqTypes t2 t4
-eqTypes (TyArr t1 t2) (TyArr t3 t4)
-  = eqTypes t1 t3 && eqTypes t2 t4
-eqTypes (TyRec l1 t1) (TyRec l2 t2)
-  = eqTypes t1 t2 && l1 == l2
-eqTypes _ _
-  = False
 
-
+-- | Typing contexts
 data Context
   = Empty
   | Snoc Context Variable Type
 
 
+-- | Target terms
 data Term
   = TmVar Variable
   | TmLit Int
@@ -51,6 +36,7 @@ data Term
   | TmCast Coercion Term
 
 
+-- | Coercions
 data Coercion
   = CoRefl Type
   | CoTrans Coercion Coercion
@@ -134,19 +120,32 @@ instance Show Coercion where
     = "dist-> (" ++ show t1 ++ "->" ++ show t2 ++ ", "
       ++ show t1 ++ "->" ++ show t3 ++ ")"
 
+
+-- | Determine equality between two types.
+eqTypes :: Type -> Type -> Bool
+eqTypes TyNat TyNat                 = True
+eqTypes TyTop TyTop                 = True
+eqTypes (TyTup t1 t2) (TyTup t3 t4) = eqTypes t1 t3 && eqTypes t2 t4
+eqTypes (TyArr t1 t2) (TyArr t3 t4) = eqTypes t1 t3 && eqTypes t2 t4
+eqTypes (TyRec l1 t1) (TyRec l2 t2) = eqTypes t1 t2 && l1 == l2
+eqTypes _ _                         = False
+
 -- * LambdaC Operational Semantics
 -- ----------------------------------------------------------------------------
 
+-- | Determine whether a term is a target value.
 isValue :: Term -> Bool
 isValue (TmAbs _ _ _)            = True
 isValue TmTop                    = True
 isValue (TmLit _)                = True
 isValue (TmTup v1 v2)            = isValue v1 && isValue v2
-isValue (TmCast CoArr{} v) = isValue v
-isValue (TmCast CoDistArr{} v)     = isValue v
+isValue (TmCast CoArr{} v)       = isValue v
+isValue (TmCast CoDistArr{} v)   = isValue v
 isValue (TmCast CoTopArr v)      = isValue v
 isValue _                        = False
 
+
+-- | In a given term, substitue a variable with another term.
 subst :: Term -> Variable -> Term -> Term
 subst expr x v = case expr of
   TmVar x' | x' == x   -> v
@@ -161,6 +160,7 @@ subst expr x v = case expr of
   TmCast c e     -> TmCast c (subst e x v)
 
 
+-- | Execute small-step reduction on a term.
 eval :: Term -> Maybe Term
 eval (TmApp e1 e2)
   -- STEP-APP1
@@ -265,7 +265,7 @@ eval (TmCast c e)
 eval _ = Nothing
 
 
--- | Fully evaluate an expression.
+-- | Fully evaluate a term.
 fullEval :: Term -> Term
 fullEval t = case eval t of
   Just st -> fullEval st
@@ -274,16 +274,15 @@ fullEval t = case eval t of
 -- * LambdaC Typing
 -- ----------------------------------------------------------------------------
 
+-- | Get the type of a variable from a context.
 typeFromContext :: Context -> Variable -> Maybe Type
-typeFromContext Empty _
-  = Nothing
+typeFromContext Empty _ = Nothing
 typeFromContext (Snoc c v vt) x
-  | v == x
-  = Just vt
-  | otherwise
-  = typeFromContext c x
+  | v == x    = Just vt
+  | otherwise = typeFromContext c x
 
 
+-- | In a given context, determine the type of a term.
 termType :: Context -> Term -> Maybe Type
 -- TYP-UNIT
 termType _ TmTop
@@ -322,7 +321,10 @@ termType c (TmRecFld e l)
   | Just (TyRec l1 t) <- termType c e
   = if l == l1 then Just t else Nothing
 
+termType _ _ = Nothing
 
+
+-- | Determine the type of a coercion.
 coercionType :: Coercion -> Maybe (Type, Type)
 -- COTYP-REFL
 coercionType (CoRefl t)
