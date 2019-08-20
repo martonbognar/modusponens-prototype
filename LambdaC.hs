@@ -120,27 +120,27 @@ instance Show Coercion where
 
 
 replaceVar :: Term -> Variable -> Term -> Term
-replaceVar (TmVar v1) v e
-  | v == v1
-  = e
+replaceVar (TmVar x') x v
+  | x' == x
+  = v
   | otherwise
-  = TmVar v
+  = TmVar x'
 replaceVar (TmLit i) _ _
   = TmLit i
 replaceVar TmTop _ _
   = TmTop
-replaceVar (TmAbs v1 v1t t) v e
-  = TmAbs v1 v1t (replaceVar t v e)
-replaceVar (TmApp t1 t2) v e
-  = TmApp (replaceVar t1 v e) (replaceVar t2 v e)
-replaceVar (TmTup t1 t2) v e
-  = TmTup (replaceVar t1 v e) (replaceVar t2 v e)
-replaceVar (TmRecCon l t) v e
-  = TmRecCon l (replaceVar t v e)
-replaceVar (TmRecFld t l) v e
-  = TmRecFld (replaceVar t v e) l
-replaceVar (TmCast c t) v e
-  = TmCast c (replaceVar t v e)
+replaceVar (TmAbs x' x't e) x v
+  = TmAbs x' x't (replaceVar e x v)
+replaceVar (TmApp e1 e2) x v
+  = TmApp (replaceVar e1 x v) (replaceVar e2 x v)
+replaceVar (TmTup e1 e2) x v
+  = TmTup (replaceVar e1 x v) (replaceVar e2 x v)
+replaceVar (TmRecCon l e) x v
+  = TmRecCon l (replaceVar e x v)
+replaceVar (TmRecFld e l) x v
+  = TmRecFld (replaceVar e x v) l
+replaceVar (TmCast c e) x v
+  = TmCast c (replaceVar e x v)
 
 
 eval :: Term -> Maybe Term
