@@ -265,7 +265,8 @@ termType c (TmAbs x t1 e)
   = Just (TyArr t1 t2)
 -- TYP-APP
 termType c (TmApp e1 e2)
-  | (Just (TyArr t1 t2), Just t3) <- (termType c e1, termType c e2)
+  | Just (TyArr t1 t2) <- termType c e1
+  , Just t3            <- termType c e2
   = if t1 == t3 then Just t2 else Nothing
 -- TYP-PAIR
 termType c (TmTup e1 e2)
