@@ -1,3 +1,7 @@
+-- {-# OPTIONS_GHC -Wall #-}
+
+module LambdaC where
+
 type Variable = String
 type Label    = String
 
@@ -5,6 +9,7 @@ type Label    = String
 --   1. Unit ==> Top
 --   2. Naming conventions for all data types
 --   3. Fix order in evaluation functions
+--   4. Re-enable -Wall
 
 data Type
   = TyNat
