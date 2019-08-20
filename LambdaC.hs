@@ -161,17 +161,18 @@ eval (TmApp e1 e2)
   | Just e2' <- eval e2
   = Just (TmApp e1 e2')
   -- STEP-TOPARR
-  | (TmCast CoTopArr TmTop, TmTop) <- (e1, e2)
+  | TmCast CoTopArr TmTop <- e1
+  , TmTop <- e2
   = Just TmTop
   -- STEP-ARR
-  | (TmCast (CoArr c1 c2) v1, v2) <- (e1, e2)
-  = Just (TmCast c2 (TmApp v1 (TmCast c1 v2)))
+  | TmCast (CoArr c1 c2) v1 <- e1
+  = Just (TmCast c2 (TmApp v1 (TmCast c1 e2)))
   -- STEP-DISTARR
-  | (TmCast CoDistArr{} (TmTup v1 v2), v3) <- (e1, e2)
-  = Just (TmTup (TmApp v1 v3) (TmApp v2 v3))
+  | TmCast CoDistArr{} (TmTup v1 v2) <- e1
+  = Just (TmTup (TmApp v1 e2) (TmApp v2 e2))
   -- STEP-BETA
-  | (TmAbs x _ e, v) <- (e1, e2)
-  = Just (replaceVar e x v)
+  | TmAbs x _ e <- e1
+  = Just (replaceVar e x e2)
 
 -- STEP-PAIR1 & STEP-PAIR2
 eval (TmTup e1 e2)
@@ -200,31 +201,36 @@ eval (TmCast c e)
   | Just e' <- eval e
   = Just (TmCast c e')
   -- STEP-ID
-  | (CoRefl _, v) <- (c, e)
-  = Just v
+  | CoRefl _ <- c
+  = Just e
 -- STEP-TRANS
-  | (CoTrans c1 c2, v) <- (c, e)
-  = Just (TmCast c1 (TmCast c2 v))
+  | CoTrans c1 c2 <- c
+  = Just (TmCast c1 (TmCast c2 e))
 -- SET-TOP
-  | (CoAnyTop _, _) <- (c, e)
+  | CoAnyTop _ <- c
   = Just TmTop
 -- STEP-TOPRCD
-  | (CoTopRec l, TmTop) <- (c, e)
+  | CoTopRec l <- c
+  , TmTop <- e
   = Just (TmRecCon l TmTop)
 -- STEP-PAIR
-  | (CoPair c1 c2, v) <- (c, e)
-  = Just (TmTup (TmCast c1 v) (TmCast c2 v))
+  | CoPair c1 c2 <- c
+  = Just (TmTup (TmCast c1 e) (TmCast c2 e))
 -- STEP-DISTRCD
-  | (CoDistRec l _ _, TmTup (TmRecCon l1 v1) (TmRecCon l2 v2)) <- (c, e)
+  | CoDistRec l _ _ <- c
+  , TmTup (TmRecCon l1 v1) (TmRecCon l2 v2) <- e
   = if l == l1 && l1 == l2 then Just (TmRecCon l (TmTup v1 v2)) else Nothing
 -- STEP-PROJL
-  | (CoLeft _ _, TmTup v1 _) <- (c, e)
+  | CoLeft _ _ <- c
+  , TmTup v1 _ <- e
   = Just v1
 -- STEP-PROJR
-  | (CoRight _ _, TmTup _ v2) <- (c, e)
+  | CoRight _ _ <- c
+  , TmTup _ v2 <- e
   = Just v2
 -- STEP-CRCD
-  | (CoRec l co, TmRecCon l1 v) <- (c, e)
+  | CoRec l co <- c
+  , TmRecCon l1 v <- e
   = if l == l1 then Just (TmRecCon l (TmCast co v)) else Nothing
 
 eval _ = Nothing
@@ -270,11 +276,13 @@ termType c (TmApp e1 e2)
   = if t1 == t3 then Just t2 else Nothing
 -- TYP-PAIR
 termType c (TmTup e1 e2)
-  | (Just t1, Just t2) <- (termType c e1, termType c e2)
+  | Just t1 <- termType c e1
+  , Just t2 <- termType c e2
   = Just (TyTup t1 t2)
 -- TYP-CAPP
 termType c (TmCast co e)
-  | (Just t, Just (t1, t1')) <- (termType c e, coercionType co)
+  | Just t <- termType c e
+  , Just (t1, t1') <- coercionType co
   = if t == t1 then Just t1' else Nothing
 -- TYP-RCD
 termType c (TmRecCon l e)
