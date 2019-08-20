@@ -6,15 +6,6 @@ type Variable = String
 type Label    = String
 
 -- TODOs:
---   1. Best if you remove the "deriving (Eq)" from the datatypes. There are
---      many different ways in which they be considered equal so it's best if
---      equality is not supported at all, to avoid the confusion.
---   2. Contexts should contain term variables with their types, not terms with
---      their types. Thus, function "typeFromContext" should actually have
---      type:
---
---        typeFromContext :: Context -> Variable -> Maybe Type
---
 --   3. I slightly rewrote function "fullEval" to use pattern matching instead
 --      of pattern guards. A general note: if your function is meant to be
 --      exhaustive (not like function "eval"), use pattern matching instead of
@@ -37,7 +28,6 @@ data Type
 data Context
   = Empty
   | Snoc Context Variable Type
-  deriving (Eq)
 
 
 data Term
@@ -50,7 +40,6 @@ data Term
   | TmRecCon Label Term
   | TmRecFld Term Label
   | TmCast Coercion Term
-  deriving (Eq)
 
 
 data Coercion
@@ -66,7 +55,6 @@ data Coercion
   | CoRec Label Coercion
   | CoDistRec Label Type Type
   | CoDistArr Type Type Type
-  deriving (Eq)
 
 
 instance Show Type where
