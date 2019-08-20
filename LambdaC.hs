@@ -20,12 +20,18 @@ data Type
   | TyRec Label Type
 
 eqTypes :: Type -> Type -> Bool
-eqTypes TyNat TyNat = True
-eqTypes TyTop TyTop = True
-eqTypes (TyTup t1 t2) (TyTup t3 t4) = eqTypes t1 t3 && eqTypes t2 t4
-eqTypes (TyArr t1 t2) (TyArr t3 t4) = eqTypes t1 t3 && eqTypes t2 t4
-eqTypes (TyRec l1 t1) (TyRec l2 t2) = eqTypes t1 t2 && l1 == l2
-eqTypes _ _ = False
+eqTypes TyNat TyNat
+  = True
+eqTypes TyTop TyTop
+  = True
+eqTypes (TyTup t1 t2) (TyTup t3 t4)
+  = eqTypes t1 t3 && eqTypes t2 t4
+eqTypes (TyArr t1 t2) (TyArr t3 t4)
+  = eqTypes t1 t3 && eqTypes t2 t4
+eqTypes (TyRec l1 t1) (TyRec l2 t2)
+  = eqTypes t1 t2 && l1 == l2
+eqTypes _ _
+  = False
 
 
 data Context
