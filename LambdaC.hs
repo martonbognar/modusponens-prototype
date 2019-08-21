@@ -67,80 +67,62 @@ eqTypes _ _                         = False
 -- * Pretty Printing
 -- ----------------------------------------------------------------------------
 
-prLabel :: Label -> Doc
-prLabel = text
+instance PrettyPrint Type where
+  ppr TyNat         = ppr "Nat"
+  ppr TyTop         = ppr "Unit"
+  ppr (TyTup t1 t2) = hsep [ppr t1, ppr "✕", ppr t2]
+  ppr (TyArr t1 t2) = hsep [ppr t1, arrow, ppr t2]
+  ppr (TyRec l t)   = braces $ hsep [ppr l, colon, ppr t]
 
+instance PrettyPrint Context where
+  ppr Empty        = ppr "•"
+  ppr (Snoc c v t) = hcat [ppr c, comma, ppr v, colon, ppr t]
 
-prVariable :: Variable -> Doc
-prVariable = text
+instance PrettyPrint Term where
+  ppr (TmVar v)      = ppr v
+  ppr (TmLit i)      = ppr i
+  ppr TmTop          = parens empty
+  ppr (TmAbs v vt t)
+    = hcat [ppr "\\", parens $ hsep [ppr v, colon, ppr vt], ppr t]
+  ppr (TmApp t1 t2)  = ppr t1 <+> ppr t2
+  ppr (TmTup t1 t2)  = parensList [ppr t1, ppr t2]
+  ppr (TmRecCon l t) = braces $ hsep [ppr l, equals, ppr t]
+  ppr (TmRecFld t l) = hcat [ppr t, dot, ppr l]
+  ppr (TmCast c t)   = ppr c <+> ppr t
 
-
-prType :: Type -> Doc
-prType TyNat         = text "Nat"
-prType TyTop         = text "Unit"
-prType (TyTup t1 t2) = hsep [prType t1, text "✕", prType t2]
-prType (TyArr t1 t2) = hsep [prType t1, arrow, prType t2]
-prType (TyRec l t)   = braces $ hsep [prLabel l, colon, prType t]
-
-
-prContext :: Context -> Doc
-prContext Empty = text "•"
-prContext (Snoc c v t)
-  = hcat [prContext c, comma, prVariable v, colon, prType t]
-
-
-prTerm :: Term -> Doc
-prTerm (TmVar v)      = prVariable v
-prTerm (TmLit i)      = int i
-prTerm TmTop          = parens empty
-prTerm (TmAbs v vt t)
-  = hcat [text "\\", parens $ hsep [prVariable v, colon, prType vt], prTerm t]
-prTerm (TmApp t1 t2)  = prTerm t1 <+> prTerm t2
-prTerm (TmTup t1 t2)  = parensList [prTerm t1, prTerm t2]
-prTerm (TmRecCon l t) = braces $ hsep [prLabel l, equals, prTerm t]
-prTerm (TmRecFld t l) = hcat [prTerm t, dot, prLabel l]
-prTerm (TmCast c t)   = prCoercion c <+> prTerm t
-
-
-prCoercion :: Coercion -> Doc
-prCoercion (CoRefl t)           = text "id" <> braces (prType t)
-prCoercion (CoTrans c1 c2)      = hsep [prCoercion c1, dot, prCoercion c2]
-prCoercion (CoAnyTop t)         = text "top" <> braces (prType t)
-prCoercion CoTopArr             = text "top" <> arrow
-prCoercion (CoTopRec l)         = text "top" <> braces (prLabel l)
-prCoercion (CoArr c1 c2)        = hsep [prCoercion c1, arrow, prCoercion c2]
-prCoercion (CoPair c1 c2)       = parensList [prCoercion c1, prCoercion c2]
-prCoercion (CoLeft t1 t2)
-  = hcat [text "π₁", parensList [prType t1, prType t2]]
-prCoercion (CoRight t1 t2)
-  = hcat [text "π₂", parensList [prType t1, prType t2]]
-prCoercion (CoRec l c)          = braces $ hsep [prLabel l, colon, prCoercion c]
-prCoercion (CoDistRec l t1 t2)
-  = hsep [text "dist", braces $ hcat [
-      prLabel l,
-      parensList [prType t1, prType t2]
-    ]]
-prCoercion (CoDistArr t1 t2 t3)
-  = hcat [text "dist" <> arrow, parensList [
-      hcat [prType t1, arrow, prType t2],
-      hcat [prType t1, arrow, prType t3]
-    ]]
-
+instance PrettyPrint Coercion where
+  ppr (CoRefl t)           = ppr "id" <> braces (ppr t)
+  ppr (CoTrans c1 c2)      = hsep [ppr c1, dot, ppr c2]
+  ppr (CoAnyTop t)         = ppr "top" <> braces (ppr t)
+  ppr CoTopArr             = ppr "top" <> arrow
+  ppr (CoTopRec l)         = ppr "top" <> braces (ppr l)
+  ppr (CoArr c1 c2)        = hsep [ppr c1, arrow, ppr c2]
+  ppr (CoPair c1 c2)       = parensList [ppr c1, ppr c2]
+  ppr (CoLeft t1 t2)       = hcat [ppr "π₁", parensList [ppr t1, ppr t2]]
+  ppr (CoRight t1 t2)      = hcat [ppr "π₂", parensList [ppr t1, ppr t2]]
+  ppr (CoRec l c)          = braces $ hsep [ppr l, colon, ppr c]
+  ppr (CoDistRec l t1 t2)
+    = hsep [ppr "dist", braces $ hcat [
+        ppr l,
+        parensList [ppr t1, ppr t2]
+      ]]
+  ppr (CoDistArr t1 t2 t3)
+    = hcat [ppr "dist" <> arrow, parensList [
+        hcat [ppr t1, arrow, ppr t2],
+        hcat [ppr t1, arrow, ppr t3]
+      ]]
 
 instance Show Type where
-  show = render . prType
-
+  show = render . ppr
 
 instance Show Context where
-  show = render . prContext
-
+  show = render . ppr
 
 instance Show Term where
-  show = render . prTerm
-
+  show = render . ppr
 
 instance Show Coercion where
-  show = render . prCoercion
+  show = render . ppr
 
 -- * LambdaC Operational Semantics
 -- ----------------------------------------------------------------------------

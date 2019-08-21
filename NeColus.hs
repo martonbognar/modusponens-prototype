@@ -46,44 +46,33 @@ eqTypes _ _                         = False
 -- * Pretty Printing
 -- ----------------------------------------------------------------------------
 
-prLabel :: Label -> Doc
-prLabel = text
+instance PrettyPrint Type where
+  ppr TyNat         = ppr "Nat"
+  ppr TyTop         = ppr "Unit"
+  ppr (TyArr t1 t2) = hsep [ppr t1, arrow, ppr t2]
+  ppr (TyIs t1 t2)  = hsep [ppr t1, ppr "&", ppr t2]
+  ppr (TyRec l t)   = braces $ hsep [ppr l, colon, ppr t]
 
+instance PrettyPrint Expression where
+  ppr (ExVar v)       = ppr v
+  ppr (ExLit i)       = ppr i
+  ppr ExTop           = parens empty
+  ppr (ExAbs v e)     = hcat [ppr "\\", ppr v, dot, ppr e]
+  ppr (ExApp e1 e2)   = ppr e1 <+> ppr e2
+  ppr (ExMerge e1 e2) = hsep [ppr e1, comma, comma, ppr e2]
+  ppr (ExAnn e t)     = hsep [ppr e, colon, ppr t]
+  ppr (ExRec l e)     = braces $ hsep [ppr l, equals, ppr e]
+  ppr (ExRecFld e l)  = hcat [ppr e, dot, ppr l]
 
-prVariable :: Variable -> Doc
-prVariable = text
-
-
-prType :: Type -> Doc
-prType TyNat         = text "Nat"
-prType TyTop         = text "Unit"
-prType (TyArr t1 t2) = hsep [prType t1, arrow, prType t2]
-prType (TyIs t1 t2)  = hsep [prType t1, text "&", prType t2]
-prType (TyRec l t)   = braces $ hsep [prLabel l, colon, prType t]
-
-
-prExp :: Expression -> Doc
-prExp (ExVar v)       = prVariable v
-prExp (ExLit i)       = int i
-prExp ExTop           = parens empty
-prExp (ExAbs v e)     = hcat [text "\\", prVariable v, dot, prExp e]
-prExp (ExApp e1 e2)   = prExp e1 <+> prExp e2
-prExp (ExMerge e1 e2) = hsep [prExp e1, comma, comma, prExp e2]
-prExp (ExAnn e t)     = hsep [prExp e, colon, prType t]
-prExp (ExRec l e)     = braces $ hsep [prLabel l, equals, prExp e]
-prExp (ExRecFld e l)  = hcat [prExp e, dot, prLabel l]
-
-
-prContext :: Context -> Doc
-prContext Empty = text "•"
-prContext (Snoc c v t)
-  = hcat [prContext c, comma, prVariable v, colon, prType t]
+instance PrettyPrint Context where
+  ppr Empty        = ppr "•"
+  ppr (Snoc c v t) = hcat [ppr c, comma, ppr v, colon, ppr t]
 
 instance Show Type where
-  show = render . prType
+  show = render . ppr
 
 instance Show Expression where
-  show = render . prExp
+  show = render . ppr
 
 instance Show Context where
-  show = render . prContext
+  show = render . ppr
