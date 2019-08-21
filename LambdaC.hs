@@ -75,6 +75,10 @@ dot = text "."
 commaSep :: [Doc] -> [Doc]
 commaSep = punctuate comma
 
+parensList :: [Doc] -> Doc
+parensList = parens . hsep . commaSep
+
+
 prLabel :: Label -> Doc
 prLabel = text
 
@@ -104,7 +108,7 @@ prTerm TmTop          = parens empty
 prTerm (TmAbs v vt t)
   = hcat [text "\\", parens $ hsep [prVariable v, colon, prType vt], prTerm t]
 prTerm (TmApp t1 t2)  = prTerm t1 <+> prTerm t2
-prTerm (TmTup t1 t2)  = parens $ hsep $ commaSep [prTerm t1, prTerm t2]
+prTerm (TmTup t1 t2)  = parensList [prTerm t1, prTerm t2]
 prTerm (TmRecCon l t) = braces $ hsep [prLabel l, equals, prTerm t]
 prTerm (TmRecFld t l) = hcat [prTerm t, dot, prLabel l]
 prTerm (TmCast c t)   = prCoercion c <+> prTerm t
@@ -117,20 +121,19 @@ prCoercion (CoAnyTop t)         = text "top" <> braces (prType t)
 prCoercion CoTopArr             = text "top->"
 prCoercion (CoTopRec l)         = text "top" <> braces (prLabel l)
 prCoercion (CoArr c1 c2)        = hsep [prCoercion c1, arrow, prCoercion c2]
-prCoercion (CoPair c1 c2)
-  = parens $ hsep $ commaSep [prCoercion c1, prCoercion c2]
+prCoercion (CoPair c1 c2)       = parensList [prCoercion c1, prCoercion c2]
 prCoercion (CoLeft t1 t2)
-  = hsep [text "PI1", parens $ hsep $ commaSep [prType t1, prType t2]]
+  = hsep [text "PI1", parensList [prType t1, prType t2]]
 prCoercion (CoRight t1 t2)
-  = hsep [text "PI2", parens $ hsep $ commaSep [prType t1, prType t2]]
+  = hsep [text "PI2", parensList [prType t1, prType t2]]
 prCoercion (CoRec l c)          = braces $ hsep [prLabel l, colon, prCoercion c]
 prCoercion (CoDistRec l t1 t2)
   = hsep [text "dist", braces $ hcat [
       prLabel l,
-      parens $ hsep $ commaSep [prType t1, prType t2]
+      parensList [prType t1, prType t2]
     ]]
 prCoercion (CoDistArr t1 t2 t3)
-  = hcat [text "dist->", parens $ hsep $ commaSep [
+  = hcat [text "dist->", parensList [
       hcat [prType t1, arrow, prType t2],
       hcat [prType t1, arrow, prType t3]
     ]]
