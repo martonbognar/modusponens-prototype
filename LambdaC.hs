@@ -2,6 +2,8 @@
 
 module LambdaC where
 
+import Text.PrettyPrint
+
 type Variable = String
 type Label    = String
 
@@ -52,17 +54,47 @@ data Coercion
   | CoDistArr Type Type Type
 
 
+prLabel :: Label -> Doc
+prLabel = text
+
+prVariable :: Variable -> Doc
+prVariable = text
+
+prType :: Type -> Doc
+prType TyNat         = text "Nat"
+prType TyTop         = text "Unit"
+prType (TyTup t1 t2) = prType t1 <+> text "x" <+> prType t2
+prType (TyArr t1 t2) = prType t1 <+> text "->" <+> prType t2
+prType (TyRec l t)   = braces $ prLabel l <+> colon <+> prType t
+
+prTerm :: Term -> Doc
+prTerm (TmVar v)      = prVariable v
+prTerm (TmLit i)      = int i
+prTerm TmTop          = parens $ empty
+prTerm (TmAbs v vt t) = text "\\" <> parens (prVariable v <+> colon <+> prType vt) <> prTerm t
+prTerm (TmApp t1 t2)  = prTerm t1 <+> prTerm t2
+prTerm (TmTup t1 t2)  = parens $ hsep $ punctuate empty [prTerm t1, prTerm t2]
+prTerm (TmRecCon l t) = braces $ prLabel l <+> equals <+> prTerm t
+prTerm (TmRecFld t l) = prTerm t <> text "." <> prLabel l
+prTerm (TmCast c t)   = prCoercion c <+> prTerm t
+
+prCoercion :: Coercion -> Doc
+prCoercion (CoRefl t)           = text "CoRefl" <> (braces $ prType t)
+prCoercion (CoTrans c1 c2)      = prCoercion c1 <+> text "." <+> prCoercion c2
+prCoercion (CoAnyTop t)         = text "CoAnyTop" <> (braces $ prType t)
+prCoercion CoTopArr             = text "CoAnyTop->"
+prCoercion (CoTopRec l)         = text "CoAnyTop" <> (braces $ prLabel l)
+prCoercion (CoArr c1 c2)        = prCoercion c1 <+> text "->" <+> prCoercion c2
+prCoercion (CoPair c1 c2)       = parens (hsep $ punctuate empty [prCoercion c1, prCoercion c2])
+prCoercion (CoLeft t1 t2)       = text "PI1" <+> parens (hsep $ punctuate empty [prType t1, prType t2])
+prCoercion (CoRight t1 t2)      = text "PI2" <+> parens (hsep $ punctuate empty [prType t1, prType t2])
+prCoercion (CoRec l c)          = braces $ prLabel l <+> colon <+> prCoercion c
+prCoercion (CoDistRec l t1 t2)  = text "dist" <+> braces (prLabel l <> parens ( hsep $ punctuate empty [prType t1, prType t2]))
+prCoercion (CoDistArr t1 t2 t3) = text "dist->" <> parens ( hsep $ punctuate empty [prType t1 <> text "->" <> prType t2, prType t1 <> text "->" <> prType t3])
+
+
 instance Show Type where
-  show TyNat
-    = "Nat"
-  show TyTop
-    = "Unit"
-  show (TyTup t1 t2)
-    = show t1 ++ "x" ++ show t2
-  show (TyArr t1 t2)
-    = show t1 ++ "->" ++ show t2
-  show (TyRec l t)
-    = "{" ++ show l ++ " : " ++ show t ++ "}"
+  show = render . prType
 
 
 instance Show Context where
@@ -73,52 +105,11 @@ instance Show Context where
 
 
 instance Show Term where
-  show (TmVar v)
-    = show v
-  show (TmLit i)
-    = show i
-  show TmTop
-    = "()"
-  show (TmAbs v vt t)
-    = "\\(" ++ show v ++ " : " ++ show vt ++ ")." ++ show t
-  show (TmApp t1 t2)
-    = show t1 ++ " " ++ show t2
-  show (TmTup t1 t2)
-    = "(" ++ show t1 ++ ", " ++ show t2 ++ ")"
-  show (TmRecCon l t)
-    = "{" ++ show l ++ " = " ++ show t ++ "}"
-  show (TmRecFld t l)
-    = show t ++ "." ++ show l
-  show (TmCast c t)
-    = show c ++ " " ++ show t
+  show = render . prTerm
 
 
 instance Show Coercion where
-  show (CoRefl t)
-    = "CoRefl{" ++ show t ++ "}"
-  show (CoTrans c1 c2)
-    = show c1 ++ " . " ++ show c2
-  show (CoAnyTop t)
-    = "CoAnyTop{" ++ show t ++ "}"
-  show CoTopArr
-    = "CoAnyTop->"
-  show (CoTopRec l)
-    = "CoAnyTop{" ++ show l ++ "}"
-  show (CoArr c1 c2)
-    = show c1 ++ " -> " ++ show c2
-  show (CoPair c1 c2)
-    = "(" ++ show c1 ++ ", " ++ show c2 ++ ")"
-  show (CoLeft t1 t2)
-    = "PI1 (" ++ show t1 ++ ", " ++ show t2 ++ ")"
-  show (CoRight t1 t2)
-    = "PI2 (" ++ show t1 ++ ", " ++ show t2 ++ ")"
-  show (CoRec l c)
-    = "{" ++ show l ++ " : " ++ show c ++ "}"
-  show (CoDistRec l t1 t2)
-    = "dist{" ++ show l ++ "} (" ++ show t1 ++ ", " ++ show t2 ++ ")"
-  show (CoDistArr t1 t2 t3)
-    = "dist-> (" ++ show t1 ++ "->" ++ show t2 ++ ", "
-      ++ show t1 ++ "->" ++ show t3 ++ ")"
+  show = render . prCoercion
 
 
 -- | Determine equality between two types.
