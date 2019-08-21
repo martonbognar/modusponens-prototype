@@ -67,7 +67,7 @@ eqTypes _ _                         = False
 -- ----------------------------------------------------------------------------
 
 arrow :: Doc
-arrow = text "->"
+arrow = text "→"
 
 dot :: Doc
 dot = text "."
@@ -90,13 +90,13 @@ prVariable = text
 prType :: Type -> Doc
 prType TyNat         = text "Nat"
 prType TyTop         = text "Unit"
-prType (TyTup t1 t2) = hsep [prType t1, text "x", prType t2]
+prType (TyTup t1 t2) = hsep [prType t1, text "✕", prType t2]
 prType (TyArr t1 t2) = hsep [prType t1, arrow, prType t2]
 prType (TyRec l t)   = braces $ hsep [prLabel l, colon, prType t]
 
 
 prContext :: Context -> Doc
-prContext Empty = text "(.)"
+prContext Empty = text "•"
 prContext (Snoc c v t)
   = hcat [prContext c, comma, prVariable v, colon, prType t]
 
@@ -118,14 +118,14 @@ prCoercion :: Coercion -> Doc
 prCoercion (CoRefl t)           = text "id" <> braces (prType t)
 prCoercion (CoTrans c1 c2)      = hsep [prCoercion c1, dot, prCoercion c2]
 prCoercion (CoAnyTop t)         = text "top" <> braces (prType t)
-prCoercion CoTopArr             = text "top->"
+prCoercion CoTopArr             = text "top" <> arrow
 prCoercion (CoTopRec l)         = text "top" <> braces (prLabel l)
 prCoercion (CoArr c1 c2)        = hsep [prCoercion c1, arrow, prCoercion c2]
 prCoercion (CoPair c1 c2)       = parensList [prCoercion c1, prCoercion c2]
 prCoercion (CoLeft t1 t2)
-  = hsep [text "PI1", parensList [prType t1, prType t2]]
+  = hcat [text "π₁", parensList [prType t1, prType t2]]
 prCoercion (CoRight t1 t2)
-  = hsep [text "PI2", parensList [prType t1, prType t2]]
+  = hcat [text "π₂", parensList [prType t1, prType t2]]
 prCoercion (CoRec l c)          = braces $ hsep [prLabel l, colon, prCoercion c]
 prCoercion (CoDistRec l t1 t2)
   = hsep [text "dist", braces $ hcat [
@@ -133,7 +133,7 @@ prCoercion (CoDistRec l t1 t2)
       parensList [prType t1, prType t2]
     ]]
 prCoercion (CoDistArr t1 t2 t3)
-  = hcat [text "dist->", parensList [
+  = hcat [text "dist" <> arrow, parensList [
       hcat [prType t1, arrow, prType t2],
       hcat [prType t1, arrow, prType t3]
     ]]
