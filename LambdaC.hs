@@ -54,64 +54,6 @@ data Coercion
   | CoDistArr Type Type Type
 
 
-prLabel :: Label -> Doc
-prLabel = text
-
-prVariable :: Variable -> Doc
-prVariable = text
-
-prType :: Type -> Doc
-prType TyNat         = text "Nat"
-prType TyTop         = text "Unit"
-prType (TyTup t1 t2) = prType t1 <+> text "x" <+> prType t2
-prType (TyArr t1 t2) = prType t1 <+> text "->" <+> prType t2
-prType (TyRec l t)   = braces $ prLabel l <+> colon <+> prType t
-
-prTerm :: Term -> Doc
-prTerm (TmVar v)      = prVariable v
-prTerm (TmLit i)      = int i
-prTerm TmTop          = parens $ empty
-prTerm (TmAbs v vt t) = text "\\" <> parens (prVariable v <+> colon <+> prType vt) <> prTerm t
-prTerm (TmApp t1 t2)  = prTerm t1 <+> prTerm t2
-prTerm (TmTup t1 t2)  = parens $ hsep $ punctuate empty [prTerm t1, prTerm t2]
-prTerm (TmRecCon l t) = braces $ prLabel l <+> equals <+> prTerm t
-prTerm (TmRecFld t l) = prTerm t <> text "." <> prLabel l
-prTerm (TmCast c t)   = prCoercion c <+> prTerm t
-
-prCoercion :: Coercion -> Doc
-prCoercion (CoRefl t)           = text "CoRefl" <> (braces $ prType t)
-prCoercion (CoTrans c1 c2)      = prCoercion c1 <+> text "." <+> prCoercion c2
-prCoercion (CoAnyTop t)         = text "CoAnyTop" <> (braces $ prType t)
-prCoercion CoTopArr             = text "CoAnyTop->"
-prCoercion (CoTopRec l)         = text "CoAnyTop" <> (braces $ prLabel l)
-prCoercion (CoArr c1 c2)        = prCoercion c1 <+> text "->" <+> prCoercion c2
-prCoercion (CoPair c1 c2)       = parens (hsep $ punctuate empty [prCoercion c1, prCoercion c2])
-prCoercion (CoLeft t1 t2)       = text "PI1" <+> parens (hsep $ punctuate empty [prType t1, prType t2])
-prCoercion (CoRight t1 t2)      = text "PI2" <+> parens (hsep $ punctuate empty [prType t1, prType t2])
-prCoercion (CoRec l c)          = braces $ prLabel l <+> colon <+> prCoercion c
-prCoercion (CoDistRec l t1 t2)  = text "dist" <+> braces (prLabel l <> parens ( hsep $ punctuate empty [prType t1, prType t2]))
-prCoercion (CoDistArr t1 t2 t3) = text "dist->" <> parens ( hsep $ punctuate empty [prType t1 <> text "->" <> prType t2, prType t1 <> text "->" <> prType t3])
-
-
-instance Show Type where
-  show = render . prType
-
-
-instance Show Context where
-  show Empty
-    = "(.)"
-  show (Snoc c v t)
-    = show c ++ ", " ++ show v ++ " : " ++ show t
-
-
-instance Show Term where
-  show = render . prTerm
-
-
-instance Show Coercion where
-  show = render . prCoercion
-
-
 -- | Determine equality between two types.
 eqTypes :: Type -> Type -> Bool
 eqTypes TyNat TyNat                 = True
@@ -121,12 +63,98 @@ eqTypes (TyArr t1 t2) (TyArr t3 t4) = eqTypes t1 t3 && eqTypes t2 t4
 eqTypes (TyRec l1 t1) (TyRec l2 t2) = eqTypes t1 t2 && l1 == l2
 eqTypes _ _                         = False
 
+-- * Pretty Printing
+-- ----------------------------------------------------------------------------
+
+arrow :: Doc
+arrow = text "->"
+
+dot :: Doc
+dot = text "."
+
+
+prLabel :: Label -> Doc
+prLabel = text
+
+
+prVariable :: Variable -> Doc
+prVariable = text
+
+
+prType :: Type -> Doc
+prType TyNat         = text "Nat"
+prType TyTop         = text "Unit"
+prType (TyTup t1 t2) = hsep [prType t1, text "x", prType t2]
+prType (TyArr t1 t2) = hsep [prType t1, arrow, prType t2]
+prType (TyRec l t)   = braces $ hsep [prLabel l, colon, prType t]
+
+
+prContext :: Context -> Doc
+prContext Empty = text "(.)"
+prContext (Snoc c v t)
+  = hcat [prContext c, comma, prVariable v, colon, prType t]
+
+
+prTerm :: Term -> Doc
+prTerm (TmVar v)      = prVariable v
+prTerm (TmLit i)      = int i
+prTerm TmTop          = parens empty
+prTerm (TmAbs v vt t)
+  = hcat [text "\\", parens $ hsep [prVariable v, colon, prType vt], prTerm t]
+prTerm (TmApp t1 t2)  = prTerm t1 <+> prTerm t2
+prTerm (TmTup t1 t2)  = parens $ hsep $ punctuate empty [prTerm t1, prTerm t2]
+prTerm (TmRecCon l t) = braces $ hsep [prLabel l, equals, prTerm t]
+prTerm (TmRecFld t l) = hcat [prTerm t, dot, prLabel l]
+prTerm (TmCast c t)   = prCoercion c <+> prTerm t
+
+
+prCoercion :: Coercion -> Doc
+prCoercion (CoRefl t)           = text "id" <> braces (prType t)
+prCoercion (CoTrans c1 c2)      = hsep [prCoercion c1, dot, prCoercion c2]
+prCoercion (CoAnyTop t)         = text "top" <> braces (prType t)
+prCoercion CoTopArr             = text "top->"
+prCoercion (CoTopRec l)         = text "top" <> braces (prLabel l)
+prCoercion (CoArr c1 c2)        = hsep [prCoercion c1, arrow, prCoercion c2]
+prCoercion (CoPair c1 c2)
+  = parens $ hsep $ punctuate empty [prCoercion c1, prCoercion c2]
+prCoercion (CoLeft t1 t2)
+  = hsep [text "PI1", parens $ hsep $ punctuate empty [prType t1, prType t2]]
+prCoercion (CoRight t1 t2)
+  = hsep [text "PI2", parens $ hsep $ punctuate empty [prType t1, prType t2]]
+prCoercion (CoRec l c)          = braces $ hsep [prLabel l, colon, prCoercion c]
+prCoercion (CoDistRec l t1 t2)
+  = hsep [text "dist", braces $ hcat [
+      prLabel l,
+      parens $ hsep $ punctuate empty [prType t1, prType t2]
+    ]]
+prCoercion (CoDistArr t1 t2 t3)
+  = hcat [text "dist->", parens $ hsep $ punctuate empty [
+      hcat [prType t1, arrow, prType t2],
+      hcat [prType t1, arrow, prType t3]
+    ]]
+
+
+instance Show Type where
+  show = render . prType
+
+
+instance Show Context where
+  show = render . prContext
+
+
+instance Show Term where
+  show = render . prTerm
+
+
+instance Show Coercion where
+  show = render . prCoercion
+
 -- * LambdaC Operational Semantics
 -- ----------------------------------------------------------------------------
 
 -- | Determine whether a term is a target value.
 isValue :: Term -> Bool
-isValue (TmAbs _ _ _)            = True
+isValue TmAbs{}                  = True
 isValue TmTop                    = True
 isValue (TmLit _)                = True
 isValue (TmTup v1 v2)            = isValue v1 && isValue v2
