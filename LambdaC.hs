@@ -3,6 +3,7 @@
 module LambdaC where
 
 import Text.PrettyPrint
+import PrettyPrinter
 
 type Variable = String
 type Label    = String
@@ -65,19 +66,6 @@ eqTypes _ _                         = False
 
 -- * Pretty Printing
 -- ----------------------------------------------------------------------------
-
-arrow :: Doc
-arrow = text "→"
-
-dot :: Doc
-dot = text "."
-
-commaSep :: [Doc] -> [Doc]
-commaSep = punctuate comma
-
-parensList :: [Doc] -> Doc
-parensList = parens . hsep . commaSep
-
 
 prLabel :: Label -> Doc
 prLabel = text
