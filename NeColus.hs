@@ -253,10 +253,11 @@ subtype queue (TyArr a1 a2) TyNat
        c2 <- subtype q a2 TyNat
        return (LC.CoArr c1 c2)
 -- A-RCDNAT
-subtype (ExtraLabel q l) (TyRec l' a) TyNat
+subtype queue (TyRec l' a) TyNat
   | l == l'
-  , Just c <- subtype q a TyNat
-  = Just (LC.CoRec l c)
+  = do (Left l, q) <- viewL queue
+       c <- subtype q a TyNat
+       return (LC.CoRec l c)
 -- A-ANDN1
 subtype q (TyIs a1 a2) TyNat
   | Just c <- subtype q a1 TyNat
