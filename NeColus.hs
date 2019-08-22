@@ -4,6 +4,7 @@ module NeColus where
 
 import qualified LambdaC as LC
 
+import Control.Applicative ((<|>))
 import Text.PrettyPrint
 import PrettyPrinter
 
@@ -267,15 +268,13 @@ subtype queue (TyRec l' a) TyNat
        return (LC.CoRec l c)
 -- A-ANDN1 & A-ANDN2
 subtype q (TyIs a1 a2) TyNat
-  | Just c <- subtype q a1 TyNat
-  = do let a1' = translateType a1
-           a2' = translateType a2
-       return (LC.CoTrans c (LC.CoLeft a1' a2'))
-  | Just c <- subtype q a2 TyNat
-  = do let a1' = translateType a1
-           a2' = translateType a2
-       return (LC.CoTrans c (LC.CoRight a1' a2'))
-  | otherwise = Nothing
+  =   do c <- subtype q a1 TyNat
+         return (LC.CoTrans c (LC.CoLeft a1' a2'))
+  <|> do c <- subtype q a2 TyNat
+         return (LC.CoTrans c (LC.CoRight a1' a2'))
+  where
+    a1' = translateType a1
+    a2' = translateType a2
 -- A-NAT
 subtype Null TyNat TyNat = Just (LC.CoRefl (translateType TyNat))
 
