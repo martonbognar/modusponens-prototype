@@ -45,6 +45,7 @@ eqTypes (TyArr t1 t2) (TyArr t3 t4) = eqTypes t1 t3 && eqTypes t2 t4
 eqTypes (TyIs t1 t2) (TyIs t3 t4)   = eqTypes t1 t3 && eqTypes t2 t4
 eqTypes (TyRec l1 t1) (TyRec l2 t2) = eqTypes t1 t2 && l1 == l2
 eqTypes _ _                         = False
+  -- GEORGE: I don't like catch-alls...
 
 -- * Pretty Printing
 -- ----------------------------------------------------------------------------
@@ -149,7 +150,7 @@ inference c (ExRec l e)
   = do (a, v) <- inference c e
        return (TyRec l a, LC.TmRecCon l v)
 
-inference _ _ = Nothing
+inference _ (ExAbs {}) = Nothing
 
 
 -- | Checking
@@ -251,4 +252,15 @@ subtype q (TyIs a1 a2) TyNat
 -- A-NAT
 subtype Null TyNat TyNat = Just (LC.CoRefl (translateType TyNat))
 
-subtype _ _ _ = Nothing
+-- Failing cases...
+subtype (ExtraLabel {})  TyNat       TyNat = Nothing
+subtype (ExtraType {})   TyNat       TyNat = Nothing
+subtype Null             TyTop       TyNat = Nothing
+subtype (ExtraLabel {})  TyTop       TyNat = Nothing
+subtype (ExtraType {})   TyTop       TyNat = Nothing
+subtype Null             (TyArr {})  TyNat = Nothing
+subtype (ExtraLabel {})  (TyArr _ _) TyNat = Nothing
+subtype (ExtraType {})   (TyArr _ _) TyNat = Nothing
+subtype Null             (TyRec _ _) TyNat = Nothing
+subtype (ExtraLabel _ _) (TyRec _ _) TyNat = Nothing
+subtype (ExtraType _ _)  (TyRec _ _) TyNat = Nothing
