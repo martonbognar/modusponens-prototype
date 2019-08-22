@@ -96,48 +96,21 @@ typeFromContext (Snoc c v vt) x
   | v == x    = Just vt
   | otherwise = typeFromContext c x
 
-
+-- | Check whether two types are disjoint.
 disjoint :: Type -> Type -> Bool
--- D-TOPL
-disjoint TyTop _ = True
--- D-TOPR
-disjoint _ TyTop = True
--- D-ARR
-disjoint (TyArr _ a2) (TyArr _ b2)
-  | disjoint a2 b2 = True
--- D-ANDL
-disjoint (TyIs a1 a2) b
-  | disjoint a1 b
-  , disjoint a2 b
-  = True
--- D-ANDR
-disjoint a (TyIs b1 b2)
-  | disjoint a b1
-  , disjoint a b2
-  = True
--- D-RCDEQ
-disjoint (TyRec l1 a) (TyRec l2 b)
-  | l1 == l2
-  , disjoint a b
-  = True
--- D-RCDNEQ
-disjoint (TyRec l1 _) (TyRec l2 _)
-  | l1 /= l2 = True
--- D-AXNATARR
-disjoint TyNat TyArr{}   = True
--- D-AXARRNAT
-disjoint TyArr{} TyNat   = True
--- D-AXNATRCD
-disjoint TyNat TyRec{}   = True
--- D-AXRCDNAT
-disjoint TyRec{} TyNat   = True
--- D-AXARRRCD
-disjoint TyArr{} TyRec{} = True
--- D-AXRCDARR
-disjoint TyRec{} TyArr{} = True
-
-disjoint _ _ = False
-
+disjoint TyTop        _            = True
+disjoint _            TyTop        = True
+disjoint (TyArr _ a2) (TyArr _ b2) = disjoint a2 b2
+disjoint (TyIs a1 a2) b            = disjoint a1 b && disjoint a2 b
+disjoint a            (TyIs b1 b2) = disjoint a b1 && disjoint a b2
+disjoint (TyRec l1 a) (TyRec l2 b) = (l1 /= l2) || disjoint a b
+disjoint TyNat        TyArr{}      = True
+disjoint TyArr{}      TyNat        = True
+disjoint TyNat        TyRec{}      = True
+disjoint TyRec{}      TyNat        = True
+disjoint TyArr{}      TyRec{}      = True
+disjoint TyRec{}      TyArr{}      = True
+disjoint TyNat        TyNat        = False
 
 -- | Inference
 inference :: Context -> Expression -> Maybe (Type, LC.Term)
