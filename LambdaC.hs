@@ -2,8 +2,6 @@
 
 module LambdaC where
 
--- GEORGE SUGGESTS: Replace "Just" with "return"
---                  Replace "Nothing" with "fail "...""
 import Control.Monad (guard)
 import Text.PrettyPrint
 import PrettyPrinter
@@ -162,106 +160,106 @@ eval :: Term -> Maybe Term
 eval (TmApp e1 e2)
   -- STEP-APP1
   | Just e1' <- eval e1
-  = Just (TmApp e1' e2)
+  = return (TmApp e1' e2)
   -- STEP-APP2
   | Just e2' <- eval e2
   , isValue e1
-  = Just (TmApp e1 e2')
+  = return (TmApp e1 e2')
   -- STEP-TOPARR
   | TmCast CoTopArr TmTop <- e1
   , TmTop <- e2
-  = Just TmTop
+  = return TmTop
   -- STEP-ARR
   | TmCast (CoArr c1 c2) v1 <- e1
   , isValue v1
   , isValue e2
-  = Just (TmCast c2 (TmApp v1 (TmCast c1 e2)))
+  = return (TmCast c2 (TmApp v1 (TmCast c1 e2)))
   -- STEP-DISTARR
   | TmCast CoDistArr{} (TmTup v1 v2) <- e1
   , isValue v1
   , isValue v2
   , isValue e2
-  = Just (TmTup (TmApp v1 e2) (TmApp v2 e2))
+  = return (TmTup (TmApp v1 e2) (TmApp v2 e2))
   -- STEP-BETA
   | TmAbs x _ e <- e1
   , isValue e2
-  = Just (subst e x e2)
+  = return (subst e x e2)
 
 -- STEP-PAIR1 & STEP-PAIR2
 eval (TmTup e1 e2)
   | Just e1' <- eval e1
-  = Just (TmTup e1' e2)
+  = return (TmTup e1' e2)
   | Just e2' <- eval e2
   , isValue e1
-  = Just (TmTup e1 e2')
+  = return (TmTup e1 e2')
 
 -- STEP-PROJRCD
 eval (TmRecFld (TmRecCon l v) l1)
   | l == l1
   , isValue v
-  = Just v
+  = return v
 
 -- STEP-RCD1
 eval (TmRecCon l e)
   | Just e' <- eval e
-  = Just (TmRecCon l e')
+  = return (TmRecCon l e')
 
 -- STEP-RCD2
 eval (TmRecFld e l)
   | Just e' <- eval e
-  = Just (TmRecFld e' l)
+  = return (TmRecFld e' l)
 
 -- STEP-CAPP
 eval (TmCast c e)
   | Just e' <- eval e
-  = Just (TmCast c e')
+  = return (TmCast c e')
   -- STEP-ID
   | CoRefl _ <- c
   , isValue e
-  = Just e
+  = return e
 -- STEP-TRANS
   | CoTrans c1 c2 <- c
   , isValue e
-  = Just (TmCast c1 (TmCast c2 e))
+  = return (TmCast c1 (TmCast c2 e))
 -- SET-TOP
   | CoAnyTop _ <- c
   , isValue e
-  = Just TmTop
+  = return TmTop
 -- STEP-TOPRCD
   | CoTopRec l <- c
   , TmTop <- e
-  = Just (TmRecCon l TmTop)
+  = return (TmRecCon l TmTop)
 -- STEP-PAIR
   | CoPair c1 c2 <- c
   , isValue e
-  = Just (TmTup (TmCast c1 e) (TmCast c2 e))
+  = return (TmTup (TmCast c1 e) (TmCast c2 e))
 -- STEP-DISTRCD
   | CoDistRec l _ _ <- c
   , TmTup (TmRecCon l1 v1) (TmRecCon l2 v2) <- e
   , isValue v1
   , isValue v2
-  = if l == l1 && l1 == l2
-      then return (TmRecCon l (TmTup v1 v2))
-      else fail "STEP-DISTRCD: label mismatch"
+  = do guard (l == l1 && l1 == l2)
+       return (TmRecCon l (TmTup v1 v2))
 -- STEP-PROJL
   | CoLeft _ _ <- c
   , TmTup v1 v2 <- e
   , isValue v1
   , isValue v2
-  = Just v1
+  = return v1
 -- STEP-PROJR
   | CoRight _ _ <- c
   , TmTup v1 v2 <- e
   , isValue v1
   , isValue v2
-  = Just v2
+  = return v2
 -- STEP-CRCD
   | CoRec l co <- c
   , TmRecCon l1 v <- e
   , isValue v
-  = if l == l1 then Just (TmRecCon l (TmCast co v)) else Nothing
+  = do guard (l == l1)
+       return (TmRecCon l (TmCast co v))
 
-eval _ = Nothing
+eval _ = fail "Evaluation error"
 
 
 -- | Fully evaluate a term.
@@ -275,9 +273,9 @@ fullEval t = case eval t of
 
 -- | Get the type of a variable from a context.
 typeFromContext :: Context -> Variable -> Maybe Type
-typeFromContext Empty _ = Nothing
+typeFromContext Empty _ = fail "Variable not in context"
 typeFromContext (Snoc c v vt) x
-  | v == x    = Just vt
+  | v == x    = return vt
   | otherwise = typeFromContext c x
 
 
@@ -324,7 +322,7 @@ termType c (TmRecFld e l)
 coercionType :: Coercion -> Maybe (Type, Type)
 -- COTYP-REFL
 coercionType (CoRefl t)
-  = Just (t, t)
+  = return (t, t)
 -- COTYP-TRANS
 coercionType (CoTrans c1 c2)
   = do (t2, t3)  <- coercionType c1
@@ -335,10 +333,10 @@ coercionType (CoTrans c1 c2)
 coercionType (CoAnyTop t) = return (t, TyTop)
 -- COTYP-TOPARR
 coercionType CoTopArr
-  = Just (TyTop, TyArr TyTop TyTop)
+  = return (TyTop, TyArr TyTop TyTop)
 -- COTYP-TOPRCD
 coercionType (CoTopRec l)
-  = Just (TyTop, TyRec l TyTop)
+  = return (TyTop, TyRec l TyTop)
 -- COTYP-ARR
 coercionType (CoArr c1 c2)
   = do (t1', t1) <- coercionType c1
@@ -352,17 +350,17 @@ coercionType (CoPair c1 c2)
        return (t1, TyTup t2 t3)
 -- COTYP-PROJL
 coercionType (CoLeft t1 t2)
-  = Just (TyTup t1 t2, t1)
+  = return (TyTup t1 t2, t1)
 -- COTYP-PROJR
 coercionType (CoRight t1 t2)
-  = Just (TyTup t1 t2, t2)
+  = return (TyTup t1 t2, t2)
 -- COTYP-RCD
 coercionType (CoRec l c)
   = do (t1, t2) <- coercionType c
        return (TyRec l t1, TyRec l t2)
 -- COTYP-DISTRCD
 coercionType (CoDistRec l t1 t2)
-  = Just (TyTup (TyRec l t1) (TyRec l t2), TyRec l (TyTup t1 t2))
+  = return (TyTup (TyRec l t1) (TyRec l t2), TyRec l (TyTup t1 t2))
 -- COTYP-DISTARR
 coercionType (CoDistArr t1 t2 t3)
-  = Just (TyTup (TyArr t1 t2) (TyArr t1 t3), TyArr t1 (TyTup t2 t3))
+  = return (TyTup (TyArr t1 t2) (TyArr t1 t3), TyArr t1 (TyTup t2 t3))

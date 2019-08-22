@@ -5,6 +5,7 @@ module NeColus where
 import qualified LambdaC as LC
 
 import Control.Applicative ((<|>))
+import Control.Monad (guard)
 import Text.PrettyPrint
 import PrettyPrinter
 
@@ -92,9 +93,9 @@ translateType (TyRec l a) = LC.TyRec l (translateType a)
 
 -- | Get the type of a variable from a context.
 typeFromContext :: Context -> Variable -> Maybe Type
-typeFromContext Empty _ = Nothing
+typeFromContext Empty _ = fail "Variable not in context"
 typeFromContext (Snoc c v vt) x
-  | v == x    = Just vt
+  | v == x    = return vt
   | otherwise = typeFromContext c x
 
 -- | Check whether two types are disjoint.
@@ -116,9 +117,9 @@ disjoint TyNat        TyNat        = False
 -- | Inference
 inference :: Context -> Expression -> Maybe (Type, LC.Term)
 -- T-TOP
-inference _ ExTop = Just (TyTop, LC.TmTop)
+inference _ ExTop = return (TyTop, LC.TmTop)
 -- T-LIT
-inference _ (ExLit i) = Just (TyNat, LC.TmLit i)
+inference _ (ExLit i) = return (TyNat, LC.TmLit i)
 -- T-VAR
 inference c (ExVar v)
   = do t <- typeFromContext c v
@@ -135,22 +136,20 @@ inference c (ExAnn e a)
 -- T-PROJ
 inference c (ExRecFld e l)
   = do (TyRec l' a, v) <- inference c e
-       if l' == l
-         then return (a, LC.TmRecFld v l)
-         else Nothing
+       guard (l' == l)
+       return (a, LC.TmRecFld v l)
 -- T-MERGE
 inference c (ExMerge e1 e2)
   = do (a1, v1) <- inference c e1
        (a2, v2) <- inference c e2
-       if disjoint a1 a2
-         then return (TyIs a1 a2, LC.TmTup v1 v2)
-         else Nothing
+       guard (disjoint a1 a2)
+       return (TyIs a1 a2, LC.TmTup v1 v2)
 -- T-RCD
 inference c (ExRec l e)
   = do (a, v) <- inference c e
        return (TyRec l a, LC.TmRecCon l v)
 
-inference _ (ExAbs {}) = Nothing
+inference _ ExAbs {} = fail "Inference error"
 
 
 -- | Checking
@@ -226,7 +225,7 @@ subtype q a (TyRec l b)
   = subtype (ExtraLabel q l) a b
 -- A-TOP
 subtype q a TyTop
-  = Just (LC.CoTrans (metaTop q) (LC.CoAnyTop a')) where
+  = return (LC.CoTrans (metaTop q) (LC.CoAnyTop a')) where
       a' = translateType a
 -- A-ARRNAT
 subtype queue (TyArr a1 a2) TyNat
@@ -250,17 +249,17 @@ subtype q (TyIs a1 a2) TyNat
     a1' = translateType a1
     a2' = translateType a2
 -- A-NAT
-subtype Null TyNat TyNat = Just (LC.CoRefl (translateType TyNat))
+subtype Null TyNat TyNat = return (LC.CoRefl (translateType TyNat))
 
 -- Failing cases...
-subtype (ExtraLabel {})  TyNat       TyNat = Nothing
-subtype (ExtraType {})   TyNat       TyNat = Nothing
-subtype Null             TyTop       TyNat = Nothing
-subtype (ExtraLabel {})  TyTop       TyNat = Nothing
-subtype (ExtraType {})   TyTop       TyNat = Nothing
-subtype Null             (TyArr {})  TyNat = Nothing
-subtype (ExtraLabel {})  (TyArr _ _) TyNat = Nothing
-subtype (ExtraType {})   (TyArr _ _) TyNat = Nothing
-subtype Null             (TyRec _ _) TyNat = Nothing
-subtype (ExtraLabel _ _) (TyRec _ _) TyNat = Nothing
-subtype (ExtraType _ _)  (TyRec _ _) TyNat = Nothing
+subtype ExtraLabel{} TyNat   TyNat = fail "Subtype error"
+subtype ExtraType{}  TyNat   TyNat = fail "Subtype error"
+subtype Null         TyTop   TyNat = fail "Subtype error"
+subtype ExtraLabel{} TyTop   TyNat = fail "Subtype error"
+subtype ExtraType{}  TyTop   TyNat = fail "Subtype error"
+subtype Null         TyArr{} TyNat = fail "Subtype error"
+subtype ExtraLabel{} TyArr{} TyNat = fail "Subtype error"
+subtype ExtraType{}  TyArr{} TyNat = fail "Subtype error"
+subtype Null         TyRec{} TyNat = fail "Subtype error"
+subtype ExtraLabel{} TyRec{} TyNat = fail "Subtype error"
+subtype ExtraType{}  TyRec{} TyNat = fail "Subtype error"
