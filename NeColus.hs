@@ -26,7 +26,7 @@ data Type
 
 data Expression
   = ExVar Variable
-  | ExLit Int
+  | ExLit Integer
   | ExTop
   | ExAbs Variable Expression
   | ExApp Expression Expression

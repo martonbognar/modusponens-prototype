@@ -28,5 +28,5 @@ instance PrettyPrintList Char where
 instance PrettyPrintList a => PrettyPrint [a] where
   ppr = pprList
 
-instance PrettyPrint Int where
-  ppr = int
+instance PrettyPrint Integer where
+  ppr = integer

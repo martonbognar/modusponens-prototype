@@ -28,7 +28,7 @@ data Context
 -- | Target terms
 data Term
   = TmVar Variable
-  | TmLit Int
+  | TmLit Integer
   | TmTop
   | TmAbs Variable Type Term
   | TmApp Term Term
