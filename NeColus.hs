@@ -185,7 +185,7 @@ checking c (ExAbs x e) (TyArr a b)
 -- T-SUB
 checking c e a
   | Just (b, v) <- inference c e
-  , Just co <- subtype Null b a -- TODO: what L to pass?
+  , Just co <- subtype Null b a
   = Just (LC.TmCast co v)
 
 checking _ _ _ = Nothing
@@ -195,6 +195,23 @@ data Queue
   = Null
   | ExtraLabel Queue Label
   | ExtraType Queue Type
+
+isNullQueue :: Queue -> Bool
+isNullQueue Null = True
+isNullQueue _    = False
+{-# INLINE isNullQueue #-}
+
+viewL :: Queue -> Maybe (Either Label Type, Queue)
+viewL Null = Nothing
+viewL (ExtraLabel q l)
+  | isNullQueue q = return (Left l, Null)
+  | otherwise     = do (res, queue) <- viewL q
+                       return (res, ExtraLabel queue l)
+viewL (ExtraType q t)
+  | isNullQueue q = return (Right t, Null)
+  | otherwise     = do (res, queue) <- viewL q
+                       return (res, ExtraType queue t)
+
 
 metaTop :: Queue -> LC.Coercion
 metaTop Null = LC.CoAnyTop (translateType TyTop)
@@ -230,10 +247,11 @@ subtype q a (TyRec l b)
 -- A-TOP
 subtype q a TyTop = Just (LC.CoTrans (metaTop q) (LC.CoAnyTop (translateType a)))
 -- A-ARRNAT
-subtype (ExtraType q a) (TyArr a1 a2) TyNat
-  | Just c1 <- subtype Null a a1
-  , Just c2 <- subtype q a2 TyNat
-  = Just (LC.CoArr c1 c2)
+subtype queue (TyArr a1 a2) TyNat
+  | Just (Right a, q) <- viewL queue
+  = do c1 <- subtype Null a a1
+       c2 <- subtype q a2 TyNat
+       return (LC.CoArr c1 c2)
 -- A-RCDNAT
 subtype (ExtraLabel q l) (TyRec l' a) TyNat
   | l == l'
@@ -245,8 +263,10 @@ subtype q (TyIs a1 a2) TyNat
   = Just (LC.CoTrans c (LC.CoLeft (translateType a1) (translateType a2)))
 -- A-ANDN2
 subtype q (TyIs a1 a2) TyNat
-  | Just c <- subtype q a2 TyNat
-  = Just (LC.CoTrans c (LC.CoRight (translateType a1) (translateType a2)))
+  = do c <- subtype q a2 TyNat
+       let a1' = translateType a1
+           a2' = translateType a2
+       return $ LC.CoTrans c (LC.CoRight a1' a2')
 -- A-NAT
 subtype Null TyNat TyNat = Just (LC.CoRefl (translateType TyNat))
 
