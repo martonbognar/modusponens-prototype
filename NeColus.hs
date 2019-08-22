@@ -1,5 +1,7 @@
 {-# OPTIONS_GHC -Wall #-}
 
+-- TODO: discuss implicit types in metaTop and metaIs functions
+
 module NeColus where
 
 import qualified LambdaC as LC
@@ -37,7 +39,6 @@ data Context
   = Empty
   | Snoc Context Variable Type
 
-
 -- | Determine equality between two types.
 eqTypes :: Type -> Type -> Bool
 eqTypes TyNat TyNat                 = True
@@ -47,6 +48,31 @@ eqTypes (TyIs t1 t2) (TyIs t3 t4)   = eqTypes t1 t3 && eqTypes t2 t4
 eqTypes (TyRec l1 t1) (TyRec l2 t2) = eqTypes t1 t2 && l1 == l2
 eqTypes _ _                         = False
   -- GEORGE: I don't like catch-alls...
+
+
+-- | The queue for implementing algorithmic subtyping rules.
+data Queue
+  = Null
+  | ExtraLabel Queue Label
+  | ExtraType Queue Type
+
+-- | Check whether a queue is empty.
+isNullQueue :: Queue -> Bool
+isNullQueue Null = True
+isNullQueue _    = False
+{-# INLINE isNullQueue #-}
+
+-- | Get the first element and the tail of the queue as a tuple.
+viewL :: Queue -> Maybe (Either Label Type, Queue)
+viewL Null = Nothing
+viewL (ExtraLabel q l)
+  | isNullQueue q = return (Left l, Null)
+  | otherwise     = do (res, queue) <- viewL q
+                       return (res, ExtraLabel queue l)
+viewL (ExtraType q t)
+  | isNullQueue q = return (Right t, Null)
+  | otherwise     = do (res, queue) <- viewL q
+                       return (res, ExtraType queue t)
 
 -- * Pretty Printing
 -- ----------------------------------------------------------------------------
@@ -82,7 +108,10 @@ instance Show Expression where
 instance Show Context where
   show = render . ppr
 
+-- * NeColus Typing
+-- ----------------------------------------------------------------------------
 
+-- | For a NeColus type, get the corresponding LambdaC type.
 translateType :: Type -> LC.Type
 translateType TyNat       = LC.TyNat
 translateType TyTop       = LC.TyTop
@@ -97,6 +126,7 @@ typeFromContext Empty _ = fail "Variable not in context"
 typeFromContext (Snoc c v vt) x
   | v == x    = return vt
   | otherwise = typeFromContext c x
+
 
 -- | Check whether two types are disjoint.
 disjoint :: Type -> Type -> Bool
@@ -113,6 +143,7 @@ disjoint TyRec{}      TyNat        = True
 disjoint TyArr{}      TyRec{}      = True
 disjoint TyRec{}      TyArr{}      = True
 disjoint TyNat        TyNat        = False
+
 
 -- | Inference
 inference :: Context -> Expression -> Maybe (Type, LC.Term)
@@ -165,28 +196,7 @@ checking c e a
        return (LC.TmCast co v)
 
 
-data Queue
-  = Null
-  | ExtraLabel Queue Label
-  | ExtraType Queue Type
-
-isNullQueue :: Queue -> Bool
-isNullQueue Null = True
-isNullQueue _    = False
-{-# INLINE isNullQueue #-}
-
-viewL :: Queue -> Maybe (Either Label Type, Queue)
-viewL Null = Nothing
-viewL (ExtraLabel q l)
-  | isNullQueue q = return (Left l, Null)
-  | otherwise     = do (res, queue) <- viewL q
-                       return (res, ExtraLabel queue l)
-viewL (ExtraType q t)
-  | isNullQueue q = return (Right t, Null)
-  | otherwise     = do (res, queue) <- viewL q
-                       return (res, ExtraType queue t)
-
-
+-- | Meta-top function for coercions.
 metaTop :: Queue -> LC.Coercion
 metaTop Null = LC.CoAnyTop (translateType TyTop)
 metaTop (ExtraLabel q l)
@@ -198,6 +208,8 @@ metaTop (ExtraType q a)
     where
       a' = translateType a
 
+
+-- | Meta-intersection function for coercions.
 metaIs :: Queue -> LC.Coercion
 metaIs Null = LC.CoRefl (translateType TyTop)
 metaIs (ExtraLabel q l)
@@ -209,6 +221,7 @@ metaIs (ExtraType q a)
       (LC.CoDistArr a' a' a')
     where
       a' = translateType a
+
 
 -- | Algorithmic subtyping
 subtype :: Queue -> Type -> Type -> Maybe LC.Coercion

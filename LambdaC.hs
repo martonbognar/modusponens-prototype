@@ -20,12 +20,10 @@ data Type
   | TyArr Type Type
   | TyRec Label Type
 
-
 -- | Typing contexts
 data Context
   = Empty
   | Snoc Context Variable Type
-
 
 -- | Target terms
 data Term
@@ -38,7 +36,6 @@ data Term
   | TmRecCon Label Term
   | TmRecFld Term Label
   | TmCast Coercion Term
-
 
 -- | Coercions
 data Coercion
@@ -54,7 +51,6 @@ data Coercion
   | CoRec Label Coercion
   | CoDistRec Label Type Type
   | CoDistArr Type Type Type
-
 
 -- | Determine equality between two types.
 eqTypes :: Type -> Type -> Bool
@@ -317,6 +313,7 @@ termType c (TmRecFld e l)
   = do (TyRec l1 t) <- termType c e
        guard (l == l1)
        return t
+
 
 -- | Determine the type of a coercion.
 coercionType :: Coercion -> Maybe (Type, Type)
