@@ -289,39 +289,37 @@ termType c (TmVar x)
   = typeFromContext c x
 -- TYP-ABS
 termType c (TmAbs x t1 e)
-  | Just t2 <- termType (Snoc c x t1) e
-  = Just (TyArr t1 t2)
+  = do t2 <- termType (Snoc c x t1) e
+       return (TyArr t1 t2)
 -- TYP-APP
-termType c (TmApp e1 e2) = do
-  (TyArr t1 t2) <- termType c e1
-  t3            <- termType c e2
-  if eqTypes t1 t3
-    then return t2
-    else Nothing
+termType c (TmApp e1 e2)
+  = do (TyArr t1 t2) <- termType c e1
+       t3            <- termType c e2
+       if eqTypes t1 t3
+         then return t2
+         else Nothing
 -- TYP-PAIR
-termType c (TmTup e1 e2) = do
-  t1 <- termType c e1
-  t2 <- termType c e2
-  return (TyTup t1 t2)
+termType c (TmTup e1 e2)
+  = do t1 <- termType c e1
+       t2 <- termType c e2
+       return (TyTup t1 t2)
 -- TYP-CAPP
-termType c (TmCast co e) = do
-  t         <- termType c e
-  (t1, t1') <- coercionType co
-  if eqTypes t t1
-    then return t1'
-    else Nothing
+termType c (TmCast co e)
+  = do t         <- termType c e
+       (t1, t1') <- coercionType co
+       if eqTypes t t1
+         then return t1'
+         else Nothing
 -- TYP-RCD
-termType c (TmRecCon l e) = do
-  t <- termType c e
-  return (TyRec l t)
+termType c (TmRecCon l e)
+  = do t <- termType c e
+       return (TyRec l t)
 -- TYP--PROJ
-termType c (TmRecFld e l) = do
-  (TyRec l1 t) <- termType c e
-  if l == l1
-    then return t
-    else Nothing
-
-termType _ _ = Nothing
+termType c (TmRecFld e l)
+  = do (TyRec l1 t) <- termType c e
+       if l == l1
+         then return t
+         else Nothing
 
 
 -- | Determine the type of a coercion.
@@ -330,12 +328,12 @@ coercionType :: Coercion -> Maybe (Type, Type)
 coercionType (CoRefl t)
   = Just (t, t)
 -- COTYP-TRANS
-coercionType (CoTrans c1 c2) = do
-  (t2, t3)  <- coercionType c1
-  (t1, t2') <- coercionType c2
-  if eqTypes t2 t2'
-    then return (t1, t3)
-    else Nothing
+coercionType (CoTrans c1 c2)
+  = do (t2, t3)  <- coercionType c1
+       (t1, t2') <- coercionType c2
+       if eqTypes t2 t2'
+         then return (t1, t3)
+         else Nothing
 -- COTYP-CoAnyTop
 coercionType (CoAnyTop t)
   = Just (t, TyTop)
@@ -346,17 +344,17 @@ coercionType CoTopArr
 coercionType (CoTopRec l)
   = Just (TyTop, TyRec l TyTop)
 -- COTYP-ARR
-coercionType (CoArr c1 c2) = do
-  (t1', t1) <- coercionType c1
-  (t2, t2') <- coercionType c2
-  return (TyArr t1 t2, TyArr t1' t2')
+coercionType (CoArr c1 c2)
+  = do (t1', t1) <- coercionType c1
+       (t2, t2') <- coercionType c2
+       return (TyArr t1 t2, TyArr t1' t2')
 -- COTYP-PAIR
-coercionType (CoPair c1 c2) = do
-  (t1, t2)  <- coercionType c1
-  (t1', t3) <- coercionType c2
-  if eqTypes t1 t1'
-    then return (t1, TyTup t2 t3)
-    else Nothing
+coercionType (CoPair c1 c2)
+  = do (t1, t2)  <- coercionType c1
+       (t1', t3) <- coercionType c2
+       if eqTypes t1 t1'
+         then return (t1, TyTup t2 t3)
+         else Nothing
 -- COTYP-PROJL
 coercionType (CoLeft t1 t2)
   = Just (TyTup t1 t2, t1)
@@ -364,9 +362,9 @@ coercionType (CoLeft t1 t2)
 coercionType (CoRight t1 t2)
   = Just (TyTup t1 t2, t2)
 -- COTYP-RCD
-coercionType (CoRec l c) = do
-  (t1, t2) <- coercionType c
-  return (TyRec l t1, TyRec l t2)
+coercionType (CoRec l c)
+  = do (t1, t2) <- coercionType c
+       return (TyRec l t1, TyRec l t2)
 -- COTYP-DISTRCD
 coercionType (CoDistRec l t1 t2)
   = Just (TyTup (TyRec l t1) (TyRec l t2), TyRec l (TyTup t1 t2))
