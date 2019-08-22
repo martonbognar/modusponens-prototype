@@ -2,6 +2,9 @@
 
 module LambdaC where
 
+-- GEORGE SUGGESTS: Replace "Just" with "return"
+--                  Replace "Nothing" with "fail "...""
+import Control.Monad (guard)
 import Text.PrettyPrint
 import PrettyPrinter
 
@@ -237,7 +240,9 @@ eval (TmCast c e)
   , TmTup (TmRecCon l1 v1) (TmRecCon l2 v2) <- e
   , isValue v1
   , isValue v2
-  = if l == l1 && l1 == l2 then Just (TmRecCon l (TmTup v1 v2)) else Nothing
+  = if l == l1 && l1 == l2
+      then return (TmRecCon l (TmTup v1 v2))
+      else fail "STEP-DISTRCD: label mismatch"
 -- STEP-PROJL
   | CoLeft _ _ <- c
   , TmTup v1 v2 <- e
@@ -279,14 +284,11 @@ typeFromContext (Snoc c v vt) x
 -- | In a given context, determine the type of a term.
 termType :: Context -> Term -> Maybe Type
 -- TYP-UNIT
-termType _ TmTop
-  = Just TyTop
+termType _ TmTop = return TyTop
 -- TYP-LIT
-termType _ (TmLit _)
-  = Just TyNat
+termType _ (TmLit _) = return TyNat
 -- TYP-TmVar
-termType c (TmVar x)
-  = typeFromContext c x
+termType c (TmVar x) = typeFromContext c x
 -- TYP-ABS
 termType c (TmAbs x t1 e)
   = do t2 <- termType (Snoc c x t1) e
@@ -295,9 +297,8 @@ termType c (TmAbs x t1 e)
 termType c (TmApp e1 e2)
   = do (TyArr t1 t2) <- termType c e1
        t3            <- termType c e2
-       if eqTypes t1 t3
-         then return t2
-         else Nothing
+       guard (eqTypes t1 t3)
+       return t2
 -- TYP-PAIR
 termType c (TmTup e1 e2)
   = do t1 <- termType c e1
@@ -307,9 +308,8 @@ termType c (TmTup e1 e2)
 termType c (TmCast co e)
   = do t         <- termType c e
        (t1, t1') <- coercionType co
-       if eqTypes t t1
-         then return t1'
-         else Nothing
+       guard (eqTypes t t1)
+       return t1'
 -- TYP-RCD
 termType c (TmRecCon l e)
   = do t <- termType c e
@@ -317,10 +317,8 @@ termType c (TmRecCon l e)
 -- TYP--PROJ
 termType c (TmRecFld e l)
   = do (TyRec l1 t) <- termType c e
-       if l == l1
-         then return t
-         else Nothing
-
+       guard (l == l1)
+       return t
 
 -- | Determine the type of a coercion.
 coercionType :: Coercion -> Maybe (Type, Type)
@@ -331,12 +329,10 @@ coercionType (CoRefl t)
 coercionType (CoTrans c1 c2)
   = do (t2, t3)  <- coercionType c1
        (t1, t2') <- coercionType c2
-       if eqTypes t2 t2'
-         then return (t1, t3)
-         else Nothing
+       guard (eqTypes t2 t2')
+       return (t1, t3)
 -- COTYP-CoAnyTop
-coercionType (CoAnyTop t)
-  = Just (t, TyTop)
+coercionType (CoAnyTop t) = return (t, TyTop)
 -- COTYP-TOPARR
 coercionType CoTopArr
   = Just (TyTop, TyArr TyTop TyTop)
@@ -352,9 +348,8 @@ coercionType (CoArr c1 c2)
 coercionType (CoPair c1 c2)
   = do (t1, t2)  <- coercionType c1
        (t1', t3) <- coercionType c2
-       if eqTypes t1 t1'
-         then return (t1, TyTup t2 t3)
-         else Nothing
+       guard (eqTypes t1 t1')
+       return (t1, TyTup t2 t3)
 -- COTYP-PROJL
 coercionType (CoLeft t1 t2)
   = Just (TyTup t1 t2, t1)
