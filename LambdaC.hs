@@ -121,6 +121,17 @@ instance Show Term where
 instance Show Coercion where
   show = render . ppr
 
+-- Just some notes pasted here
+
+{- putStrLn (map Data.Char.chr [0x03B1 .. (0x03B1 + 25)]) -}
+{- αβγδεζηθικλμνξοπρςστυφχψωϊ -}
+
+-- Lookup the UTF 16 Hex for the character you want
+
+{- λ> putStrLn ("x" ++ (map chr [0x2080 .. 0x2089])) -}
+{- x₀₁₂₃₄₅₆₇₈₉ -}
+
+
 -- * LambdaC Operational Semantics
 -- ----------------------------------------------------------------------------
 
