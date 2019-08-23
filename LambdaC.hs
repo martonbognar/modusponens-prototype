@@ -67,8 +67,8 @@ eqTypes _ _                         = False
 instance PrettyPrint Type where
   ppr TyNat         = ppr "Nat"
   ppr TyTop         = ppr "Unit"
-  ppr (TyTup t1 t2) = hsep [ppr t1, ppr "✕", ppr t2]
-  ppr (TyArr t1 t2) = hsep [ppr t1, arrow, ppr t2]
+  ppr (TyTup t1 t2) = parens $ hsep [ppr t1, ppr "✕", ppr t2]
+  ppr (TyArr t1 t2) = parens $ hsep [ppr t1, arrow, ppr t2]
   ppr (TyRec l t)   = braces $ hsep [ppr l, colon, ppr t]
 
 instance PrettyPrint Context where
@@ -81,19 +81,19 @@ instance PrettyPrint Term where
   ppr TmTop          = parens empty
   ppr (TmAbs v vt t)
     = hcat [ppr "\\", parens $ hsep [ppr v, colon, ppr vt], ppr t]
-  ppr (TmApp t1 t2)  = ppr t1 <+> ppr t2
+  ppr (TmApp t1 t2)  = parens $ hsep [ppr t1, ppr t2]
   ppr (TmTup t1 t2)  = parensList [ppr t1, ppr t2]
   ppr (TmRecCon l t) = braces $ hsep [ppr l, equals, ppr t]
   ppr (TmRecFld t l) = hcat [ppr t, dot, ppr l]
-  ppr (TmCast c t)   = ppr c <+> ppr t
+  ppr (TmCast c t)   = parens $ hsep [ppr c, ppr t]
 
 instance PrettyPrint Coercion where
   ppr (CoRefl t)           = ppr "id" <> braces (ppr t)
-  ppr (CoTrans c1 c2)      = hsep [ppr c1, dot, ppr c2]
+  ppr (CoTrans c1 c2)      = parens $ hsep [ppr c1, dot, ppr c2]
   ppr (CoAnyTop t)         = ppr "top" <> braces (ppr t)
   ppr CoTopArr             = ppr "top" <> arrow
   ppr (CoTopRec l)         = ppr "top" <> braces (ppr l)
-  ppr (CoArr c1 c2)        = hsep [ppr c1, arrow, ppr c2]
+  ppr (CoArr c1 c2)        = parens $ hsep [ppr c1, arrow, ppr c2]
   ppr (CoPair c1 c2)       = parensList [ppr c1, ppr c2]
   ppr (CoLeft t1 t2)       = hcat [ppr "π₁", parensList [ppr t1, ppr t2]]
   ppr (CoRight t1 t2)      = hcat [ppr "π₂", parensList [ppr t1, ppr t2]]

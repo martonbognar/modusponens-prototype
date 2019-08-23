@@ -80,8 +80,8 @@ viewL (ExtraType q t)
 instance PrettyPrint Type where
   ppr TyNat         = ppr "Nat"
   ppr TyTop         = ppr "Unit"
-  ppr (TyArr t1 t2) = hsep [ppr t1, arrow, ppr t2]
-  ppr (TyIs t1 t2)  = hsep [ppr t1, ppr "&", ppr t2]
+  ppr (TyArr t1 t2) = parens $ hsep [ppr t1, arrow, ppr t2]
+  ppr (TyIs t1 t2)  = parens $ hsep [ppr t1, ppr "&", ppr t2]
   ppr (TyRec l t)   = braces $ hsep [ppr l, colon, ppr t]
 
 instance PrettyPrint Expression where
@@ -89,9 +89,9 @@ instance PrettyPrint Expression where
   ppr (ExLit i)       = ppr i
   ppr ExTop           = parens empty
   ppr (ExAbs v e)     = hcat [ppr "\\", ppr v, dot, ppr e]
-  ppr (ExApp e1 e2)   = ppr e1 <+> ppr e2
-  ppr (ExMerge e1 e2) = hsep [ppr e1, comma, comma, ppr e2]
-  ppr (ExAnn e t)     = hsep [ppr e, colon, ppr t]
+  ppr (ExApp e1 e2)   = parens $ hsep [ppr e1, ppr e2]
+  ppr (ExMerge e1 e2) = parens $ hsep [ppr e1, comma, comma, ppr e2]
+  ppr (ExAnn e t)     = parens $ hsep [ppr e, colon, ppr t]
   ppr (ExRec l e)     = braces $ hsep [ppr l, equals, ppr e]
   ppr (ExRecFld e l)  = hcat [ppr e, dot, ppr l]
 
