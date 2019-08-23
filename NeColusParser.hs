@@ -70,12 +70,12 @@ expr1st :: Parser NC.Expression
 expr1st = exVar
           <|> exLit
           <|> exTop
-          <|> exAbs
           <|> exRec
           <|> parens expr2nd
 
 expr2nd :: Parser NC.Expression
-expr2nd = try exMerge
+expr2nd = exAbs
+          <|> try exMerge
           <|> try exAnn
           <|> try exRecFld
           <|> exApp
