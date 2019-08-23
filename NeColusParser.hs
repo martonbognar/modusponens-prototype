@@ -24,6 +24,7 @@ identifier = Token.identifier lexer
 reserved   = Token.reserved   lexer
 reservedOp = Token.reservedOp lexer
 parens     = Token.parens     lexer
+braces     = Token.braces     lexer
 integer    = Token.integer    lexer
 
 ty1st :: Parser NC.Type
@@ -58,13 +59,11 @@ tyIs =
      return $ NC.TyIs a b
 
 tyRec :: Parser NC.Type
-tyRec =
-  do reserved "{"
-     l <- identifier
-     reservedOp ":"
-     a <- ty1st
-     reserved "}"
-     return $ NC.TyRec l a
+tyRec = braces $ do
+  l <- identifier
+  reservedOp ":"
+  a <- ty1st
+  return (NC.TyRec l a)
 
 expr1st :: Parser NC.Expression
 expr1st = exVar
