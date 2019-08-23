@@ -11,8 +11,8 @@ import qualified Text.ParserCombinators.Parsec.Token as Token
 languageDef =
     emptyDef { Token.identStart      = letter
              , Token.identLetter     = alphaNum
-             , Token.reservedNames   = ["T", "\\", "{", "}", "Nat"]
-             , Token.reservedOpNames = [".", ",,", ":", "=", "->", "&"]
+             , Token.reservedNames   = ["T", "Nat"]
+             , Token.reservedOpNames = [".", "\\", "{", "}", ",,", ":", "=", "->", "&", "[", "]", "/"]
              }
 
 lexer = Token.makeTokenParser languageDef
@@ -39,21 +39,25 @@ tyNat =
 tyTop :: Parser NC.Type
 tyTop =
   do reserved "T"
-     return NC.TyNat
+     return NC.TyTop
 
 tyArr :: Parser NC.Type
 tyArr =
-  do a <- ty
+  do reservedOp "["
+     a <- ty
      reservedOp "->"
      b <- ty
+     reservedOp "]"
      return $ NC.TyArr a b
 
 tyIs :: Parser NC.Type
 tyIs =
-  do a <- ty
+  do reservedOp "/"
+     a <- ty
      reservedOp "&"
      b <- ty
-     return $ NC.TyArr a b
+     reservedOp "/"
+     return $ NC.TyIs a b
 
 tyRec :: Parser NC.Type
 tyRec =
