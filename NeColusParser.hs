@@ -1,13 +1,19 @@
+-- {-# OPTIONS_GHC -Wall #-}
+-- GEORGE: Enable the warnings and add the proper type signatures! :-)
+
 module NeColusParser where
 
 import qualified NeColus as NC
 
-import Control.Monad
+-- GEORGE: These two seem redundant right now
+import Control.Monad ()
+import Text.ParserCombinators.Parsec.Expr ()
+
 import Text.ParserCombinators.Parsec
-import Text.ParserCombinators.Parsec.Expr
 import Text.ParserCombinators.Parsec.Language
 import qualified Text.ParserCombinators.Parsec.Token as Token
 
+languageDef :: LanguageDef st
 languageDef =
     emptyDef { Token.identStart      = letter
              , Token.identLetter     = alphaNum
@@ -18,6 +24,7 @@ languageDef =
                ]
              }
 
+lexer :: Token.TokenParser st
 lexer = Token.makeTokenParser languageDef
 
 identifier = Token.identifier lexer
