@@ -4,10 +4,8 @@ module LambdaC where
 
 import Control.Monad (guard)
 import Text.PrettyPrint
+import CommonTypes
 import PrettyPrinter
-
-data Variable = MkVar   Integer deriving (Eq)
-data Label    = MkLabel String  deriving (Eq)
 
 -- * Main LambdaC types
 -- ----------------------------------------------------------------------------
@@ -63,12 +61,6 @@ eqTypes _ _                         = False
 
 -- * Pretty Printing
 -- ----------------------------------------------------------------------------
-
-instance PrettyPrint Variable where
-  ppr (MkVar i) = ppr "x" <> ppr i
-
-instance PrettyPrint Label where
-  ppr (MkLabel l) = ppr l
 
 instance PrettyPrint Type where
   ppr TyNat         = ppr "Nat"

@@ -1,0 +1,73 @@
+{-# OPTIONS_GHC -Wall #-}
+
+-- TODO: discuss implicit types in metaTop and metaIs functions
+
+module RawSyntax where
+
+import Text.PrettyPrint
+import CommonTypes
+import PrettyPrinter
+
+data RawVariable = MkRawVar String
+
+-- * Main NeColus types
+-- ----------------------------------------------------------------------------
+
+data Type
+  = TyNat
+  | TyTop
+  | TyArr Type Type
+  | TyIs Type Type
+  | TyRec Label Type
+
+data Expression
+  = ExVar RawVariable
+  | ExLit Integer
+  | ExTop
+  | ExAbs RawVariable Expression
+  | ExApp Expression Expression
+  | ExMerge Expression Expression
+  | ExAnn Expression Type
+  | ExRec Label Expression
+  | ExRecFld Expression Label
+
+data Context
+  = Empty
+  | Snoc Context RawVariable Type
+
+-- * Pretty Printing
+-- ----------------------------------------------------------------------------
+
+instance PrettyPrint RawVariable where
+  ppr (MkRawVar v) = ppr v
+
+instance PrettyPrint Type where
+  ppr TyNat         = ppr "Nat"
+  ppr TyTop         = ppr "Unit"
+  ppr (TyArr t1 t2) = parens $ hsep [ppr t1, arrow, ppr t2]
+  ppr (TyIs t1 t2)  = parens $ hsep [ppr t1, ppr "&", ppr t2]
+  ppr (TyRec l t)   = braces $ hsep [ppr l, colon, ppr t]
+
+instance PrettyPrint Expression where
+  ppr (ExVar v)       = ppr v
+  ppr (ExLit i)       = ppr i
+  ppr ExTop           = parens empty
+  ppr (ExAbs v e)     = parens $ hcat [ppr "\\", ppr v, dot, ppr e]
+  ppr (ExApp e1 e2)   = parens $ hsep [ppr e1, ppr e2]
+  ppr (ExMerge e1 e2) = parens $ hsep [ppr e1, comma <> comma, ppr e2]
+  ppr (ExAnn e t)     = parens $ hsep [ppr e, colon, ppr t]
+  ppr (ExRec l e)     = braces $ hsep [ppr l, equals, ppr e]
+  ppr (ExRecFld e l)  = hcat [ppr e, dot, ppr l]
+
+instance PrettyPrint Context where
+  ppr Empty        = ppr "•"
+  ppr (Snoc c v t) = hcat [ppr c, comma, ppr v, colon, ppr t]
+
+instance Show Type where
+  show = render . ppr
+
+instance Show Expression where
+  show = render . ppr
+
+instance Show Context where
+  show = render . ppr
