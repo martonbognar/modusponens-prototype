@@ -34,14 +34,20 @@ parens     = Token.parens     lexer
 braces     = Token.braces     lexer
 integer    = Token.integer    lexer
 
-ty1st :: Parser NC.Type
-ty1st = tyNat
+-- | Parse a type (highest priority).
+pPrimTy :: Parser NC.Type
+pPrimTy =   tyNat
         <|> tyTop
         <|> tyRec
-        <|> parens ty2nd
+        <|> parens pType
 
-ty2nd :: Parser NC.Type
-ty2nd = try tyArr <|> tyIs
+-- | Parse a type (lowest priority).
+pType :: Parser NC.Type
+pType = chainr1
+          (chainl1 pPrimTy (NC.TyIs <$ reservedOp "&"))
+          (NC.TyArr <$ reservedOp "->")
+
+-- ----------------------------------------------------------------------------
 
 -- | Parse a type "Nat".
 tyNat :: Parser NC.Type
@@ -51,26 +57,15 @@ tyNat = reserved "Nat" *> pure NC.TyNat
 tyTop :: Parser NC.Type
 tyTop = reserved "T" *> pure NC.TyTop
 
-tyArr :: Parser NC.Type
-tyArr =
-  do a <- ty1st
-     reservedOp "->"
-     b <- ty1st
-     return $ NC.TyArr a b
-
-tyIs :: Parser NC.Type
-tyIs =
-  do a <- ty1st
-     reservedOp "&"
-     b <- ty1st
-     return $ NC.TyIs a b
-
+-- | Parse a record.
 tyRec :: Parser NC.Type
 tyRec = braces $ do
   l <- identifier
   reservedOp ":"
-  a <- ty1st
+  a <- pPrimTy
   return (NC.TyRec l a)
+
+-- ----------------------------------------------------------------------------
 
 expr1st :: Parser NC.Expression
 expr1st = exVar
@@ -123,7 +118,7 @@ exAnn :: Parser NC.Expression
 exAnn =
   do e <- expr1st
      reservedOp ":"
-     t <- ty1st
+     t <- pType
      return $ NC.ExAnn e t
 
 exRec :: Parser NC.Expression
@@ -142,9 +137,16 @@ exRecFld =
      l <- identifier
      return $ NC.ExRecFld e l
 
-
-parseString :: String -> NC.Expression
-parseString str =
+-- | Parse an expression from a string.
+parseExpr :: String -> NC.Expression
+parseExpr str =
   case parse expr1st "" str of
+    Left e  -> error $ show e
+    Right r -> r
+
+-- | Parse a type from a string.
+parseType :: String -> NC.Type
+parseType str =
+  case parse pType "" str of
     Left e  -> error $ show e
     Right r -> r
