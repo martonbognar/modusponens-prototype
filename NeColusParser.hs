@@ -67,6 +67,43 @@ tyRec = braces $ do
 
 -- ----------------------------------------------------------------------------
 
+-- | Parse a term (highest priority).
+pPrimExpr :: Parser NC.Expression
+pPrimExpr =   exVar
+          <|> exLit
+          <|> exTop
+          <|> exRec
+          <|> parens pExpr
+
+-- | Parse a term variable.
+exVar :: Parser NC.Expression
+exVar = NC.ExVar <$> identifier
+
+-- | Parse a natural number.
+exLit :: Parser NC.Expression
+exLit = NC.ExLit . fromIntegral <$> integer
+
+-- | Parse the top expression.
+exTop :: Parser NC.Expression
+exTop = reserved "T" *> pure NC.ExTop
+
+-- | Parse a record.
+exRec :: Parser NC.Expression
+exRec = braces $ do
+  l <- identifier
+  reservedOp "="
+  e <- expr1st
+  return (NC.ExRec l e)
+
+-- ----------------------------------------------------------------------------
+
+pExpr :: Parser NC.Expression
+pExpr = error "Not implemented yet."
+
+
+-- ----------------------------------------------------------------------------
+
+
 expr1st :: Parser NC.Expression
 expr1st = exVar
           <|> exLit
@@ -80,18 +117,6 @@ expr2nd = exAbs
           <|> try exAnn
           <|> try exRecFld
           <|> exApp
-
--- | Parse a term variable.
-exVar :: Parser NC.Expression
-exVar = NC.ExVar <$> identifier
-
--- | Parse a natural number.
-exLit :: Parser NC.Expression
-exLit = NC.ExLit . fromIntegral <$> integer
-
--- | Parse the top expression.
-exTop :: Parser NC.Expression
-exTop = reserved "T" *> pure NC.ExTop
 
 exAbs :: Parser NC.Expression
 exAbs =
@@ -120,15 +145,6 @@ exAnn =
      reservedOp ":"
      t <- pType
      return $ NC.ExAnn e t
-
-exRec :: Parser NC.Expression
-exRec =
-  do reserved "{"
-     l <- identifier
-     reservedOp "="
-     e <- expr1st
-     reserved "}"
-     return $ NC.ExRec l e
 
 exRecFld :: Parser NC.Expression
 exRecFld =
