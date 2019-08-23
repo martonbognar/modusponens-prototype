@@ -12,7 +12,10 @@ languageDef =
     emptyDef { Token.identStart      = letter
              , Token.identLetter     = alphaNum
              , Token.reservedNames   = ["T", "Nat"]
-             , Token.reservedOpNames = [".", "\\", "{", "}", ",,", ":", "=", "->", "&", "[", "]", "/"]
+             , Token.reservedOpNames = [
+                 ".", "\\", "{", "}", ",,", ":",
+                 "=", "->", "&", "[", "]", "/", "|", ";", "<-"
+               ]
              }
 
 lexer = Token.makeTokenParser languageDef
@@ -105,22 +108,29 @@ exAbs =
 
 exApp :: Parser NC.Expression
 exApp =
-  do e1 <- expr
+  do reservedOp "|"
+     e1 <- expr
+     reservedOp "<-"
      e2 <- expr
+     reservedOp "|"
      return $ NC.ExApp e1 e2
 
 exMerge :: Parser NC.Expression
 exMerge =
-  do e1 <- expr
+  do reservedOp "/"
+     e1 <- expr
      reservedOp ",,"
      e2 <- expr
+     reservedOp "/"
      return $ NC.ExMerge e1 e2
 
 exAnn :: Parser NC.Expression
 exAnn =
-  do e <- expr
+  do reservedOp "["
+     e <- expr
      reservedOp ":"
      t <- ty
+     reservedOp "]"
      return $ NC.ExAnn e t
 
 exRec :: Parser NC.Expression
@@ -134,9 +144,11 @@ exRec =
 
 exRecFld :: Parser NC.Expression
 exRecFld =
-  do e <- expr
+  do reservedOp ";"
+     e <- expr
      reservedOp "."
      l <- identifier
+     reservedOp ";"
      return $ NC.ExRecFld e l
 
 

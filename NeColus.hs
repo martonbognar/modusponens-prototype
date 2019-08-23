@@ -88,9 +88,9 @@ instance PrettyPrint Expression where
   ppr (ExVar v)       = ppr v
   ppr (ExLit i)       = ppr i
   ppr ExTop           = parens empty
-  ppr (ExAbs v e)     = hcat [ppr "\\", ppr v, dot, ppr e]
+  ppr (ExAbs v e)     = parens $ hcat [ppr "\\", ppr v, dot, ppr e]
   ppr (ExApp e1 e2)   = parens $ hsep [ppr e1, ppr e2]
-  ppr (ExMerge e1 e2) = parens $ hsep [ppr e1, comma, comma, ppr e2]
+  ppr (ExMerge e1 e2) = parens $ hsep [ppr e1, comma <> comma, ppr e2]
   ppr (ExAnn e t)     = parens $ hsep [ppr e, colon, ppr t]
   ppr (ExRec l e)     = braces $ hsep [ppr l, equals, ppr e]
   ppr (ExRecFld e l)  = hcat [ppr e, dot, ppr l]
