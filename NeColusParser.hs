@@ -35,15 +35,13 @@ ty1st = tyNat
 ty2nd :: Parser NC.Type
 ty2nd = try tyArr <|> tyIs
 
+-- | Parse a type "Nat".
 tyNat :: Parser NC.Type
-tyNat =
-  do reserved "Nat"
-     return NC.TyNat
+tyNat = reserved "Nat" *> pure NC.TyNat
 
+-- | Parse the top type "T".
 tyTop :: Parser NC.Type
-tyTop =
-  do reserved "T"
-     return NC.TyTop
+tyTop = reserved "T" *> pure NC.TyTop
 
 tyArr :: Parser NC.Type
 tyArr =
@@ -82,20 +80,17 @@ expr2nd = try exMerge
           <|> try exRecFld
           <|> exApp
 
+-- | Parse a term variable.
 exVar :: Parser NC.Expression
-exVar =
-  do var <- identifier
-     return $ NC.ExVar var
+exVar = NC.ExVar <$> identifier
 
+-- | Parse a natural number.
 exLit :: Parser NC.Expression
-exLit =
-  do i <- integer
-     return $ NC.ExLit (fromIntegral i)
+exLit = NC.ExLit . fromIntegral <$> integer
 
+-- | Parse the top expression.
 exTop :: Parser NC.Expression
-exTop =
-  do reserved "T"
-     return NC.ExTop
+exTop = reserved "T" *> pure NC.ExTop
 
 exAbs :: Parser NC.Expression
 exAbs =
