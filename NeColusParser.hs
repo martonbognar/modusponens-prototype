@@ -26,13 +26,14 @@ reservedOp = Token.reservedOp lexer
 parens     = Token.parens     lexer
 integer    = Token.integer    lexer
 
-ty :: Parser NC.Type
-ty = parens ty
-     <|> tyNat
-     <|> tyTop
-     <|> tyArr
-     <|> tyIs
-     <|> tyRec
+ty1st :: Parser NC.Type
+ty1st = tyNat
+        <|> tyTop
+        <|> tyRec
+        <|> parens ty2nd
+
+ty2nd :: Parser NC.Type
+ty2nd = try tyArr <|> tyIs
 
 tyNat :: Parser NC.Type
 tyNat =
@@ -46,20 +47,16 @@ tyTop =
 
 tyArr :: Parser NC.Type
 tyArr =
-  do reservedOp "["
-     a <- ty
+  do a <- ty1st
      reservedOp "->"
-     b <- ty
-     reservedOp "]"
+     b <- ty1st
      return $ NC.TyArr a b
 
 tyIs :: Parser NC.Type
 tyIs =
-  do reservedOp "/"
-     a <- ty
+  do a <- ty1st
      reservedOp "&"
-     b <- ty
-     reservedOp "/"
+     b <- ty1st
      return $ NC.TyIs a b
 
 tyRec :: Parser NC.Type
@@ -67,21 +64,23 @@ tyRec =
   do reserved "{"
      l <- identifier
      reservedOp ":"
-     a <- ty
+     a <- ty1st
      reserved "}"
      return $ NC.TyRec l a
 
-expr :: Parser NC.Expression
-expr = parens expr
-            <|> exVar
-            <|> exLit
-            <|> exTop
-            <|> exAbs
-            <|> exApp
-            <|> exMerge
-            <|> exAnn
-            <|> exRec
-            <|> exRecFld
+expr1st :: Parser NC.Expression
+expr1st = exVar
+          <|> exLit
+          <|> exTop
+          <|> exAbs
+          <|> exRec
+          <|> parens expr2nd
+
+expr2nd :: Parser NC.Expression
+expr2nd = try exMerge
+          <|> try exAnn
+          <|> try exRecFld
+          <|> exApp
 
 exVar :: Parser NC.Expression
 exVar =
@@ -103,34 +102,27 @@ exAbs =
   do reserved "\\"
      x <- identifier
      reservedOp "."
-     e <- expr
+     e <- expr1st
      return $ NC.ExAbs x e
 
 exApp :: Parser NC.Expression
 exApp =
-  do reservedOp "|"
-     e1 <- expr
-     reservedOp "<-"
-     e2 <- expr
-     reservedOp "|"
+  do e1 <- expr1st
+     e2 <- expr1st
      return $ NC.ExApp e1 e2
 
 exMerge :: Parser NC.Expression
 exMerge =
-  do reservedOp "/"
-     e1 <- expr
+  do e1 <- expr1st
      reservedOp ",,"
-     e2 <- expr
-     reservedOp "/"
+     e2 <- expr1st
      return $ NC.ExMerge e1 e2
 
 exAnn :: Parser NC.Expression
 exAnn =
-  do reservedOp "["
-     e <- expr
+  do e <- expr1st
      reservedOp ":"
-     t <- ty
-     reservedOp "]"
+     t <- ty1st
      return $ NC.ExAnn e t
 
 exRec :: Parser NC.Expression
@@ -138,22 +130,20 @@ exRec =
   do reserved "{"
      l <- identifier
      reservedOp "="
-     e <- expr
+     e <- expr1st
      reserved "}"
      return $ NC.ExRec l e
 
 exRecFld :: Parser NC.Expression
 exRecFld =
-  do reservedOp ";"
-     e <- expr
+  do e <- expr1st
      reservedOp "."
      l <- identifier
-     reservedOp ";"
      return $ NC.ExRecFld e l
 
 
 parseString :: String -> NC.Expression
 parseString str =
-  case parse expr "" str of
+  case parse expr1st "" str of
     Left e  -> error $ show e
     Right r -> r
