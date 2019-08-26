@@ -8,14 +8,6 @@ import CommonTypes
 import qualified RawSyntax as Raw
 import Syntax
 
-new :: State Integer Integer
-new = state (\s -> (s, s + 1))
-
-type RnM a = State Integer a
-
-freshVar :: RnM Variable
-freshVar = state (\s -> (MkVar s, s + 1))
-
 rnType :: Raw.Type -> Type
 rnType Raw.TyNat         = TyNat
 rnType Raw.TyTop         = TyTop

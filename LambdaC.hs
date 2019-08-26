@@ -1,6 +1,9 @@
 {-# OPTIONS_GHC -Wall #-}
+{-# LANGUAGE LambdaCase #-}
 
 module LambdaC where
+
+import Control.Monad.State.Lazy
 
 import Control.Monad (guard)
 import Text.PrettyPrint
@@ -144,139 +147,166 @@ isValue (TmCast CoDistArr{} v)   = isValue v
 isValue (TmCast CoTopArr v)      = isValue v
 isValue _                        = False
 
--- subst :: Term -> Variable -> Term -> RnM Term
---
---   where
---     rnTerm :: (Variable, Term) -> RnM (Variable, Term)
+
+entry :: Integer -> Term -> (Term, Integer)
+entry state0 t = runState (fullEval t) state0
+
+
+-- | Fully evaluate a term.
+fullEval :: Term -> RnM Term
+fullEval t = eval t >>= \case
+  Just st -> fullEval st
+  Nothing -> return t
 
 
 -- | In a given term, substitue a variable with another term.
-subst :: Term -> Variable -> Term -> Term
+subst :: Term -> Variable -> Term -> RnM Term
 subst expr x v = case expr of
-  TmVar x' | x' == x   -> v
-           | otherwise -> TmVar x'
-  TmLit i        -> TmLit i
-  TmTop          -> TmTop
-  TmAbs x' x't e -> TmAbs x' x't (subst e x v)
-  TmApp e1 e2    -> TmApp (subst e1 x v) (subst e2 x v)
-  TmTup e1 e2    -> TmTup (subst e1 x v) (subst e2 x v)
-  TmRecCon l e   -> TmRecCon l (subst e x v)
-  TmRecFld e l   -> TmRecFld (subst e x v) l
-  TmCast c e     -> TmCast c (subst e x v)
+  TmVar x' | x' == x   -> return v
+           | otherwise -> return (TmVar x')
+  TmLit i        -> return (TmLit i)
+  TmTop          -> return (TmTop)
+  TmAbs x' x't e -> do
+    (newX, newE) <- rnTerm x' e
+    e' <- subst newE newX v
+    return (TmAbs newX x't e')
+  TmApp e1 e2    -> do
+    e1' <- subst e1 x v
+    e2' <- subst e2 x v
+    return (TmApp  e1' e2')
+  TmTup e1 e2    -> do
+    e1' <- subst e1 x v
+    e2' <- subst e2 x v
+    return (TmTup e1' e2')
+  TmRecCon l e   -> do
+    e' <- subst e x v
+    return (TmRecCon l e')
+  TmRecFld e l   -> do
+    e' <- subst e x v
+    return (TmRecFld e' l)
+  TmCast c e     -> do
+    e' <- subst e x v
+    return (TmCast c e')
+  where
+    -- | Replace a variable in a term with a fresh one.
+    rnTerm :: Variable -> Term -> RnM (Variable, Term)
+    rnTerm x e = do
+      x' <- freshVar
+      e' <- subst e x (TmVar x')
+      return (x', e')
 
 
 -- | Execute small-step reduction on a term.
-eval :: Term -> Maybe Term
-eval (TmApp e1 e2)
-  -- STEP-APP1
-  | Just e1' <- eval e1
-  = return (TmApp e1' e2)
-  -- STEP-APP2
-  | Just e2' <- eval e2
-  , isValue e1
-  = return (TmApp e1 e2')
-  -- STEP-TOPARR
-  | TmCast CoTopArr TmTop <- e1
-  , TmTop <- e2
-  = return TmTop
-  -- STEP-ARR
-  | TmCast (CoArr c1 c2) v1 <- e1
-  , isValue v1
+eval :: Term -> RnM (Maybe Term)
+-- STEP-TOPARR
+eval (TmApp (TmCast CoTopArr TmTop) TmTop) = return (Just TmTop)
+-- STEP-ARR
+eval (TmApp (TmCast (CoArr c1 c2) v1) e2)
+  | isValue v1
   , isValue e2
-  = return (TmCast c2 (TmApp v1 (TmCast c1 e2)))
-  -- STEP-DISTARR
-  | TmCast CoDistArr{} (TmTup v1 v2) <- e1
-  , isValue v1
+  = return (Just (TmCast c2 (TmApp v1 (TmCast c1 e2))))
+-- STEP-DISTARR
+eval (TmApp (TmCast CoDistArr{} (TmTup v1 v2)) e2)
+  | isValue v1
   , isValue v2
   , isValue e2
-  = return (TmTup (TmApp v1 e2) (TmApp v2 e2))
-  -- STEP-BETA
-  | TmAbs x _ e <- e1
-  , isValue e2
-  = return (subst e x e2)
+  = return (Just (TmTup (TmApp v1 e2) (TmApp v2 e2)))
+-- STEP-BETA
+eval (TmApp (TmAbs x _ e) e2)
+  | isValue e2
+  = do
+    t <- subst e x e2
+    return (Just t)
+
+eval (TmApp e1 e2) =
+  eval e1 >>= \case
+-- STEP-APP1
+    Just e1' -> return (Just (TmApp e1' e2))
+    Nothing -> eval e2 >>= \case
+-- STEP-APP2
+      Just e2' -> if isValue e1
+        then return (Just (TmApp e1 e2'))
+        else return Nothing
+      _                -> return Nothing -- TODO?
 
 -- STEP-PAIR1 & STEP-PAIR2
-eval (TmTup e1 e2)
-  | Just e1' <- eval e1
-  = return (TmTup e1' e2)
-  | Just e2' <- eval e2
-  , isValue e1
-  = return (TmTup e1 e2')
+eval (TmTup e1 e2) =
+  eval e1 >>= \case
+    Just e1' -> return (Just (TmTup e1' e2))
+    Nothing  -> eval e2 >>= \case
+      Just e2' -> if isValue e1
+        then return (Just (TmTup e1 e2'))
+        else return Nothing
+      _                -> return Nothing -- TODO?
 
 -- STEP-PROJRCD
 eval (TmRecFld (TmRecCon l v) l1)
   | l == l1
   , isValue v
-  = return v
+  = return (Just v)
 
 -- STEP-RCD1
-eval (TmRecCon l e)
-  | Just e' <- eval e
-  = return (TmRecCon l e')
+eval (TmRecCon l e) =
+  eval e >>= \case
+    Just e' -> return (Just (TmRecCon l e'))
+    _       -> return Nothing -- TODO?
 
 -- STEP-RCD2
-eval (TmRecFld e l)
-  | Just e' <- eval e
-  = return (TmRecFld e' l)
+eval (TmRecFld e l) =
+  eval e >>= \case
+    Just e' -> return (Just (TmRecFld e' l))
+    _       -> return Nothing
+
+  -- STEP-ID
+eval (TmCast (CoRefl _) e)
+  | isValue e
+  = return (Just e)
+-- STEP-TRANS
+eval (TmCast (CoTrans c1 c2) e)
+  | isValue e
+  = return (Just (TmCast c1 (TmCast c2 e)))
+-- SET-TOP
+eval (TmCast (CoAnyTop _) e)
+  | isValue e
+  = return (Just TmTop)
+-- STEP-TOPRCD
+eval (TmCast (CoTopRec l) TmTop)
+  = return (Just (TmRecCon l TmTop))
+-- STEP-PAIR
+eval (TmCast (CoPair c1 c2) e)
+  | isValue e
+  = return (Just (TmTup (TmCast c1 e) (TmCast c2 e)))
+-- STEP-DISTRCD
+eval (TmCast (CoDistRec l _ _) (TmTup (TmRecCon l1 v1) (TmRecCon l2 v2)))
+  | isValue v1
+  , isValue v2
+  = if (l == l1 && l1 == l2)
+      then return (Just (TmRecCon l (TmTup v1 v2)))
+      else return Nothing
+-- STEP-PROJL
+eval (TmCast (CoLeft _ _) (TmTup v1 v2))
+  | isValue v1
+  , isValue v2
+  = return (Just v1)
+-- STEP-PROJR
+eval (TmCast (CoRight _ _) (TmTup v1 v2))
+  | isValue v1
+  , isValue v2
+  = return (Just v2)
+-- STEP-CRCD
+eval (TmCast (CoRec l co) (TmRecCon l1 v))
+  | isValue v
+  = if l == l1
+      then return (Just (TmRecCon l (TmCast co v)))
+      else return Nothing
 
 -- STEP-CAPP
-eval (TmCast c e)
-  | Just e' <- eval e
-  = return (TmCast c e')
-  -- STEP-ID
-  | CoRefl _ <- c
-  , isValue e
-  = return e
--- STEP-TRANS
-  | CoTrans c1 c2 <- c
-  , isValue e
-  = return (TmCast c1 (TmCast c2 e))
--- SET-TOP
-  | CoAnyTop _ <- c
-  , isValue e
-  = return TmTop
--- STEP-TOPRCD
-  | CoTopRec l <- c
-  , TmTop <- e
-  = return (TmRecCon l TmTop)
--- STEP-PAIR
-  | CoPair c1 c2 <- c
-  , isValue e
-  = return (TmTup (TmCast c1 e) (TmCast c2 e))
--- STEP-DISTRCD
-  | CoDistRec l _ _ <- c
-  , TmTup (TmRecCon l1 v1) (TmRecCon l2 v2) <- e
-  , isValue v1
-  , isValue v2
-  = do guard (l == l1 && l1 == l2)
-       return (TmRecCon l (TmTup v1 v2))
--- STEP-PROJL
-  | CoLeft _ _ <- c
-  , TmTup v1 v2 <- e
-  , isValue v1
-  , isValue v2
-  = return v1
--- STEP-PROJR
-  | CoRight _ _ <- c
-  , TmTup v1 v2 <- e
-  , isValue v1
-  , isValue v2
-  = return v2
--- STEP-CRCD
-  | CoRec l co <- c
-  , TmRecCon l1 v <- e
-  , isValue v
-  = do guard (l == l1)
-       return (TmRecCon l (TmCast co v))
+eval (TmCast c e) =
+  eval e >>= \case
+    Just e' -> return (Just (TmCast c e'))
+    _       -> return Nothing -- TODO?
 
 eval _ = fail "Evaluation error"
-
-
--- | Fully evaluate a term.
-fullEval :: Term -> Term
-fullEval t = case eval t of
-  Just st -> fullEval st
-  Nothing -> t
 
 -- * LambdaC Typing
 -- ----------------------------------------------------------------------------
