@@ -4,11 +4,15 @@
 
 module RawSyntax where
 
+import Data.Function (on)
 import Text.PrettyPrint
 import CommonTypes
 import PrettyPrinter
 
-data RawVariable = MkRawVar String
+data RawVariable = MkRawVar { unRawVar :: String }
+
+eqRawVariable :: RawVariable -> RawVariable -> Bool
+eqRawVariable = (==) `on` unRawVar
 
 -- * Main NeColus types
 -- ----------------------------------------------------------------------------
@@ -62,6 +66,9 @@ instance PrettyPrint Expression where
 instance PrettyPrint Context where
   ppr Empty        = ppr "•"
   ppr (Snoc c v t) = hcat [ppr c, comma, ppr v, colon, ppr t]
+
+instance Show RawVariable where
+  show = render . ppr
 
 instance Show Type where
   show = render . ppr
