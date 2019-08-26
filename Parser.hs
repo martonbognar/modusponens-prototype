@@ -117,34 +117,25 @@ exRec = braces $ do
 
 
 hetChainl1 :: (Stream s m t) => ParsecT s u m a -> ParsecT s u m b -> ParsecT s u m (a -> b -> a) -> ParsecT s u m a
-hetChainl1 p1 p2 op     = do{ x <- p1; rest x }
+hetChainl1 p1 p2 op = do{ x <- p1; rest x }
                     where
-                      rest x    = do{ f <- op
-                                    ; y <- p2
-                                    ; rest (f x y)
-                                    }
-                                <|> return x
+                      rest x = do{ f <- op
+                                ; y <- p2
+                                ; rest (f x y)
+                                }
+                              <|> return x
 
 invHetChainl1 :: (Stream s m t) => ParsecT s u m b -> ParsecT s u m a -> ParsecT s u m (b -> a -> a) -> ParsecT s u m a
-invHetChainl1 p1 p2 op     = do{ x <- p1; rest x } <|> do {y <- p2; return y}
+invHetChainl1 p1 p2 op = do{ x <- p1; rest x } <|> do {y <- p2; return y}
                     where
-                      rest x    = do{ f <- op
-                                    ; y <- p2
-                                    ; return (f x y)
-                                    }
+                      rest x = do{ f <- op
+                                 ; y <- p2
+                                 ; return (f x y)
+                                 }
 
 
 pExpr :: Parser NC.Expression
-pExpr
-  = hetChainl1 (
-      chainl1 (
-        chainl1 (
-          invHetChainl1 varHelper (
-            hetChainl1 pPrimExpr labelHelper (NC.ExRecFld <$ reservedOp ".")
-          ) (NC.ExAbs <$ reservedOp ".")
-        ) (NC.ExMerge <$ reservedOp ",,")
-      ) (NC.ExApp <$ reservedOp "|")
-    ) pType (NC.ExAnn <$ reservedOp ":")
+pExpr = annHelper
 
 varHelper :: Parser NC.RawVariable
 varHelper = do
@@ -152,9 +143,24 @@ varHelper = do
   x <- identifier
   return (NC.MkRawVar x)
 
-
 labelHelper :: Parser Label
 labelHelper = MkLabel <$> identifier
+
+recFldHelper :: Parser NC.Expression
+recFldHelper = hetChainl1 pPrimExpr labelHelper (NC.ExRecFld <$ reservedOp ".")
+
+absHelper :: Parser NC.Expression
+absHelper = invHetChainl1 varHelper recFldHelper (NC.ExAbs <$ reservedOp ".")
+
+mergeHelper :: Parser NC.Expression
+mergeHelper = chainl1 absHelper (NC.ExMerge <$ reservedOp ",,")
+
+appHelper :: Parser NC.Expression
+appHelper = chainl1 mergeHelper (NC.ExApp <$ reservedOp "|")
+
+annHelper :: Parser NC.Expression
+annHelper = hetChainl1 appHelper pType (NC.ExAnn <$ reservedOp ":")
+
 -- ----------------------------------------------------------------------------
 
 
