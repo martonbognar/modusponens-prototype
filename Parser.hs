@@ -116,7 +116,7 @@ hetChainl1 p1 p2 op     = do{ x <- p1; rest x }
                                 <|> return x
 
 invHetChainl1 :: (Stream s m t) => ParsecT s u m b -> ParsecT s u m a -> ParsecT s u m (b -> a -> a) -> ParsecT s u m a
-invHetChainl1 p1 p2 op     = do{ x <- p1; rest x }
+invHetChainl1 p1 p2 op     = do{ x <- p1; rest x } <|> do {y <- p2; return y}
                     where
                       rest x    = do{ f <- op
                                     ; y <- p2
