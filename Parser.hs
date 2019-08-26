@@ -72,10 +72,10 @@ tyTop = reserved "T" *> pure NC.TyTop
 -- | Parse a record.
 tyRec :: Parser NC.Type
 tyRec = braces $ do
-    l <- identifier
+    l <- pLabel
     reservedOp ":"
     a <- pPrimTy
-    return (NC.TyRec (MkLabel l) a)
+    return (NC.TyRec l a)
 
 -- ----------------------------------------------------------------------------
 
@@ -85,7 +85,7 @@ pPrimExpr =   exVar
           <|> exLit
           <|> exTop
           <|> exRec
-          <|> parens absHelper
+          <|> parens pExpr
 
 -- | Parse a term variable.
 exVar :: Parser NC.Expression
@@ -104,14 +104,10 @@ exRec :: Parser NC.Expression
 exRec = braces $ do
     l <- identifier
     reservedOp "="
-    e <- absHelper
+    e <- pExpr
     return (NC.ExRec (MkLabel l) e)
 
 -- ----------------------------------------------------------------------------
-
-pRawVar :: Parser NC.RawVariable
-pRawVar = NC.MkRawVar <$> identifier
-
 
 -- primitive terms  0
 -- record selection 1
@@ -120,25 +116,32 @@ pRawVar = NC.MkRawVar <$> identifier
 -- annotation       4
 -- lambda           5
 
-recFldHelper :: Parser NC.Expression
-recFldHelper = hetChainl1 pPrimExpr pLabel (NC.ExRecFld <$ reservedOp ".")
+pExpr :: Parser NC.Expression
+pExpr = pExAbs <|> pExpr4
+  where
+    pRawVar :: Parser NC.RawVariable
+    pRawVar = NC.MkRawVar <$> identifier
 
-appHelper :: Parser NC.Expression
-appHelper = chainl1 recFldHelper (pure NC.ExApp)
+    pExAbs :: Parser NC.Expression
+    pExAbs = do
+      reserved "\\"
+      x <- pRawVar
+      reservedOp "."
+      e <- pExpr
+      return (NC.ExAbs x e)
 
-mergeHelper :: Parser NC.Expression
-mergeHelper = chainl1 appHelper (NC.ExMerge <$ reservedOp ",,")
+    pExpr1 :: Parser NC.Expression
+    pExpr1 = hetChainl1 pPrimExpr pLabel (NC.ExRecFld <$ reservedOp ".")
 
-annHelper :: Parser NC.Expression
-annHelper = hetChainl1 mergeHelper pType (NC.ExAnn <$ reservedOp ":")
+    pExpr2 :: Parser NC.Expression
+    pExpr2 = chainl1 pExpr1 (pure NC.ExApp)
 
-absHelper :: Parser NC.Expression
-absHelper =   do reserved "\\"
-                 x <- pRawVar
-                 reservedOp "."
-                 e <- absHelper
-                 return (NC.ExAbs x e)
-          <|> annHelper
+    pExpr3 :: Parser NC.Expression
+    pExpr3 = chainl1 pExpr2 (NC.ExMerge <$ reservedOp ",,")
+
+    pExpr4 :: Parser NC.Expression
+    pExpr4 = hetChainl1 pExpr3 pType (NC.ExAnn <$ reservedOp ":")
+
 
 
 hetChainl1 :: Stream s m t
@@ -162,7 +165,7 @@ pLabel = MkLabel <$> identifier
 -- | Parse an expression from a string.
 parseExpr :: String -> NC.Expression
 parseExpr str =
-  case parse (absHelper <* eof) "" str of
+  case parse (pExpr <* eof) "" str of
   Left e  -> error $ show e
   Right r -> r
 
