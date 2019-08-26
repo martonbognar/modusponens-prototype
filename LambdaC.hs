@@ -144,6 +144,11 @@ isValue (TmCast CoDistArr{} v)   = isValue v
 isValue (TmCast CoTopArr v)      = isValue v
 isValue _                        = False
 
+-- subst :: Term -> Variable -> Term -> RnM Term
+--
+--   where
+--     rnTerm :: (Variable, Term) -> RnM (Variable, Term)
+
 
 -- | In a given term, substitue a variable with another term.
 subst :: Term -> Variable -> Term -> Term
