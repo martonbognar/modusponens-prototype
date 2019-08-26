@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wall #-}
+
 module Renamer where
 
 import Control.Monad.State.Lazy
@@ -31,11 +33,11 @@ rnLookup v (SnocRnEnv env v' x)
   | otherwise              = rnLookup v env
 
 rnFullExpr :: RnEnv -> Integer -> Raw.Expression -> (Expression, Integer)
-rnFullExpr env state0 exp = runState (rnExpr env exp) state0
+rnFullExpr env state0 ex = runState (rnExpr env ex) state0
 
 rnExpr :: RnEnv -> Raw.Expression -> RnM Expression
-rnExpr env (Raw.ExLit i) = return (ExLit i)
-rnExpr env Raw.ExTop     = return ExTop
+rnExpr _ (Raw.ExLit i) = return (ExLit i)
+rnExpr _ Raw.ExTop     = return ExTop
 rnExpr env (Raw.ExVar x) = case rnLookup x env of
   Nothing -> error $ "Unbound variable " ++ show x -- fail miserably here
   Just y  -> return (ExVar y)

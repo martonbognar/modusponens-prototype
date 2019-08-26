@@ -1,5 +1,4 @@
--- {-# OPTIONS_GHC -Wall #-}
--- GEORGE: Enable the warnings and add the proper type signatures! :-)
+{-# OPTIONS_GHC -Wall #-}
 
 module Parser where
 
@@ -29,11 +28,22 @@ languageDef =
 lexer :: Token.TokenParser st
 lexer = Token.makeTokenParser languageDef
 
+identifier :: Parser String
 identifier = Token.identifier lexer
+
+-- reserved :: Parser
 reserved   = Token.reserved   lexer
+
+-- reservedOp :: Parser
 reservedOp = Token.reservedOp lexer
+
+-- parens :: Parser
 parens     = Token.parens     lexer
+
+-- braces :: Parser
 braces     = Token.braces     lexer
+
+integer :: Parser Integer
 integer    = Token.integer    lexer
 
 -- | Parse a type (highest priority).
