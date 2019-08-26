@@ -10,6 +10,7 @@ import qualified RawSyntax as NC
 import Control.Monad ()
 import Text.ParserCombinators.Parsec.Expr ()
 
+import Text.Parsec.Prim (Stream, ParsecT)
 import Text.ParserCombinators.Parsec
 import Text.ParserCombinators.Parsec.Language
 import qualified Text.ParserCombinators.Parsec.Token as Token
@@ -98,10 +99,52 @@ exRec = braces $ do
 
 -- ----------------------------------------------------------------------------
 
+-- record selection
+-- lambda
+-- merge
+-- application
+-- annotation
+
+
+hetChainl1 :: (Stream s m t) => ParsecT s u m a -> ParsecT s u m b -> ParsecT s u m (a -> b -> a) -> ParsecT s u m a
+hetChainl1 p1 p2 op     = do{ x <- p1; rest x }
+                    where
+                      rest x    = do{ f <- op
+                                    ; y <- p2
+                                    ; rest (f x y)
+                                    }
+                                <|> return x
+
+invHetChainl1 :: (Stream s m t) => ParsecT s u m b -> ParsecT s u m a -> ParsecT s u m (b -> a -> a) -> ParsecT s u m a
+invHetChainl1 p1 p2 op     = do{ x <- p1; rest x }
+                    where
+                      rest x    = do{ f <- op
+                                    ; y <- p2
+                                    ; return (f x y)
+                                    }
+
+
 pExpr :: Parser NC.Expression
-pExpr = error "Not implemented yet."
+pExpr
+  = hetChainl1 (
+      chainl1 (
+        chainl1 (
+          invHetChainl1 varHelper (
+            hetChainl1 pPrimExpr labelHelper (NC.ExRecFld <$ reservedOp ".")
+          ) (NC.ExAbs <$ reservedOp ".")
+        ) (NC.ExMerge <$ reservedOp ",,")
+      ) (NC.ExApp <$ reservedOp "|")
+    ) pType (NC.ExAnn <$ reservedOp ":")
+
+varHelper :: Parser NC.RawVariable
+varHelper = do
+  reserved "\\"
+  x <- identifier
+  return (NC.MkRawVar x)
 
 
+labelHelper :: Parser Label
+labelHelper = MkLabel <$> identifier
 -- ----------------------------------------------------------------------------
 
 
@@ -157,7 +200,7 @@ exRecFld = do
 -- | Parse an expression from a string.
 parseExpr :: String -> NC.Expression
 parseExpr str =
-  case parse expr1st "" str of
+  case parse pExpr "" str of
   Left e  -> error $ show e
   Right r -> r
 
