@@ -16,12 +16,12 @@ type RnM a = State Integer a
 freshVar :: RnM Variable
 freshVar = state (\s -> (MkVar s, s + 1))
 
-translateType :: Raw.Type -> Type
-translateType Raw.TyNat         = TyNat
-translateType Raw.TyTop         = TyTop
-translateType (Raw.TyArr t1 t2) = TyArr (translateType t1) (translateType t2)
-translateType (Raw.TyIs t1 t2)  = TyIs (translateType t1) (translateType t2)
-translateType (Raw.TyRec l t)   = TyRec l (translateType t)
+rnType :: Raw.Type -> Type
+rnType Raw.TyNat         = TyNat
+rnType Raw.TyTop         = TyTop
+rnType (Raw.TyArr t1 t2) = TyArr (rnType t1) (rnType t2)
+rnType (Raw.TyIs t1 t2)  = TyIs (rnType t1) (rnType t2)
+rnType (Raw.TyRec l t)   = TyRec l (rnType t)
 
 data RnEnv = EmptyRnEnv
            | SnocRnEnv RnEnv Raw.RawVariable Variable
@@ -59,7 +59,7 @@ rnExpr env (Raw.ExMerge e1 e2) = do
 
 rnExpr env (Raw.ExAnn e t) = do
   e' <- rnExpr env e
-  return (ExAnn e' (translateType t))
+  return (ExAnn e' (rnType t))
 
 rnExpr env (Raw.ExRec l e) = do
   e' <- rnExpr env e
