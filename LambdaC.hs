@@ -190,10 +190,10 @@ subst expr x v = case expr of
   where
     -- | Replace a variable in a term with a fresh one.
     rnTerm :: Variable -> Term -> RnM (Variable, Term)
-    rnTerm x e = do
-      x' <- freshVar
-      e' <- subst e x (TmVar x')
-      return (x', e')
+    rnTerm var term = do
+      var' <- freshVar
+      term' <- subst term var (TmVar var')
+      return (var', term')
 
 
 -- | Execute small-step reduction on a term.
