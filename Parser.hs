@@ -17,13 +17,13 @@ import qualified Text.ParserCombinators.Parsec.Token as Token
 languageDef :: LanguageDef st
 languageDef =
     emptyDef { Token.identStart      = letter
-                , Token.identLetter     = alphaNum
-                , Token.reservedNames   = ["T", "Nat"]
-                , Token.reservedOpNames = [
-                    ".", "\\", "{", "}", ",,", ":",
-                    "=", "->", "&", "[", "]", "/", "|", ";", "<-"
-                ]
-                }
+             , Token.identLetter     = alphaNum
+             , Token.reservedNames   = ["T", "Nat"]
+             , Token.reservedOpNames = [
+                 ".", "\\", "{", "}", ",,", ":",
+                 "=", "->", "&", "[", "]", "/", "|", ";", "<-"
+             ]
+             }
 
 lexer :: Token.TokenParser st
 lexer = Token.makeTokenParser languageDef
@@ -82,10 +82,10 @@ tyRec = braces $ do
 -- | Parse a term (highest priority).
 pPrimExpr :: Parser NC.Expression
 pPrimExpr =   exVar
-            <|> exLit
-            <|> exTop
-            <|> exRec
-            <|> parens pExpr
+          <|> exLit
+          <|> exTop
+          <|> exRec
+          <|> parens absHelper
 
 -- | Parse a term variable.
 exVar :: Parser NC.Expression
@@ -104,19 +104,48 @@ exRec :: Parser NC.Expression
 exRec = braces $ do
     l <- identifier
     reservedOp "="
-    e <- expr1st
+    e <- absHelper
     return (NC.ExRec (MkLabel l) e)
 
 -- ----------------------------------------------------------------------------
 
--- record selection
--- lambda
--- merge
--- application
--- annotation
+pRawVar :: Parser NC.RawVariable
+pRawVar = NC.MkRawVar <$> identifier
 
 
-hetChainl1 :: (Stream s m t) => ParsecT s u m a -> ParsecT s u m b -> ParsecT s u m (a -> b -> a) -> ParsecT s u m a
+-- primitive terms  0
+-- record selection 1
+-- application      2
+-- merge            3
+-- annotation       4
+-- lambda           5
+
+recFldHelper :: Parser NC.Expression
+recFldHelper = hetChainl1 pPrimExpr pLabel (NC.ExRecFld <$ reservedOp ".")
+
+appHelper :: Parser NC.Expression
+appHelper = chainl1 recFldHelper (pure NC.ExApp)
+
+mergeHelper :: Parser NC.Expression
+mergeHelper = chainl1 appHelper (NC.ExMerge <$ reservedOp ",,")
+
+annHelper :: Parser NC.Expression
+annHelper = hetChainl1 mergeHelper pType (NC.ExAnn <$ reservedOp ":")
+
+absHelper :: Parser NC.Expression
+absHelper =   do reserved "\\"
+                 x <- pRawVar
+                 reservedOp "."
+                 e <- absHelper
+                 return (NC.ExAbs x e)
+          <|> annHelper
+
+
+hetChainl1 :: Stream s m t
+           => ParsecT s u m a
+           -> ParsecT s u m b
+           -> ParsecT s u m (a -> b -> a)
+           -> ParsecT s u m a
 hetChainl1 p1 p2 op = do{ x <- p1; rest x }
                     where
                       rest x = do{ f <- op
@@ -125,98 +154,15 @@ hetChainl1 p1 p2 op = do{ x <- p1; rest x }
                                 }
                               <|> return x
 
-invHetChainl1 :: (Stream s m t) => ParsecT s u m b -> ParsecT s u m a -> ParsecT s u m (b -> a -> a) -> ParsecT s u m a
-invHetChainl1 p1 p2 op = do{ x <- p1; rest x } <|> do {y <- p2; return y}
-                    where
-                      rest x = do{ f <- op
-                                 ; y <- p2
-                                 ; return (f x y)
-                                 }
-
-
-pExpr :: Parser NC.Expression
-pExpr = annHelper
-
-varHelper :: Parser NC.RawVariable
-varHelper = do
-  reserved "\\"
-  x <- identifier
-  return (NC.MkRawVar x)
-
-labelHelper :: Parser Label
-labelHelper = MkLabel <$> identifier
-
-recFldHelper :: Parser NC.Expression
-recFldHelper = hetChainl1 pPrimExpr labelHelper (NC.ExRecFld <$ reservedOp ".")
-
-absHelper :: Parser NC.Expression
-absHelper = invHetChainl1 varHelper recFldHelper (NC.ExAbs <$ reservedOp ".")
-
-mergeHelper :: Parser NC.Expression
-mergeHelper = chainl1 absHelper (NC.ExMerge <$ reservedOp ",,")
-
-appHelper :: Parser NC.Expression
-appHelper = chainl1 mergeHelper (NC.ExApp <$ reservedOp "|")
-
-annHelper :: Parser NC.Expression
-annHelper = hetChainl1 appHelper pType (NC.ExAnn <$ reservedOp ":")
+pLabel :: Parser Label
+pLabel = MkLabel <$> identifier
 
 -- ----------------------------------------------------------------------------
-
-
-expr1st :: Parser NC.Expression
-expr1st = exVar
-            <|> exLit
-            <|> exTop
-            <|> exRec
-            <|> parens expr2nd
-
-expr2nd :: Parser NC.Expression
-expr2nd = exAbs
-            <|> try exMerge
-            <|> try exAnn
-            <|> try exRecFld
-            <|> exApp
-
-exAbs :: Parser NC.Expression
-exAbs = do
-  reserved "\\"
-  x <- identifier
-  reservedOp "."
-  e <- expr1st
-  return $ NC.ExAbs (NC.MkRawVar x) e
-
-exApp :: Parser NC.Expression
-exApp = do
-  e1 <- expr1st
-  e2 <- expr1st
-  return $ NC.ExApp e1 e2
-
-exMerge :: Parser NC.Expression
-exMerge = do
-  e1 <- expr1st
-  reservedOp ",,"
-  e2 <- expr1st
-  return $ NC.ExMerge e1 e2
-
-exAnn :: Parser NC.Expression
-exAnn = do
-  e <- expr1st
-  reservedOp ":"
-  t <- pType
-  return $ NC.ExAnn e t
-
-exRecFld :: Parser NC.Expression
-exRecFld = do
-  e <- expr1st
-  reservedOp "."
-  l <- identifier
-  return $ NC.ExRecFld e (MkLabel l)
 
 -- | Parse an expression from a string.
 parseExpr :: String -> NC.Expression
 parseExpr str =
-  case parse (pExpr <* eof) "" str of
+  case parse (absHelper <* eof) "" str of
   Left e  -> error $ show e
   Right r -> r
 
