@@ -31,16 +31,16 @@ lexer = Token.makeTokenParser languageDef
 identifier :: Parser String
 identifier = Token.identifier lexer
 
--- reserved :: Parser
+reserved :: String -> Parser ()
 reserved   = Token.reserved   lexer
 
--- reservedOp :: Parser
+reservedOp :: String -> Parser ()
 reservedOp = Token.reservedOp lexer
 
--- parens :: Parser
+parens :: Parser a -> Parser a
 parens     = Token.parens     lexer
 
--- braces :: Parser
+braces :: Parser a -> Parser a
 braces     = Token.braces     lexer
 
 integer :: Parser Integer
