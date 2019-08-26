@@ -200,13 +200,13 @@ exRecFld = do
 -- | Parse an expression from a string.
 parseExpr :: String -> NC.Expression
 parseExpr str =
-  case parse pExpr "" str of
+  case parse (pExpr <* eof) "" str of
   Left e  -> error $ show e
   Right r -> r
 
 -- | Parse a type from a string.
 parseType :: String -> NC.Type
 parseType str =
-  case parse pType "" str of
+  case parse (pType <* eof) "" str of
   Left e  -> error $ show e
   Right r -> r
