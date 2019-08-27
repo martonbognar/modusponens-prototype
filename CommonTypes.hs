@@ -2,7 +2,7 @@
 
 module CommonTypes where
 
-import Control.Monad.State.Lazy
+import Control.Monad.Trans.State.Lazy
 
 -- | Data type for variables in NeColus and LambdaC.
 newtype Variable = MkVar   Integer deriving (Eq)

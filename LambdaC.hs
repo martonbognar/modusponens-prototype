@@ -3,7 +3,7 @@
 
 module LambdaC where
 
-import Control.Monad.State.Lazy
+import Control.Monad.Trans.State.Lazy
 
 import Control.Monad (guard)
 import Text.PrettyPrint
