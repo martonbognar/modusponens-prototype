@@ -228,7 +228,7 @@ step (TmApp e1 e2) =
       Just e2' -> if isValue e1
         then return (Just (TmApp e1 e2'))
         else return Nothing
-      _                -> return Nothing -- TODO?
+      _                -> return Nothing
 
 -- STEP-PAIR1 & STEP-PAIR2
 step (TmTup e1 e2) =
@@ -238,7 +238,7 @@ step (TmTup e1 e2) =
       Just e2' -> if isValue e1
         then return (Just (TmTup e1 e2'))
         else return Nothing
-      _                -> return Nothing -- TODO?
+      _                -> return Nothing
 
 -- STEP-PROJRCD
 step (TmRecFld (TmRecCon l v) l1)
@@ -250,7 +250,7 @@ step (TmRecFld (TmRecCon l v) l1)
 step (TmRecCon l e) =
   step e >>= \case
     Just e' -> return (Just (TmRecCon l e'))
-    _       -> return Nothing -- TODO?
+    _       -> return Nothing
 
 -- STEP-RCD2
 step (TmRecFld e l) =
@@ -305,7 +305,7 @@ step (TmCast (CoRec l co) (TmRecCon l1 v))
 step (TmCast c e) =
   step e >>= \case
     Just e' -> return (Just (TmCast c e'))
-    _       -> return Nothing -- TODO?
+    _       -> return Nothing
 
 step _ = return Nothing
 

@@ -1,7 +1,5 @@
 {-# OPTIONS_GHC -Wall #-}
 
--- TODO: discuss implicit types in metaTop and metaIs functions
-
 module Syntax where
 
 import Text.PrettyPrint

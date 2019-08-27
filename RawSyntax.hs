@@ -1,7 +1,5 @@
 {-# OPTIONS_GHC -Wall #-}
 
--- TODO: discuss implicit types in metaTop and metaIs functions
-
 module RawSyntax where
 
 import Data.Function (on)
