@@ -1,7 +1,5 @@
 {-# OPTIONS_GHC -Wall #-}
 
--- TODO: discuss implicit types in metaTop and metaIs functions
-
 module TypeCheck where
 
 
@@ -109,23 +107,36 @@ metaTop (ExtraLabel q l)
 metaTop (ExtraType q a)
   = LC.CoTrans
       (LC.CoArr (LC.CoAnyTop a') (metaTop q))
-      (LC.CoTrans LC.CoTopArr (LC.CoAnyTop a'))
+      LC.CoTopArr
     where
       a' = translateType a
+
+
+-- | Convert a queue to a type. (Definition 24)
+queueToType :: Queue -> Type -> Type
+queueToType Null a = a
+queueToType (ExtraType q a) b = queueToType q (TyArr b a)
+queueToType (ExtraLabel q l) a = queueToType q (TyRec l a)
 
 
 -- | Meta-intersection function for coercions.
-metaIs :: Queue -> LC.Coercion
-metaIs Null = LC.CoRefl (translateType TyTop)
-metaIs (ExtraLabel q l)
-  = LC.CoTrans (LC.CoRec l (metaIs q)) (LC.CoDistRec l top' top') where
-      top' = translateType TyTop
-metaIs (ExtraType q a)
+metaIs :: Queue -> Type -> Type -> LC.Coercion
+metaIs Null b1 b2 = LC.CoRefl (translateType (TyIs b1 b2))
+metaIs (ExtraLabel q l) b1 b2
   = LC.CoTrans
-      (LC.CoArr (LC.CoRefl a') (metaIs q))
-      (LC.CoDistArr a' a' a')
+      (LC.CoRec l (metaIs q b1 b2))
+      (LC.CoDistRec l arrB1 arrB2)
+    where
+      arrB1 = translateType $ queueToType q b1
+      arrB2 = translateType $ queueToType q b2
+metaIs (ExtraType q a) b1 b2
+  = LC.CoTrans
+      (LC.CoArr (LC.CoRefl a') (metaIs q b1 b2))
+      (LC.CoDistArr a' arrB1 arrB2)
     where
       a' = translateType a
+      arrB1 = translateType $ queueToType q b1
+      arrB2 = translateType $ queueToType q b2
 
 
 -- | Algorithmic subtyping
@@ -134,7 +145,7 @@ subtype :: Queue -> Type -> Type -> Maybe LC.Coercion
 subtype q a (TyIs b1 b2)
   = do c1 <- subtype q a b1
        c2 <- subtype q a b2
-       return (LC.CoTrans (metaIs q) (LC.CoPair c1 c2))
+       return (LC.CoTrans (metaIs q b1 b2) (LC.CoPair c1 c2))
 -- A-ARR
 subtype q a (TyArr b1 b2)
   = subtype (ExtraType q b1) a b2
