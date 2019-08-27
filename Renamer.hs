@@ -29,40 +29,40 @@ rnLookup v (SnocRnEnv env v' x)
 
 -- | Covert a full expression from raw syntax to NeColus syntax
 -- given an initial stack and state.
-rnFullExpr :: RnEnv -> Integer -> Raw.Expression -> (Expression, Integer)
-rnFullExpr env state0 ex = runState (rnExpr env ex) state0
+rnExpr :: RnEnv -> Integer -> Raw.Expression -> (Expression, Integer)
+rnExpr env state0 ex = runState (rnExprM env ex) state0
 
 -- | Convert a raw expression to NeColus syntax.
-rnExpr :: RnEnv -> Raw.Expression -> RnM Expression
-rnExpr _ (Raw.ExLit i) = return (ExLit i)
-rnExpr _ Raw.ExTop     = return ExTop
-rnExpr env (Raw.ExVar x) = case rnLookup x env of
+rnExprM :: RnEnv -> Raw.Expression -> RnM Expression
+rnExprM _ (Raw.ExLit i) = return (ExLit i)
+rnExprM _ Raw.ExTop     = return ExTop
+rnExprM env (Raw.ExVar x) = case rnLookup x env of
   Nothing -> error $ "Unbound variable " ++ show x -- fail miserably here
   Just y  -> return (ExVar y)
 
-rnExpr env (Raw.ExAbs x e) = do
+rnExprM env (Raw.ExAbs x e) = do
   y  <- freshVar
-  e' <- rnExpr (SnocRnEnv env x y) e
+  e' <- rnExprM (SnocRnEnv env x y) e
   return (ExAbs y e')
 
-rnExpr env (Raw.ExApp e1 e2) = do
-  e1' <- rnExpr env e1
-  e2' <- rnExpr env e2
+rnExprM env (Raw.ExApp e1 e2) = do
+  e1' <- rnExprM env e1
+  e2' <- rnExprM env e2
   return (ExApp e1' e2')
 
-rnExpr env (Raw.ExMerge e1 e2) = do
-  e1' <- rnExpr env e1
-  e2' <- rnExpr env e2
+rnExprM env (Raw.ExMerge e1 e2) = do
+  e1' <- rnExprM env e1
+  e2' <- rnExprM env e2
   return (ExMerge e1' e2')
 
-rnExpr env (Raw.ExAnn e t) = do
-  e' <- rnExpr env e
+rnExprM env (Raw.ExAnn e t) = do
+  e' <- rnExprM env e
   return (ExAnn e' (rnType t))
 
-rnExpr env (Raw.ExRec l e) = do
-  e' <- rnExpr env e
+rnExprM env (Raw.ExRec l e) = do
+  e' <- rnExprM env e
   return (ExRec l e')
 
-rnExpr env (Raw.ExRecFld e l) = do
-  e' <- rnExpr env e
+rnExprM env (Raw.ExRecFld e l) = do
+  e' <- rnExprM env e
   return (ExRecFld e' l)

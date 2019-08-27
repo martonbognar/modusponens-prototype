@@ -149,14 +149,14 @@ isValue _                        = False
 
 
 -- | Evaluate a term given the current maximal variable.
-fullEval :: Integer -> Term -> (Term, Integer)
-fullEval state0 t = runState (fullEvalM t) state0
+eval :: Integer -> Term -> (Term, Integer)
+eval state0 t = runState (evalM t) state0
 
 
 -- | Fully evaluate a term in signle steps.
-fullEvalM :: Term -> RnM Term
-fullEvalM t = eval t >>= \case
-  Just st -> fullEvalM st
+evalM :: Term -> RnM Term
+evalM t = step t >>= \case
+  Just st -> evalM st
   Nothing -> return t
 
 
@@ -198,32 +198,32 @@ subst expr x v = case expr of
 
 
 -- | Execute small-step reduction on a term.
-eval :: Term -> RnM (Maybe Term)
+step :: Term -> RnM (Maybe Term)
 -- STEP-TOPARR
-eval (TmApp (TmCast CoTopArr TmTop) TmTop) = return (Just TmTop)
+step (TmApp (TmCast CoTopArr TmTop) TmTop) = return (Just TmTop)
 -- STEP-ARR
-eval (TmApp (TmCast (CoArr c1 c2) v1) e2)
+step (TmApp (TmCast (CoArr c1 c2) v1) e2)
   | isValue v1
   , isValue e2
   = return (Just (TmCast c2 (TmApp v1 (TmCast c1 e2))))
 -- STEP-DISTARR
-eval (TmApp (TmCast CoDistArr{} (TmTup v1 v2)) e2)
+step (TmApp (TmCast CoDistArr{} (TmTup v1 v2)) e2)
   | isValue v1
   , isValue v2
   , isValue e2
   = return (Just (TmTup (TmApp v1 e2) (TmApp v2 e2)))
 -- STEP-BETA
-eval (TmApp (TmAbs x _ e) e2)
+step (TmApp (TmAbs x _ e) e2)
   | isValue e2
   = do
     t <- subst e x e2
     return (Just t)
 
-eval (TmApp e1 e2) =
-  eval e1 >>= \case
+step (TmApp e1 e2) =
+  step e1 >>= \case
 -- STEP-APP1
     Just e1' -> return (Just (TmApp e1' e2))
-    Nothing -> eval e2 >>= \case
+    Nothing -> step e2 >>= \case
 -- STEP-APP2
       Just e2' -> if isValue e1
         then return (Just (TmApp e1 e2'))
@@ -231,83 +231,83 @@ eval (TmApp e1 e2) =
       _                -> return Nothing -- TODO?
 
 -- STEP-PAIR1 & STEP-PAIR2
-eval (TmTup e1 e2) =
-  eval e1 >>= \case
+step (TmTup e1 e2) =
+  step e1 >>= \case
     Just e1' -> return (Just (TmTup e1' e2))
-    Nothing  -> eval e2 >>= \case
+    Nothing  -> step e2 >>= \case
       Just e2' -> if isValue e1
         then return (Just (TmTup e1 e2'))
         else return Nothing
       _                -> return Nothing -- TODO?
 
 -- STEP-PROJRCD
-eval (TmRecFld (TmRecCon l v) l1)
+step (TmRecFld (TmRecCon l v) l1)
   | l == l1
   , isValue v
   = return (Just v)
 
 -- STEP-RCD1
-eval (TmRecCon l e) =
-  eval e >>= \case
+step (TmRecCon l e) =
+  step e >>= \case
     Just e' -> return (Just (TmRecCon l e'))
     _       -> return Nothing -- TODO?
 
 -- STEP-RCD2
-eval (TmRecFld e l) =
-  eval e >>= \case
+step (TmRecFld e l) =
+  step e >>= \case
     Just e' -> return (Just (TmRecFld e' l))
     _       -> return Nothing
 
   -- STEP-ID
-eval (TmCast (CoRefl _) e)
+step (TmCast (CoRefl _) e)
   | isValue e
   = return (Just e)
 -- STEP-TRANS
-eval (TmCast (CoTrans c1 c2) e)
+step (TmCast (CoTrans c1 c2) e)
   | isValue e
   = return (Just (TmCast c1 (TmCast c2 e)))
 -- SET-TOP
-eval (TmCast (CoAnyTop _) e)
+step (TmCast (CoAnyTop _) e)
   | isValue e
   = return (Just TmTop)
 -- STEP-TOPRCD
-eval (TmCast (CoTopRec l) TmTop)
+step (TmCast (CoTopRec l) TmTop)
   = return (Just (TmRecCon l TmTop))
 -- STEP-PAIR
-eval (TmCast (CoPair c1 c2) e)
+step (TmCast (CoPair c1 c2) e)
   | isValue e
   = return (Just (TmTup (TmCast c1 e) (TmCast c2 e)))
 -- STEP-DISTRCD
-eval (TmCast (CoDistRec l _ _) (TmTup (TmRecCon l1 v1) (TmRecCon l2 v2)))
+step (TmCast (CoDistRec l _ _) (TmTup (TmRecCon l1 v1) (TmRecCon l2 v2)))
   | isValue v1
   , isValue v2
   = if l == l1 && l1 == l2
       then return (Just (TmRecCon l (TmTup v1 v2)))
       else return Nothing
 -- STEP-PROJL
-eval (TmCast (CoLeft _ _) (TmTup v1 v2))
+step (TmCast (CoLeft _ _) (TmTup v1 v2))
   | isValue v1
   , isValue v2
   = return (Just v1)
 -- STEP-PROJR
-eval (TmCast (CoRight _ _) (TmTup v1 v2))
+step (TmCast (CoRight _ _) (TmTup v1 v2))
   | isValue v1
   , isValue v2
   = return (Just v2)
 -- STEP-CRCD
-eval (TmCast (CoRec l co) (TmRecCon l1 v))
+step (TmCast (CoRec l co) (TmRecCon l1 v))
   | isValue v
   = if l == l1
       then return (Just (TmRecCon l (TmCast co v)))
       else return Nothing
 
 -- STEP-CAPP
-eval (TmCast c e) =
-  eval e >>= \case
+step (TmCast c e) =
+  step e >>= \case
     Just e' -> return (Just (TmCast c e'))
     _       -> return Nothing -- TODO?
 
-eval _ = return Nothing
+step _ = return Nothing
 
 -- * LambdaC Typing
 -- ----------------------------------------------------------------------------
@@ -321,88 +321,88 @@ typeFromContext (Snoc c v vt) x
 
 
 -- | In a given context, determine the type of a term.
-termType :: Context -> Term -> Maybe Type
+tcTerm :: Context -> Term -> Maybe Type
 -- TYP-UNIT
-termType _ TmTop = return TyTop
+tcTerm _ TmTop = return TyTop
 -- TYP-LIT
-termType _ (TmLit _) = return TyNat
+tcTerm _ (TmLit _) = return TyNat
 -- TYP-TmVar
-termType c (TmVar x) = typeFromContext c x
+tcTerm c (TmVar x) = typeFromContext c x
 -- TYP-ABS
-termType c (TmAbs x t1 e)
-  = do t2 <- termType (Snoc c x t1) e
+tcTerm c (TmAbs x t1 e)
+  = do t2 <- tcTerm (Snoc c x t1) e
        return (TyArr t1 t2)
 -- TYP-APP
-termType c (TmApp e1 e2)
-  = do (TyArr t1 t2) <- termType c e1
-       t3            <- termType c e2
+tcTerm c (TmApp e1 e2)
+  = do (TyArr t1 t2) <- tcTerm c e1
+       t3            <- tcTerm c e2
        guard (eqTypes t1 t3)
        return t2
 -- TYP-PAIR
-termType c (TmTup e1 e2)
-  = do t1 <- termType c e1
-       t2 <- termType c e2
+tcTerm c (TmTup e1 e2)
+  = do t1 <- tcTerm c e1
+       t2 <- tcTerm c e2
        return (TyTup t1 t2)
 -- TYP-CAPP
-termType c (TmCast co e)
-  = do t         <- termType c e
-       (t1, t1') <- coercionType co
+tcTerm c (TmCast co e)
+  = do t         <- tcTerm c e
+       (t1, t1') <- tcCoercion co
        guard (eqTypes t t1)
        return t1'
 -- TYP-RCD
-termType c (TmRecCon l e)
-  = do t <- termType c e
+tcTerm c (TmRecCon l e)
+  = do t <- tcTerm c e
        return (TyRec l t)
 -- TYP--PROJ
-termType c (TmRecFld e l)
-  = do (TyRec l1 t) <- termType c e
+tcTerm c (TmRecFld e l)
+  = do (TyRec l1 t) <- tcTerm c e
        guard (l == l1)
        return t
 
 
 -- | Determine the type of a coercion.
-coercionType :: Coercion -> Maybe (Type, Type)
+tcCoercion :: Coercion -> Maybe (Type, Type)
 -- COTYP-REFL
-coercionType (CoRefl t)
+tcCoercion (CoRefl t)
   = return (t, t)
 -- COTYP-TRANS
-coercionType (CoTrans c1 c2)
-  = do (t2, t3)  <- coercionType c1
-       (t1, t2') <- coercionType c2
+tcCoercion (CoTrans c1 c2)
+  = do (t2, t3)  <- tcCoercion c1
+       (t1, t2') <- tcCoercion c2
        guard (eqTypes t2 t2')
        return (t1, t3)
 -- COTYP-CoAnyTop
-coercionType (CoAnyTop t) = return (t, TyTop)
+tcCoercion (CoAnyTop t) = return (t, TyTop)
 -- COTYP-TOPARR
-coercionType CoTopArr
+tcCoercion CoTopArr
   = return (TyTop, TyArr TyTop TyTop)
 -- COTYP-TOPRCD
-coercionType (CoTopRec l)
+tcCoercion (CoTopRec l)
   = return (TyTop, TyRec l TyTop)
 -- COTYP-ARR
-coercionType (CoArr c1 c2)
-  = do (t1', t1) <- coercionType c1
-       (t2, t2') <- coercionType c2
+tcCoercion (CoArr c1 c2)
+  = do (t1', t1) <- tcCoercion c1
+       (t2, t2') <- tcCoercion c2
        return (TyArr t1 t2, TyArr t1' t2')
 -- COTYP-PAIR
-coercionType (CoPair c1 c2)
-  = do (t1, t2)  <- coercionType c1
-       (t1', t3) <- coercionType c2
+tcCoercion (CoPair c1 c2)
+  = do (t1, t2)  <- tcCoercion c1
+       (t1', t3) <- tcCoercion c2
        guard (eqTypes t1 t1')
        return (t1, TyTup t2 t3)
 -- COTYP-PROJL
-coercionType (CoLeft t1 t2)
+tcCoercion (CoLeft t1 t2)
   = return (TyTup t1 t2, t1)
 -- COTYP-PROJR
-coercionType (CoRight t1 t2)
+tcCoercion (CoRight t1 t2)
   = return (TyTup t1 t2, t2)
 -- COTYP-RCD
-coercionType (CoRec l c)
-  = do (t1, t2) <- coercionType c
+tcCoercion (CoRec l c)
+  = do (t1, t2) <- tcCoercion c
        return (TyRec l t1, TyRec l t2)
 -- COTYP-DISTRCD
-coercionType (CoDistRec l t1 t2)
+tcCoercion (CoDistRec l t1 t2)
   = return (TyTup (TyRec l t1) (TyRec l t2), TyRec l (TyTup t1 t2))
 -- COTYP-DISTARR
-coercionType (CoDistArr t1 t2 t3)
+tcCoercion (CoDistArr t1 t2 t3)
   = return (TyTup (TyArr t1 t2) (TyArr t1 t3), TyArr t1 (TyTup t2 t3))
