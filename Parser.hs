@@ -5,44 +5,47 @@ module Parser where
 import CommonTypes
 import qualified RawSyntax as NC
 
--- GEORGE: These two seem redundant right now
-import Control.Monad ()
-import Text.ParserCombinators.Parsec.Expr ()
-
 import Text.Parsec.Prim (Stream, ParsecT)
 import Text.ParserCombinators.Parsec
 import Text.ParserCombinators.Parsec.Language
 import qualified Text.ParserCombinators.Parsec.Token as Token
 
+-- | Return the language definition of the raw syntax.
 languageDef :: LanguageDef st
 languageDef =
     emptyDef { Token.identStart      = letter
              , Token.identLetter     = alphaNum
              , Token.reservedNames   = ["T", "Nat"]
              , Token.reservedOpNames = [
-                 ".", "\\", "{", "}", ",,", ":",
-                 "=", "->", "&", "[", "]", "/", "|", ";", "<-"
+                 ".", "\\", "{", "}", ",,", ":", "=", "->", "&"
              ]
              }
 
+-- | Create a lexer based on the language definition.
 lexer :: Token.TokenParser st
 lexer = Token.makeTokenParser languageDef
 
+-- | Create a parser for identifiers in the language.
 identifier :: Parser String
 identifier = Token.identifier lexer
 
+-- | Create a parser for reserved names in the language.
 reserved :: String -> Parser ()
 reserved   = Token.reserved   lexer
 
+-- | Create a parser for reserved operators in the language.
 reservedOp :: String -> Parser ()
 reservedOp = Token.reservedOp lexer
 
+-- | Create a parser for parentheses in the language.
 parens :: Parser a -> Parser a
 parens     = Token.parens     lexer
 
+-- | Create a parser for braces in the language.
 braces :: Parser a -> Parser a
 braces     = Token.braces     lexer
 
+-- | Create a parser for integers in the language.
 integer :: Parser Integer
 integer    = Token.integer    lexer
 
@@ -69,7 +72,7 @@ tyNat = reserved "Nat" *> pure NC.TyNat
 tyTop :: Parser NC.Type
 tyTop = reserved "T" *> pure NC.TyTop
 
--- | Parse a record.
+-- | Parse a record type.
 tyRec :: Parser NC.Type
 tyRec = braces $ do
     l <- pLabel
@@ -109,6 +112,7 @@ exRec = braces $ do
 
 -- ----------------------------------------------------------------------------
 
+-- Operator precedence:
 -- primitive terms  0
 -- record selection 1
 -- application      2
@@ -116,6 +120,7 @@ exRec = braces $ do
 -- annotation       4
 -- lambda           5
 
+-- | Parse a term (lowest priority).
 pExpr :: Parser NC.Expression
 pExpr = pExAbs <|> pExpr4
   where
@@ -142,8 +147,7 @@ pExpr = pExAbs <|> pExpr4
     pExpr4 :: Parser NC.Expression
     pExpr4 = hetChainl1 pExpr3 pType (NC.ExAnn <$ reservedOp ":")
 
-
-
+-- | Parse a chain of expressions with heterogenous components.
 hetChainl1 :: Stream s m t
            => ParsecT s u m a
            -> ParsecT s u m b
@@ -157,6 +161,7 @@ hetChainl1 p1 p2 op = do{ x <- p1; rest x }
                                 }
                               <|> return x
 
+-- | Parse a label.
 pLabel :: Parser Label
 pLabel = MkLabel <$> identifier
 

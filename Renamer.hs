@@ -8,6 +8,7 @@ import CommonTypes
 import qualified RawSyntax as Raw
 import Syntax
 
+-- | Convert a raw syntax type to a NeColus type.
 rnType :: Raw.Type -> Type
 rnType Raw.TyNat         = TyNat
 rnType Raw.TyTop         = TyTop
@@ -15,18 +16,23 @@ rnType (Raw.TyArr t1 t2) = TyArr (rnType t1) (rnType t2)
 rnType (Raw.TyIs t1 t2)  = TyIs (rnType t1) (rnType t2)
 rnType (Raw.TyRec l t)   = TyRec l (rnType t)
 
+-- | A stack for storing raw - NeColus variable assignments.
 data RnEnv = EmptyRnEnv
            | SnocRnEnv RnEnv Raw.RawVariable Variable
 
+-- | Get the NeColus variable for a raw variable in a stack.
 rnLookup :: Raw.RawVariable -> RnEnv -> Maybe Variable
 rnLookup _ EmptyRnEnv = Nothing
 rnLookup v (SnocRnEnv env v' x)
   | Raw.eqRawVariable v v' = Just x
   | otherwise              = rnLookup v env
 
+-- | Covert a full expression from raw syntax to NeColus syntax
+-- given an initial stack and state.
 rnFullExpr :: RnEnv -> Integer -> Raw.Expression -> (Expression, Integer)
 rnFullExpr env state0 ex = runState (rnExpr env ex) state0
 
+-- | Convert a raw expression to NeColus syntax.
 rnExpr :: RnEnv -> Raw.Expression -> RnM Expression
 rnExpr _ (Raw.ExLit i) = return (ExLit i)
 rnExpr _ Raw.ExTop     = return ExTop

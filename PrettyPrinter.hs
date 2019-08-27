@@ -11,9 +11,11 @@ arrow = text "→"
 dot :: Doc
 dot = text "."
 
+-- | Convert a list of elements to comma separated values.
 commaSep :: [Doc] -> [Doc]
 commaSep = punctuate comma
 
+-- | Convert a list of elements to comma separated values in parentheses.
 parensList :: [Doc] -> Doc
 parensList = parens . hsep . commaSep
 

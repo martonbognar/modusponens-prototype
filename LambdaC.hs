@@ -148,14 +148,15 @@ isValue (TmCast CoTopArr v)      = isValue v
 isValue _                        = False
 
 
-entry :: Integer -> Term -> (Term, Integer)
-entry state0 t = runState (fullEval t) state0
+-- | Evaluate a term given the current maximal variable.
+fullEval :: Integer -> Term -> (Term, Integer)
+fullEval state0 t = runState (fullEvalM t) state0
 
 
--- | Fully evaluate a term.
-fullEval :: Term -> RnM Term
-fullEval t = eval t >>= \case
-  Just st -> fullEval st
+-- | Fully evaluate a term in signle steps.
+fullEvalM :: Term -> RnM Term
+fullEvalM t = eval t >>= \case
+  Just st -> fullEvalM st
   Nothing -> return t
 
 
