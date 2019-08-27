@@ -307,7 +307,7 @@ eval (TmCast c e) =
     Just e' -> return (Just (TmCast c e'))
     _       -> return Nothing -- TODO?
 
-eval _ = fail "Evaluation error"
+eval _ = return Nothing
 
 -- * LambdaC Typing
 -- ----------------------------------------------------------------------------
