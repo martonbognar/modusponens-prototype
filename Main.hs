@@ -17,5 +17,7 @@ main = do
   case inference Syntax.Empty renamed of
     Nothing -> print "Inference failed"
     Just (ty, term) -> do
-      print $ eval maxVar term
+      print $ ty
+      print $ term
+      print $ fst $ eval maxVar term
       print $ tcTerm LambdaC.Empty term
