@@ -4,8 +4,8 @@ module CommonTypes where
 
 import Control.Monad.State.Lazy
 
-data Variable = MkVar   Integer deriving (Eq)
-data Label    = MkLabel String  deriving (Eq)
+newtype Variable = MkVar   Integer deriving (Eq)
+newtype Label    = MkLabel String  deriving (Eq)
 
 type RnM a = State Integer a
 

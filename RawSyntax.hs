@@ -9,7 +9,7 @@ import Text.PrettyPrint
 import CommonTypes
 import PrettyPrinter
 
-data RawVariable = MkRawVar { unRawVar :: String }
+newtype RawVariable = MkRawVar { unRawVar :: String }
 
 eqRawVariable :: RawVariable -> RawVariable -> Bool
 eqRawVariable = (==) `on` unRawVar

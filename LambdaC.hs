@@ -165,7 +165,7 @@ subst expr x v = case expr of
   TmVar x' | x' == x   -> return v
            | otherwise -> return (TmVar x')
   TmLit i        -> return (TmLit i)
-  TmTop          -> return (TmTop)
+  TmTop          -> return TmTop
   TmAbs x' x't e -> do
     (newX, newE) <- rnTerm x' e
     e' <- subst newE newX v
@@ -280,7 +280,7 @@ eval (TmCast (CoPair c1 c2) e)
 eval (TmCast (CoDistRec l _ _) (TmTup (TmRecCon l1 v1) (TmRecCon l2 v2)))
   | isValue v1
   , isValue v2
-  = if (l == l1 && l1 == l2)
+  = if l == l1 && l1 == l2
       then return (Just (TmRecCon l (TmTup v1 v2)))
       else return Nothing
 -- STEP-PROJL
