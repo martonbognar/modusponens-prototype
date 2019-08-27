@@ -13,13 +13,29 @@ import qualified Text.ParserCombinators.Parsec.Token as Token
 -- | Return the language definition of the raw syntax.
 languageDef :: LanguageDef st
 languageDef =
-    emptyDef { Token.identStart      = letter
-             , Token.identLetter     = alphaNum
-             , Token.reservedNames   = ["T", "Nat"]
-             , Token.reservedOpNames = [
-                 ".", "\\", "{", "}", ",,", ":", "=", "->", "&"
-             ]
-             }
+  emptyDef { -- Comments
+             Token.commentStart   = "{-" -- Haskell-like
+           , Token.commentEnd     = "-}" -- Haskell-like
+           , Token.commentLine    = "--" -- Haskell-like
+           , Token.nestedComments = True -- Haskell-like
+
+             -- Identifiers
+           , Token.identStart      = letter
+           , Token.identLetter     = alphaNum <|> char '_'
+
+             -- Operators
+           , Token.opStart  = oneOf ":!#$%&*+./<=>?@\\^|-~"
+           , Token.opLetter = oneOf ":!#$%&*+./<=>?@\\^|-~"
+
+             -- Reserved names and operators
+           , Token.reservedNames   = ["T", "Nat"]
+           , Token.reservedOpNames = [
+               ".", "\\", ",,", ":", "->", "&"
+           ]
+
+             -- Case sensitive
+           , Token.caseSensitive = True
+           }
 
 -- | Create a lexer based on the language definition.
 lexer :: Token.TokenParser st
@@ -129,7 +145,7 @@ pExpr = pExAbs <|> pExpr4
 
     pExAbs :: Parser NC.Expression
     pExAbs = do
-      reserved "\\"
+      reservedOp "\\"
       x <- pRawVar
       reservedOp "."
       e <- pExpr
