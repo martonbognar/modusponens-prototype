@@ -15,12 +15,12 @@ import Syntax
 -- ----------------------------------------------------------------------------
 
 -- | For a NeColus type, get the corresponding LambdaC type.
-translateType :: Type -> LC.Type
-translateType TyNat       = LC.TyNat
-translateType TyTop       = LC.TyTop
-translateType (TyArr a b) = LC.TyArr (translateType a) (translateType b)
-translateType (TyIs a b)  = LC.TyTup (translateType a) (translateType b)
-translateType (TyRec l a) = LC.TyRec l (translateType a)
+elabType :: Type -> LC.Type
+elabType TyNat       = LC.TyNat
+elabType TyTop       = LC.TyTop
+elabType (TyArr a b) = LC.TyArr (elabType a) (elabType b)
+elabType (TyIs a b)  = LC.TyTup (elabType a) (elabType b)
+elabType (TyRec l a) = LC.TyRec l (elabType a)
 
 
 -- | Get the type of a variable from a context.
@@ -91,7 +91,7 @@ checking :: Context -> Expression -> Type -> Maybe LC.Term
 -- T-ABS
 checking c (ExAbs x e) (TyArr a b)
   = do v <- checking (Snoc c x a) e b
-       return (LC.TmAbs x (translateType a) v)
+       return (LC.TmAbs x (elabType a) v)
 -- T-SUB
 checking c e a
   = do (b, v) <- inference c e
@@ -101,7 +101,7 @@ checking c e a
 
 -- | Meta-top function for coercions.
 metaTop :: Queue -> LC.Coercion
-metaTop Null = LC.CoAnyTop (translateType TyTop)
+metaTop Null = LC.CoAnyTop (elabType TyTop)
 metaTop (ExtraLabel q l)
   = LC.CoTrans (LC.CoRec l (metaTop q)) (LC.CoTopRec l)
 metaTop (ExtraType q a)
@@ -109,7 +109,7 @@ metaTop (ExtraType q a)
       (LC.CoArr (LC.CoAnyTop a') (metaTop q))
       LC.CoTopArr
     where
-      a' = translateType a
+      a' = elabType a
 
 
 -- | Convert a queue to a type. (Definition 24)
@@ -121,22 +121,22 @@ queueToType (ExtraLabel q l) a = queueToType q (TyRec l a)
 
 -- | Meta-intersection function for coercions.
 metaIs :: Queue -> Type -> Type -> LC.Coercion
-metaIs Null b1 b2 = LC.CoRefl (translateType (TyIs b1 b2))
+metaIs Null b1 b2 = LC.CoRefl (elabType (TyIs b1 b2))
 metaIs (ExtraLabel q l) b1 b2
   = LC.CoTrans
       (LC.CoRec l (metaIs q b1 b2))
       (LC.CoDistRec l arrB1 arrB2)
     where
-      arrB1 = translateType $ queueToType q b1
-      arrB2 = translateType $ queueToType q b2
+      arrB1 = elabType $ queueToType q b1
+      arrB2 = elabType $ queueToType q b2
 metaIs (ExtraType q a) b1 b2
   = LC.CoTrans
       (LC.CoArr (LC.CoRefl a') (metaIs q b1 b2))
       (LC.CoDistArr a' arrB1 arrB2)
     where
-      a' = translateType a
-      arrB1 = translateType $ queueToType q b1
-      arrB2 = translateType $ queueToType q b2
+      a' = elabType a
+      arrB1 = elabType $ queueToType q b1
+      arrB2 = elabType $ queueToType q b2
 
 
 -- | Algorithmic subtyping
@@ -155,7 +155,7 @@ subtype q a (TyRec l b)
 -- A-TOP
 subtype q a TyTop
   = return (LC.CoTrans (metaTop q) (LC.CoAnyTop a')) where
-      a' = translateType a
+      a' = elabType a
 -- A-ARRNAT
 subtype queue (TyArr a1 a2) TyNat
   | Just (Right a, q) <- viewL queue
@@ -175,10 +175,10 @@ subtype q (TyIs a1 a2) TyNat
   <|> do c <- subtype q a2 TyNat
          return (LC.CoTrans c (LC.CoRight a1' a2'))
   where
-    a1' = translateType a1
-    a2' = translateType a2
+    a1' = elabType a1
+    a2' = elabType a2
 -- A-NAT
-subtype Null TyNat TyNat = return (LC.CoRefl (translateType TyNat))
+subtype Null TyNat TyNat = return (LC.CoRefl (elabType TyNat))
 
 -- Failing cases...
 subtype ExtraLabel{} TyNat   TyNat = fail "Subtype error"
