@@ -48,6 +48,14 @@ disjoint TyRec{}      TyArr{}      = True
 disjoint TyNat        TyNat        = False
 
 
+-- | Experimental unary disjoint.
+uDisjoint :: Type -> Bool
+uDisjoint TyTop       = True
+uDisjoint TyNat       = True
+uDisjoint (TyIs a b ) = disjoint a b && uDisjoint a && uDisjoint b
+uDisjoint (TyArr a b) = uDisjoint b
+
+
 -- | Inference
 inference :: Context -> Expression -> Maybe (Type, LC.Term)
 -- T-TOP
@@ -76,7 +84,8 @@ inference c (ExRecFld e l)
 inference c (ExMerge e1 e2)
   = do (a1, v1) <- inference c e1
        (a2, v2) <- inference c e2
-       guard (disjoint a1 a2)
+      --  guard (disjoint a1 a2) -- the original NeColus implementation
+       guard (uDisjoint (TyIs a1 a2))
        return (TyIs a1 a2, LC.TmTup v1 v2)
 -- T-RCD
 inference c (ExRec l e)

@@ -2,6 +2,8 @@
 
 module Syntax where
 
+import Prelude hiding ((<>))
+
 import Text.PrettyPrint
 import CommonTypes
 import PrettyPrinter

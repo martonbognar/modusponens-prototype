@@ -3,6 +3,8 @@
 
 module LambdaC where
 
+import Prelude hiding ((<>))
+
 import Control.Monad.Trans.State.Lazy
 
 import Control.Monad (guard)
@@ -52,6 +54,7 @@ data Coercion
   | CoRec Label Coercion
   | CoDistRec Label Type Type
   | CoDistArr Type Type Type
+  | CoMP Coercion Coercion
 
 -- | Determine equality between two types.
 eqTypes :: Type -> Type -> Bool
@@ -169,7 +172,7 @@ subst expr x v = case expr of
   TmTop          -> return TmTop
   TmAbs x' x't e -> do
     (newX, newE) <- rnTerm x' e
-    e' <- subst newE newX v
+    e' <- subst newE x v
     return (TmAbs newX x't e')
   TmApp e1 e2    -> do
     e1' <- subst e1 x v
@@ -300,6 +303,10 @@ step (TmCast (CoRec l co) (TmRecCon l1 v))
   = if l == l1
       then return (Just (TmRecCon l (TmCast co v)))
       else return Nothing
+-- STEP-MP
+step (TmCast (CoMP c1 c2) e)
+  | isValue e
+  = return (Just (TmApp (TmCast c1 e) (TmCast c2 e)))
 
 -- STEP-CAPP
 step (TmCast c e) =
@@ -406,3 +413,9 @@ tcCoercion (CoDistRec l t1 t2)
 -- COTYP-DISTARR
 tcCoercion (CoDistArr t1 t2 t3)
   = return (TyTup (TyArr t1 t2) (TyArr t1 t3), TyArr t1 (TyTup t2 t3))
+-- COPYT-MODUSPONENS
+tcCoercion (CoMP c1 c2)
+  = do (t, TyArr t1 t2)
+       (t', t1')
+       guard (eqTypes t t' && eqTypes t1 t1')
+       return (t, t2)

@@ -2,6 +2,8 @@
 
 module RawSyntax where
 
+import Prelude hiding ((<>))
+
 import Data.Function (on)
 import Text.PrettyPrint
 import CommonTypes
