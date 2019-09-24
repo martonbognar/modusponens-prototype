@@ -53,7 +53,8 @@ uDisjoint :: Type -> Bool
 uDisjoint TyTop       = True
 uDisjoint TyNat       = True
 uDisjoint (TyIs a b ) = disjoint a b && uDisjoint a && uDisjoint b
-uDisjoint (TyArr a b) = uDisjoint b
+uDisjoint (TyArr _ b) = uDisjoint b
+uDisjoint TyRec{}     = False -- TODO?
 
 
 -- | Inference

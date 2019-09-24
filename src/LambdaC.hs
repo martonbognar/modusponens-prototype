@@ -112,6 +112,7 @@ instance PrettyPrint Coercion where
         hcat [ppr t1, arrow, ppr t2],
         hcat [ppr t1, arrow, ppr t3]
       ]]
+  ppr (CoMP c1 c2) = hcat [ppr c1, ppr "MP", ppr c2]
 
 instance Show Type where
   show = render . ppr
@@ -415,7 +416,7 @@ tcCoercion (CoDistArr t1 t2 t3)
   = return (TyTup (TyArr t1 t2) (TyArr t1 t3), TyArr t1 (TyTup t2 t3))
 -- COPYT-MODUSPONENS
 tcCoercion (CoMP c1 c2)
-  = do (t, TyArr t1 t2)
-       (t', t1')
+  = do (t, TyArr t1 t2) <- tcCoercion c1
+       (t', t1') <- tcCoercion c2
        guard (eqTypes t t' && eqTypes t1 t1')
        return (t, t2)
