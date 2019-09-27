@@ -152,6 +152,81 @@ isValue (TmCast CoTopArr v)      = isValue v
 isValue _                        = False
 
 
+data RefreshEnv
+  = EmptyRefreshEnv
+  | SnocRnEnv RefreshEnv Variable Variable
+
+
+rnLookup :: Variable -> RefreshEnv -> Maybe Variable
+rnLookup _ EmptyRefreshEnv = Nothing
+rnLookup v (SnocRnEnv env v' x)
+  | v == v'   = Just x
+  | otherwise = rnLookup v env
+
+
+-- | Replace a variable in a term with a fresh one.
+refreshTerm :: RefreshEnv -> Term -> RnM Term
+refreshTerm _ (TmLit i) = return (TmLit i)
+refreshTerm _ TmTop     = return TmTop
+refreshTerm env (TmVar x) = case rnLookup x env of
+  Nothing -> return (TmVar x)
+  Just x' -> return (TmVar x')
+refreshTerm env (TmAbs b t e) = do
+  b' <- freshVar
+  e' <- refreshTerm (SnocRnEnv env b b') e
+  return (TmAbs b' t e')
+refreshTerm env (TmApp e1 e2) = do
+  e1' <- refreshTerm env e1
+  e2' <- refreshTerm env e2
+  return (TmApp  e1' e2')
+refreshTerm env (TmTup e1 e2) = do
+  e1' <- refreshTerm env e1
+  e2' <- refreshTerm env e2
+  return (TmTup e1' e2')
+refreshTerm env (TmRecCon l e) = do
+  e' <- refreshTerm env e
+  return (TmRecCon l e')
+refreshTerm env (TmRecFld e l) = do
+  e' <- refreshTerm env e
+  return (TmRecFld e' l)
+refreshTerm env (TmCast c e) = do
+  e' <- refreshTerm env e
+  return (TmCast c e')
+
+
+subst :: Term -> Variable -> Term -> RnM Term
+subst orig var term
+  = do term' <- refreshTerm EmptyRefreshEnv term
+       go orig var term'
+    where
+      go :: Term -> Variable -> Term -> RnM Term
+      go expr x v = case expr of
+        TmVar x' | x' == x   -> return v
+                 | otherwise -> return (TmVar x')
+        TmLit i        -> return (TmLit i)
+        TmTop          -> return TmTop
+        TmAbs b t e -> do
+          e' <- go e x v
+          return (TmAbs b t e')
+        TmApp e1 e2    -> do
+          e1' <- go e1 x v
+          e2' <- go e2 x v
+          return (TmApp  e1' e2')
+        TmTup e1 e2    -> do
+          e1' <- go e1 x v
+          e2' <- go e2 x v
+          return (TmTup e1' e2')
+        TmRecCon l e   -> do
+          e' <- go e x v
+          return (TmRecCon l e')
+        TmRecFld e l   -> do
+          e' <- go e x v
+          return (TmRecFld e' l)
+        TmCast c e     -> do
+          e' <- go e x v
+          return (TmCast c e')
+
+
 -- | Evaluate a term given the current maximal variable.
 eval :: Integer -> Term -> (Term, Integer)
 eval state0 t = runState (evalM t) state0
@@ -162,43 +237,6 @@ evalM :: Term -> RnM Term
 evalM t = step t >>= \case
   Just st -> evalM st
   Nothing -> return t
-
-
--- | In a given term, substitue a variable with another term.
-subst :: Term -> Variable -> Term -> RnM Term
-subst expr x v = case expr of
-  TmVar x' | x' == x   -> return v
-           | otherwise -> return (TmVar x')
-  TmLit i        -> return (TmLit i)
-  TmTop          -> return TmTop
-  TmAbs x' x't e -> do
-    (newX, newE) <- rnTerm x' e
-    e' <- subst newE x v
-    return (TmAbs newX x't e')
-  TmApp e1 e2    -> do
-    e1' <- subst e1 x v
-    e2' <- subst e2 x v
-    return (TmApp  e1' e2')
-  TmTup e1 e2    -> do
-    e1' <- subst e1 x v
-    e2' <- subst e2 x v
-    return (TmTup e1' e2')
-  TmRecCon l e   -> do
-    e' <- subst e x v
-    return (TmRecCon l e')
-  TmRecFld e l   -> do
-    e' <- subst e x v
-    return (TmRecFld e' l)
-  TmCast c e     -> do
-    e' <- subst e x v
-    return (TmCast c e')
-  where
-    -- | Replace a variable in a term with a fresh one.
-    rnTerm :: Variable -> Term -> RnM (Variable, Term)
-    rnTerm var term = do
-      var' <- freshVar
-      term' <- subst term var (TmVar var')
-      return (var', term')
 
 
 -- | Execute small-step reduction on a term.
