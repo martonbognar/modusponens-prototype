@@ -36,10 +36,6 @@ data Expression
   | ExRec Label Expression
   | ExRecFld Expression Label
 
-data Context
-  = Empty
-  | Snoc Context RawVariable Type
-
 -- * Pretty Printing
 -- ----------------------------------------------------------------------------
 
@@ -64,10 +60,6 @@ instance PrettyPrint Expression where
   ppr (ExRec l e)     = braces $ hsep [ppr l, equals, ppr e]
   ppr (ExRecFld e l)  = hcat [ppr e, dot, ppr l]
 
-instance PrettyPrint Context where
-  ppr Empty        = ppr "•"
-  ppr (Snoc c v t) = hcat [ppr c, comma, ppr v, colon, ppr t]
-
 instance Show RawVariable where
   show = render . ppr
 
@@ -75,7 +67,4 @@ instance Show Type where
   show = render . ppr
 
 instance Show Expression where
-  show = render . ppr
-
-instance Show Context where
   show = render . ppr

@@ -20,8 +20,8 @@ elabType (TyArr a b) = LC.TyArr (elabType a) (elabType b)
 elabType (TyIs a b)  = LC.TyTup (elabType a) (elabType b)
 elabType (TyRec l a) = LC.TyRec (convertLabel l) (elabType a)
 
-convertVar :: Variable -> LC.Variable
-convertVar (MkVar i) = LC.MkVar i
+convertVariable :: Variable -> LC.Variable
+convertVariable (MkVar i) = LC.MkVar i
 
 convertLabel :: Label -> LC.Label
 convertLabel (MkLabel l) = LC.MkLabel l
@@ -73,7 +73,7 @@ inferenceWithContext _ (ExLit i) = return (TyNat, LC.TmLit i)
 -- T-VAR
 inferenceWithContext c (ExVar v)
   = do t <- typeFromContext c v
-       return (t, LC.TmVar (convertVar v))
+       return (t, LC.TmVar (convertVariable v))
 -- T-APP
 inferenceWithContext c (ExApp e1 e2)
   = do (TyArr a1 a2, v1) <- inferenceWithContext c e1
@@ -108,7 +108,7 @@ checking :: Context -> Expression -> Type -> Maybe LC.Term
 -- T-ABS
 checking c (ExAbs x e) (TyArr a b)
   = do v <- checking (Snoc c x a) e b
-       return (LC.TmAbs (convertVar x) (elabType a) v)
+       return (LC.TmAbs (convertVariable x) (elabType a) v)
 -- T-SUB
 checking c e a
   = do (b, v) <- inferenceWithContext c e

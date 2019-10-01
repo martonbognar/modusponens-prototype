@@ -18,12 +18,6 @@ newtype Variable = MkVar   Integer deriving (Eq)
 -- | Data type for labels.
 newtype Label    = MkLabel String  deriving (Eq)
 
-type RnM a = State Integer a
-
--- | Generate a new, fresh variable.
-freshVar :: RnM Variable
-freshVar = state (\s -> (MkVar s, s + 1))
-
 
 data Type
   = TyNat
@@ -46,16 +40,6 @@ data Expression
 data Context
   = Empty
   | Snoc Context Variable Type
-
--- | Determine equality between two types.
-eqTypes :: Type -> Type -> Bool
-eqTypes TyNat TyNat                 = True
-eqTypes TyTop TyTop                 = True
-eqTypes (TyArr t1 t2) (TyArr t3 t4) = eqTypes t1 t3 && eqTypes t2 t4
-eqTypes (TyIs t1 t2) (TyIs t3 t4)   = eqTypes t1 t3 && eqTypes t2 t4
-eqTypes (TyRec l1 t1) (TyRec l2 t2) = eqTypes t1 t2 && l1 == l2
-eqTypes _ _                         = False
-  -- GEORGE: I don't like catch-alls...
 
 
 -- | The queue for implementing algorithmic subtyping rules.
