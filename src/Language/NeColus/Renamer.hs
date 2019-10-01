@@ -1,12 +1,11 @@
 {-# OPTIONS_GHC -Wall #-}
 
-module Renamer where
+module Language.NeColus.Renamer where
 
 import Control.Monad.State.Lazy
 
-import CommonTypes
-import qualified RawSyntax as Raw
-import Syntax
+import qualified Language.NeColus.RawSyntax as Raw
+import Language.NeColus.Syntax
 
 -- | Convert a raw syntax type to a NeColus type.
 rnType :: Raw.Type -> Type

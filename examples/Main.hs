@@ -1,13 +1,11 @@
+{-# OPTIONS_GHC -Wall #-}
+
 module Main where
 
-import CommonTypes
-import LambdaC
-import Parser
-import PrettyPrinter
-import RawSyntax
-import Renamer
-import Syntax
-import TypeCheck
+import Language.LambdaC
+import Language.NeColus.Parser
+import Language.NeColus.Renamer
+import Language.NeColus.TypeCheck
 
 main :: IO ()
 main = do
@@ -18,6 +16,6 @@ main = do
     Nothing -> print "Inference failed"
     Just (ty, term) -> do
       print ty
-      print  term
+      print term
       print $ fst $ eval maxVar term
       print $ tcTerm term

@@ -1,15 +1,29 @@
 {-# OPTIONS_GHC -Wall #-}
 
-module Syntax where
+module Language.NeColus.Syntax where
 
 import Prelude hiding ((<>))
 
+import Control.Monad.Trans.State.Lazy
 import Text.PrettyPrint
-import CommonTypes
+
 import PrettyPrinter
 
 -- * Main NeColus types
 -- ----------------------------------------------------------------------------
+
+-- | Data type for variables.
+newtype Variable = MkVar   Integer deriving (Eq)
+
+-- | Data type for labels.
+newtype Label    = MkLabel String  deriving (Eq)
+
+type RnM a = State Integer a
+
+-- | Generate a new, fresh variable.
+freshVar :: RnM Variable
+freshVar = state (\s -> (MkVar s, s + 1))
+
 
 data Type
   = TyNat
@@ -70,6 +84,12 @@ viewL (ExtraType q t)
 
 -- * Pretty Printing
 -- ----------------------------------------------------------------------------
+
+instance PrettyPrint Variable where
+  ppr (MkVar i) = ppr "x" <> ppr i
+
+instance PrettyPrint Label where
+  ppr (MkLabel l) = ppr l
 
 instance PrettyPrint Type where
   ppr TyNat         = ppr "Nat"

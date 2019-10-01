@@ -1,13 +1,14 @@
 {-# OPTIONS_GHC -Wall #-}
 
-module RawSyntax where
+module Language.NeColus.RawSyntax where
 
 import Prelude hiding ((<>))
 
 import Data.Function (on)
 import Text.PrettyPrint
-import CommonTypes
+
 import PrettyPrinter
+import Language.NeColus.Syntax (Label(..))
 
 newtype RawVariable = MkRawVar { unRawVar :: String }
 

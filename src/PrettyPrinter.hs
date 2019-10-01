@@ -2,9 +2,7 @@
 
 module PrettyPrinter where
 
-import Prelude hiding ((<>))
 import Text.PrettyPrint
-import CommonTypes
 
 arrow :: Doc
 arrow = text "→"
@@ -34,9 +32,3 @@ instance PrettyPrintList a => PrettyPrint [a] where
 
 instance PrettyPrint Integer where
   ppr = integer
-
-instance PrettyPrint Variable where
-  ppr (MkVar i) = ppr "x" <> ppr i
-
-instance PrettyPrint Label where
-  ppr (MkLabel l) = ppr l

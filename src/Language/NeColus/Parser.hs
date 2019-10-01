@@ -1,14 +1,14 @@
 {-# OPTIONS_GHC -Wall #-}
 
-module Parser where
-
-import CommonTypes
-import qualified RawSyntax as NC
+module Language.NeColus.Parser where
 
 import Text.Parsec.Prim (Stream, ParsecT)
 import Text.ParserCombinators.Parsec
 import Text.ParserCombinators.Parsec.Language
 import qualified Text.ParserCombinators.Parsec.Token as Token
+
+import qualified Language.NeColus.RawSyntax as NC
+import Language.NeColus.Syntax (Label(..))
 
 -- | Return the language definition of the raw syntax.
 languageDef :: LanguageDef st
