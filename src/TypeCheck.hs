@@ -54,7 +54,7 @@ uDisjoint TyTop       = True
 uDisjoint TyNat       = True
 uDisjoint (TyIs a b ) = disjoint a b && uDisjoint a && uDisjoint b
 uDisjoint (TyArr _ b) = uDisjoint b
-uDisjoint TyRec{}     = False -- TODO?
+uDisjoint (TyRec _ t) = uDisjoint t
 
 
 inference :: Expression -> Maybe (Type, LC.Term)
