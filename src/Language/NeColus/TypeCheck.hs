@@ -120,7 +120,9 @@ checking c e a
 metaTop :: Queue -> LC.Coercion
 metaTop Null = LC.CoAnyTop (elabType TyTop)
 metaTop (ExtraLabel q l)
-  = LC.CoTrans (LC.CoRec (convertLabel l) (metaTop q)) (LC.CoTopRec (convertLabel l))
+  = LC.CoTrans (LC.CoRec l' (metaTop q)) (LC.CoTopRec l')
+    where
+      l' = convertLabel l
 metaTop (ExtraType q a)
   = LC.CoTrans
       (LC.CoArr (LC.CoAnyTop a') (metaTop q))
@@ -141,9 +143,10 @@ metaIs :: Queue -> Type -> Type -> LC.Coercion
 metaIs Null b1 b2 = LC.CoRefl (elabType (TyIs b1 b2))
 metaIs (ExtraLabel q l) b1 b2
   = LC.CoTrans
-      (LC.CoRec (convertLabel l) (metaIs q b1 b2))
-      (LC.CoDistRec (convertLabel l) arrB1 arrB2)
+      (LC.CoRec l' (metaIs q b1 b2))
+      (LC.CoDistRec l' arrB1 arrB2)
     where
+      l' = convertLabel l
       arrB1 = elabType $ queueToType q b1
       arrB2 = elabType $ queueToType q b2
 metaIs (ExtraType q a) b1 b2
