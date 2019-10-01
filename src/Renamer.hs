@@ -29,8 +29,8 @@ rnLookup v (SnocRnEnv env v' x)
 
 -- | Covert a full expression from raw syntax to NeColus syntax
 -- given an initial stack and state.
-rnExpr :: RnEnv -> Integer -> Raw.Expression -> (Expression, Integer)
-rnExpr env state0 ex = runState (rnExprM env ex) state0
+rnExpr :: Raw.Expression -> (Expression, Integer)
+rnExpr ex = runState (rnExprM EmptyRnEnv ex) 0
 
 -- | Convert a raw expression to NeColus syntax.
 rnExprM :: RnEnv -> Raw.Expression -> RnM Expression

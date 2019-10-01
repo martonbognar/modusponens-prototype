@@ -57,43 +57,47 @@ uDisjoint (TyArr _ b) = uDisjoint b
 uDisjoint TyRec{}     = False -- TODO?
 
 
--- | Inference
-inference :: Context -> Expression -> Maybe (Type, LC.Term)
+inference :: Expression -> Maybe (Type, LC.Term)
+inference = inferenceWithContext Empty
+
+
+-- | inferenceWithContext
+inferenceWithContext :: Context -> Expression -> Maybe (Type, LC.Term)
 -- T-TOP
-inference _ ExTop = return (TyTop, LC.TmTop)
+inferenceWithContext _ ExTop = return (TyTop, LC.TmTop)
 -- T-LIT
-inference _ (ExLit i) = return (TyNat, LC.TmLit i)
+inferenceWithContext _ (ExLit i) = return (TyNat, LC.TmLit i)
 -- T-VAR
-inference c (ExVar v)
+inferenceWithContext c (ExVar v)
   = do t <- typeFromContext c v
        return (t, LC.TmVar v)
 -- T-APP
-inference c (ExApp e1 e2)
-  = do (TyArr a1 a2, v1) <- inference c e1
+inferenceWithContext c (ExApp e1 e2)
+  = do (TyArr a1 a2, v1) <- inferenceWithContext c e1
        v2 <- checking c e2 a1
        return (a2, LC.TmApp v1 v2)
 -- T-ANNO
-inference c (ExAnn e a)
+inferenceWithContext c (ExAnn e a)
   = do v <- checking c e a
        return (a, v)
 -- T-PROJ
-inference c (ExRecFld e l)
-  = do (TyRec l' a, v) <- inference c e
+inferenceWithContext c (ExRecFld e l)
+  = do (TyRec l' a, v) <- inferenceWithContext c e
        guard (l' == l)
        return (a, LC.TmRecFld v l)
 -- T-MERGE
-inference c (ExMerge e1 e2)
-  = do (a1, v1) <- inference c e1
-       (a2, v2) <- inference c e2
+inferenceWithContext c (ExMerge e1 e2)
+  = do (a1, v1) <- inferenceWithContext c e1
+       (a2, v2) <- inferenceWithContext c e2
       --  guard (disjoint a1 a2) -- the original NeColus implementation
        guard (uDisjoint (TyIs a1 a2))
        return (TyIs a1 a2, LC.TmTup v1 v2)
 -- T-RCD
-inference c (ExRec l e)
-  = do (a, v) <- inference c e
+inferenceWithContext c (ExRec l e)
+  = do (a, v) <- inferenceWithContext c e
        return (TyRec l a, LC.TmRecCon l v)
 
-inference _ ExAbs {} = fail "Inference error"
+inferenceWithContext _ ExAbs {} = fail "Inference error"
 
 
 -- | Checking
@@ -104,7 +108,7 @@ checking c (ExAbs x e) (TyArr a b)
        return (LC.TmAbs x (elabType a) v)
 -- T-SUB
 checking c e a
-  = do (b, v) <- inference c e
+  = do (b, v) <- inferenceWithContext c e
        co <- subtype Null b a
        return (LC.TmCast co v)
 

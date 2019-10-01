@@ -13,11 +13,11 @@ main :: IO ()
 main = do
   input <- getLine
   let rawExp = parseExpr input
-      (renamed, maxVar) = rnExpr EmptyRnEnv 0 rawExp
-  case inference Syntax.Empty renamed of
+      (renamed, maxVar) = rnExpr rawExp
+  case inference renamed of
     Nothing -> print "Inference failed"
     Just (ty, term) -> do
-      print $ ty
-      print $ term
+      print ty
+      print  term
       print $ fst $ eval maxVar term
-      print $ tcTerm LambdaC.Empty term
+      print $ tcTerm term

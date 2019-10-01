@@ -165,38 +165,41 @@ rnLookup v (SnocRnEnv env v' x)
 
 
 -- | Replace a variable in a term with a fresh one.
-refreshTerm :: RefreshEnv -> Term -> RnM Term
-refreshTerm _ (TmLit i) = return (TmLit i)
-refreshTerm _ TmTop     = return TmTop
-refreshTerm env (TmVar x) = case rnLookup x env of
-  Nothing -> return (TmVar x)
-  Just x' -> return (TmVar x')
-refreshTerm env (TmAbs b t e) = do
-  b' <- freshVar
-  e' <- refreshTerm (SnocRnEnv env b b') e
-  return (TmAbs b' t e')
-refreshTerm env (TmApp e1 e2) = do
-  e1' <- refreshTerm env e1
-  e2' <- refreshTerm env e2
-  return (TmApp  e1' e2')
-refreshTerm env (TmTup e1 e2) = do
-  e1' <- refreshTerm env e1
-  e2' <- refreshTerm env e2
-  return (TmTup e1' e2')
-refreshTerm env (TmRecCon l e) = do
-  e' <- refreshTerm env e
-  return (TmRecCon l e')
-refreshTerm env (TmRecFld e l) = do
-  e' <- refreshTerm env e
-  return (TmRecFld e' l)
-refreshTerm env (TmCast c e) = do
-  e' <- refreshTerm env e
-  return (TmCast c e')
+refreshTerm :: Term -> RnM Term
+refreshTerm = go EmptyRefreshEnv
+  where
+    go :: RefreshEnv -> Term -> RnM Term
+    go _ (TmLit i) = return (TmLit i)
+    go _ TmTop     = return TmTop
+    go env (TmVar x) = case rnLookup x env of
+      Nothing -> return (TmVar x)
+      Just x' -> return (TmVar x')
+    go env (TmAbs b t e) = do
+      b' <- freshVar
+      e' <- go (SnocRnEnv env b b') e
+      return (TmAbs b' t e')
+    go env (TmApp e1 e2) = do
+      e1' <- go env e1
+      e2' <- go env e2
+      return (TmApp  e1' e2')
+    go env (TmTup e1 e2) = do
+      e1' <- go env e1
+      e2' <- go env e2
+      return (TmTup e1' e2')
+    go env (TmRecCon l e) = do
+      e' <- go env e
+      return (TmRecCon l e')
+    go env (TmRecFld e l) = do
+      e' <- go env e
+      return (TmRecFld e' l)
+    go env (TmCast c e) = do
+      e' <- go env e
+      return (TmCast c e')
 
 
 subst :: Term -> Variable -> Term -> RnM Term
 subst orig var term
-  = do term' <- refreshTerm EmptyRefreshEnv term
+  = do term' <- refreshTerm term
        go orig var term'
     where
       go :: Term -> Variable -> Term -> RnM Term
@@ -367,43 +370,46 @@ typeFromContext (Snoc c v vt) x
 
 
 -- | In a given context, determine the type of a term.
-tcTerm :: Context -> Term -> Maybe Type
--- TYP-UNIT
-tcTerm _ TmTop = return TyTop
--- TYP-LIT
-tcTerm _ (TmLit _) = return TyNat
--- TYP-TmVar
-tcTerm c (TmVar x) = typeFromContext c x
--- TYP-ABS
-tcTerm c (TmAbs x t1 e)
-  = do t2 <- tcTerm (Snoc c x t1) e
-       return (TyArr t1 t2)
--- TYP-APP
-tcTerm c (TmApp e1 e2)
-  = do (TyArr t1 t2) <- tcTerm c e1
-       t3            <- tcTerm c e2
-       guard (eqTypes t1 t3)
-       return t2
--- TYP-PAIR
-tcTerm c (TmTup e1 e2)
-  = do t1 <- tcTerm c e1
-       t2 <- tcTerm c e2
-       return (TyTup t1 t2)
--- TYP-CAPP
-tcTerm c (TmCast co e)
-  = do t         <- tcTerm c e
-       (t1, t1') <- tcCoercion co
-       guard (eqTypes t t1)
-       return t1'
--- TYP-RCD
-tcTerm c (TmRecCon l e)
-  = do t <- tcTerm c e
-       return (TyRec l t)
--- TYP--PROJ
-tcTerm c (TmRecFld e l)
-  = do (TyRec l1 t) <- tcTerm c e
-       guard (l == l1)
-       return t
+tcTerm :: Term -> Maybe Type
+tcTerm = go Empty
+  where
+    go :: Context -> Term -> Maybe Type
+    -- TYP-UNIT
+    go _ TmTop = return TyTop
+    -- TYP-LIT
+    go _ (TmLit _) = return TyNat
+    -- TYP-TmVar
+    go c (TmVar x) = typeFromContext c x
+    -- TYP-ABS
+    go c (TmAbs x t1 e) = do
+      t2 <- go (Snoc c x t1) e
+      return (TyArr t1 t2)
+    -- TYP-APP
+    go c (TmApp e1 e2) = do
+      (TyArr t1 t2) <- go c e1
+      t3            <- go c e2
+      guard (eqTypes t1 t3)
+      return t2
+    -- TYP-PAIR
+    go c (TmTup e1 e2) = do
+      t1 <- go c e1
+      t2 <- go c e2
+      return (TyTup t1 t2)
+    -- TYP-CAPP
+    go c (TmCast co e) = do
+      t         <- go c e
+      (t1, t1') <- tcCoercion co
+      guard (eqTypes t t1)
+      return t1'
+    -- TYP-RCD
+    go c (TmRecCon l e) = do
+      t <- go c e
+      return (TyRec l t)
+    -- TYP--PROJ
+    go c (TmRecFld e l) = do
+      (TyRec l1 t) <- go c e
+      guard (l == l1)
+      return t
 
 
 -- | Determine the type of a coercion.
