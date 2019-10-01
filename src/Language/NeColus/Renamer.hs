@@ -2,16 +2,11 @@
 
 module Language.NeColus.Renamer where
 
-import Control.Monad.State.Lazy
+import Control.Monad.Renamer
+import Data.Variable
 
 import qualified Language.NeColus.RawSyntax as Raw
 import Language.NeColus.Syntax
-
-type RnM a = State Integer a
-
--- | Generate a new, fresh variable.
-freshVar :: RnM Variable
-freshVar = state (\s -> (MkVar s, s + 1))
 
 -- | Convert a raw syntax type to a NeColus type.
 rnType :: Raw.Type -> Type

@@ -4,20 +4,14 @@ module Language.NeColus.Syntax where
 
 import Prelude hiding ((<>))
 
-import Control.Monad.Trans.State.Lazy
+import Data.Label
+import Data.Variable
 import Text.PrettyPrint
 
 import PrettyPrinter
 
 -- * Main NeColus types
 -- ----------------------------------------------------------------------------
-
--- | Data type for variables.
-newtype Variable = MkVar   Integer deriving (Eq)
-
--- | Data type for labels.
-newtype Label    = MkLabel String  deriving (Eq)
-
 
 data Type
   = TyNat
@@ -68,12 +62,6 @@ viewL (ExtraType q t)
 
 -- * Pretty Printing
 -- ----------------------------------------------------------------------------
-
-instance PrettyPrint Variable where
-  ppr (MkVar i) = ppr "x" <> ppr i
-
-instance PrettyPrint Label where
-  ppr (MkLabel l) = ppr l
 
 instance PrettyPrint Type where
   ppr TyNat         = ppr "Nat"

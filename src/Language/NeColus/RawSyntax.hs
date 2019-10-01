@@ -5,10 +5,10 @@ module Language.NeColus.RawSyntax where
 import Prelude hiding ((<>))
 
 import Data.Function (on)
+import Data.Label
 import Text.PrettyPrint
 
 import PrettyPrinter
-import Language.NeColus.Syntax (Label(..))
 
 newtype RawVariable = MkRawVar { unRawVar :: String }
 

@@ -6,6 +6,7 @@ import qualified Language.LambdaC as LC
 
 import Control.Applicative ((<|>))
 import Control.Monad (guard)
+import Data.Variable
 
 import Language.NeColus.Syntax
 
@@ -18,13 +19,7 @@ elabType TyNat       = LC.TyNat
 elabType TyTop       = LC.TyTop
 elabType (TyArr a b) = LC.TyArr (elabType a) (elabType b)
 elabType (TyIs a b)  = LC.TyTup (elabType a) (elabType b)
-elabType (TyRec l a) = LC.TyRec (convertLabel l) (elabType a)
-
-convertVariable :: Variable -> LC.Variable
-convertVariable (MkVar i) = LC.MkVar i
-
-convertLabel :: Label -> LC.Label
-convertLabel (MkLabel l) = LC.MkLabel l
+elabType (TyRec l a) = LC.TyRec l (elabType a)
 
 -- | Get the type of a variable from a context.
 typeFromContext :: Context -> Variable -> Maybe Type
@@ -73,7 +68,7 @@ inferenceWithContext _ (ExLit i) = return (TyNat, LC.TmLit i)
 -- T-VAR
 inferenceWithContext c (ExVar v)
   = do t <- typeFromContext c v
-       return (t, LC.TmVar (convertVariable v))
+       return (t, LC.TmVar v)
 -- T-APP
 inferenceWithContext c (ExApp e1 e2)
   = do (TyArr a1 a2, v1) <- inferenceWithContext c e1
@@ -87,7 +82,7 @@ inferenceWithContext c (ExAnn e a)
 inferenceWithContext c (ExRecFld e l)
   = do (TyRec l' a, v) <- inferenceWithContext c e
        guard (l' == l)
-       return (a, LC.TmRecFld v (convertLabel l))
+       return (a, LC.TmRecFld v l)
 -- T-MERGE
 inferenceWithContext c (ExMerge e1 e2)
   = do (a1, v1) <- inferenceWithContext c e1
@@ -98,7 +93,7 @@ inferenceWithContext c (ExMerge e1 e2)
 -- T-RCD
 inferenceWithContext c (ExRec l e)
   = do (a, v) <- inferenceWithContext c e
-       return (TyRec l a, LC.TmRecCon (convertLabel l) v)
+       return (TyRec l a, LC.TmRecCon l v)
 
 inferenceWithContext _ ExAbs {} = fail "Inference error"
 
@@ -108,7 +103,7 @@ checking :: Context -> Expression -> Type -> Maybe LC.Term
 -- T-ABS
 checking c (ExAbs x e) (TyArr a b)
   = do v <- checking (Snoc c x a) e b
-       return (LC.TmAbs (convertVariable x) (elabType a) v)
+       return (LC.TmAbs x (elabType a) v)
 -- T-SUB
 checking c e a
   = do (b, v) <- inferenceWithContext c e
@@ -120,9 +115,7 @@ checking c e a
 metaTop :: Queue -> LC.Coercion
 metaTop Null = LC.CoAnyTop (elabType TyTop)
 metaTop (ExtraLabel q l)
-  = LC.CoTrans (LC.CoRec l' (metaTop q)) (LC.CoTopRec l')
-    where
-      l' = convertLabel l
+  = LC.CoTrans (LC.CoRec l (metaTop q)) (LC.CoTopRec l)
 metaTop (ExtraType q a)
   = LC.CoTrans
       (LC.CoArr (LC.CoAnyTop a') (metaTop q))
@@ -143,10 +136,9 @@ metaIs :: Queue -> Type -> Type -> LC.Coercion
 metaIs Null b1 b2 = LC.CoRefl (elabType (TyIs b1 b2))
 metaIs (ExtraLabel q l) b1 b2
   = LC.CoTrans
-      (LC.CoRec l' (metaIs q b1 b2))
-      (LC.CoDistRec l' arrB1 arrB2)
+      (LC.CoRec l (metaIs q b1 b2))
+      (LC.CoDistRec l arrB1 arrB2)
     where
-      l' = convertLabel l
       arrB1 = elabType $ queueToType q b1
       arrB2 = elabType $ queueToType q b2
 metaIs (ExtraType q a) b1 b2
@@ -187,7 +179,7 @@ subtype queue (TyRec l' a) TyNat
   | Just (Left l, q) <- viewL queue
   , l == l'
   = do c <- subtype q a TyNat
-       return (LC.CoRec (convertLabel l) c)
+       return (LC.CoRec l c)
 -- A-ANDN1 & A-ANDN2
 subtype q (TyIs a1 a2) TyNat
   =   do c <- subtype q a1 TyNat

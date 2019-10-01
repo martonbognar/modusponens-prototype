@@ -49,6 +49,9 @@ cabal-version:       >=1.10
 library
   -- Modules exported by the library.
   exposed-modules:
+    Control.Monad.Renamer,
+    Data.Label,
+    Data.Variable,
     Language.LambdaC,
     Language.NeColus.Parser,
     Language.NeColus.RawSyntax,
