@@ -60,6 +60,16 @@ viewL (ExtraType q t)
   | otherwise     = do (res, queue) <- viewL q
                        return (res, ExtraType queue t)
 
+appendLabel :: Queue -> Label -> Queue
+appendLabel Null l = ExtraLabel Null l
+appendLabel (ExtraLabel q l') l = ExtraLabel (appendLabel q l) l'
+appendLabel (ExtraType q t) l = ExtraType (appendLabel q l) t
+
+appendType :: Queue -> Type -> Queue
+appendType Null t = ExtraType Null t
+appendType (ExtraLabel q l) t = ExtraLabel (appendType q t) l
+appendType (ExtraType q t') t = ExtraType (appendType q t) t'
+
 -- * Pretty Printing
 -- ----------------------------------------------------------------------------
 
