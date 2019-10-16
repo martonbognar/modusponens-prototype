@@ -107,7 +107,7 @@ checking c (ExAbs x e) (TyArr a b)
 -- T-SUB
 checking c e a
   = do (b, v) <- inferenceWithContext c e
-       co <- subtype Null b a
+       co <- subtype b a
        return (LC.TmCast co v)
 
 
@@ -151,56 +151,159 @@ metaIs (ExtraType q a) b1 b2
       arrB2 = elabType $ queueToType q b2
 
 
--- | Algorithmic subtyping
-subtype :: Queue -> Type -> Type -> Maybe LC.Coercion
--- A-AND
-subtype q a (TyIs b1 b2)
-  = do c1 <- subtype q a b1
-       c2 <- subtype q a b2
-       return (LC.CoTrans (metaIs q b1 b2) (LC.CoPair c1 c2))
--- A-ARR
-subtype q a (TyArr b1 b2)
-  = subtype (ExtraType q b1) a b2
--- A-RCD
-subtype q a (TyRec l b)
-  = subtype (ExtraLabel q l) a b
--- A-TOP
-subtype q a TyTop
-  = return (LC.CoTrans (metaTop q) (LC.CoAnyTop a')) where
-      a' = elabType a
--- A-ARRNAT
-subtype queue (TyArr a1 a2) TyNat
-  | Just (Right a, q) <- viewL queue
-  = do c1 <- subtype Null a a1
-       c2 <- subtype q a2 TyNat
-       return (LC.CoArr c1 c2)
--- A-RCDNAT
-subtype queue (TyRec l' a) TyNat
-  | Just (Left l, q) <- viewL queue
-  , l == l'
-  = do c <- subtype q a TyNat
-       return (LC.CoRec l c)
--- A-ANDN1 & A-ANDN2
-subtype q (TyIs a1 a2) TyNat
-  =   do c <- subtype q a1 TyNat
-         return (LC.CoTrans c (LC.CoLeft a1' a2'))
-  <|> do c <- subtype q a2 TyNat
-         return (LC.CoTrans c (LC.CoRight a1' a2'))
-  where
-    a1' = elabType a1
-    a2' = elabType a2
--- A-NAT
-subtype Null TyNat TyNat = return (LC.CoRefl (elabType TyNat))
+distArrows' :: Queue -> LC.Coercion -> LC.Coercion
+distArrows' Null k = k
+distArrows' (ExtraType q t) k = LC.CoTrans (LC.CoArr (LC.CoRefl t') (distArrows' q k)) LC.CoTopArr
+  where t' = elabType t
+distArrows' (ExtraLabel _ _) _ = error "?"
 
--- Failing cases...
-subtype ExtraLabel{} TyNat   TyNat = fail "Subtype error"
-subtype ExtraType{}  TyNat   TyNat = fail "Subtype error"
-subtype Null         TyTop   TyNat = fail "Subtype error"
-subtype ExtraLabel{} TyTop   TyNat = fail "Subtype error"
-subtype ExtraType{}  TyTop   TyNat = fail "Subtype error"
-subtype Null         TyArr{} TyNat = fail "Subtype error"
-subtype ExtraLabel{} TyArr{} TyNat = fail "Subtype error"
-subtype ExtraType{}  TyArr{} TyNat = fail "Subtype error"
-subtype Null         TyRec{} TyNat = fail "Subtype error"
-subtype ExtraLabel{} TyRec{} TyNat = fail "Subtype error"
-subtype ExtraType{}  TyRec{} TyNat = fail "Subtype error"
+
+distArrows :: Queue -> Type -> LC.Coercion
+distArrows Null t = LC.CoRefl t'
+  where t' = elabType t
+distArrows (ExtraType q t') t = LC.CoTrans (LC.CoArr (LC.CoRefl t'') (distArrows q t')) LC.CoTopArr
+  where t'' = elabType t
+distArrows (ExtraLabel _ _) _ = error "?"
+
+
+data XEnv
+  = XHole
+  | XCoArr XEnv Type Type LC.Coercion
+  | XProjLeft XEnv Type Type
+  | XProjRight XEnv Type Type
+  | XModPon Queue LC.Coercion LC.Coercion Type Type
+
+
+xSem :: XEnv -> LC.Coercion -> LC.Coercion
+xSem XHole k                 = k
+xSem (XCoArr x _ _ k1) k     = xSem x (LC.CoArr k1 k)
+xSem (XProjLeft x a b) k     = xSem x (LC.CoTrans k (LC.CoLeft a' b'))
+  where a' = elabType a
+        b' = elabType b
+xSem (XProjRight x a b) k    = xSem x (LC.CoTrans k (LC.CoRight a' b'))
+  where a' = elabType a
+        b' = elabType b
+xSem (XModPon m k1 k2 a b) k = LC.CoTrans (distArrows' m (LC.CoTrans k (LC.CoMP (LC.CoLeft arr a') (LC.CoRight arr a')))) (LC.CoPair k1 k2)
+  where a' = elabType a
+        arr = elabType (TyArr a b)
+
+
+subtype :: Type -> Type -> Maybe LC.Coercion
+subtype a b = sub1 Null a b
+
+
+sub1 :: Queue -> Type -> Type -> Maybe LC.Coercion
+sub1 l a TyNat = let nat = elabType TyNat in do
+  x <- sub2 l Null a XHole a TyNat
+  return (xSem x (LC.CoRefl nat))
+sub1 l a (TyArr b1 b2) = sub1 (appendType l b1) a b2
+sub1 l a (TyIs b1 b2) = do
+  k1 <- sub1 l a b1
+  k2 <- sub1 l a b2
+  return (LC.CoTrans (distArrows l (TyIs b1 b2)) (LC.CoTrans k1 k2))
+sub1 l a TyTop = let a' = elabType a in do
+  return (LC.CoTrans (metaTop l) (LC.CoAnyTop a'))
+sub1 _ _ (TyRec _ _) = error "?"
+
+sub2 :: Queue -> Queue -> Type -> XEnv -> Type -> Type -> Maybe XEnv
+sub2 Null _ _ x TyNat TyNat = return x
+sub2 (ExtraType l b1) m a0 x (TyArr a1 a2) TyNat = do
+  k <- sub1 Null b1 a1
+  sub2 l (appendType m b1) a0 (XCoArr x b1 a1 k) a2 TyNat
+sub2 l m a0 x (TyIs a1 a2) TyNat =
+  sub2 l m a0 (XProjLeft x a1 a2) a1 TyNat
+  <|> sub2 l m a0 (XProjRight x a1 a2) a2 TyNat
+sub2 l m a0 x (TyArr a1 a2) TyNat = let arr = elabType (TyArr a1 a2) in do
+  k1 <- sub1 Null a0 (queueToType m a1)
+  sub2 l m a0 (XModPon m (xSem x (LC.CoRefl arr)) k1 a1 a2) a2 TyNat
+sub2 Null             _ _ _ TyNat       TyTop       = error "?"
+sub2 Null             _ _ _ TyNat       (TyArr _ _) = error "?"
+sub2 Null             _ _ _ TyNat       (TyIs _ _)  = error "?"
+sub2 Null             _ _ _ TyNat       (TyRec _ _) = error "?"
+sub2 Null             _ _ _ TyTop       _           = error "?"
+sub2 Null             _ _ _ (TyArr _ _) TyTop       = error "?"
+sub2 Null             _ _ _ (TyArr _ _) (TyArr _ _) = error "?"
+sub2 Null             _ _ _ (TyArr _ _) (TyIs _ _)  = error "?"
+sub2 Null             _ _ _ (TyArr _ _) (TyRec _ _) = error "?"
+sub2 Null             _ _ _ (TyIs _ _)  TyTop       = error "?"
+sub2 Null             _ _ _ (TyIs _ _)  (TyArr _ _) = error "?"
+sub2 Null             _ _ _ (TyIs _ _)  (TyIs _ _)  = error "?"
+sub2 Null             _ _ _ (TyIs _ _)  (TyRec _ _) = error "?"
+sub2 Null             _ _ _ (TyRec _ _) _           = error "?"
+sub2 (ExtraLabel _ _) _ _ _ TyNat       _           = error "?"
+sub2 (ExtraLabel _ _) _ _ _ TyTop       _           = error "?"
+sub2 (ExtraLabel _ _) _ _ _ (TyArr _ _) TyTop       = error "?"
+sub2 (ExtraLabel _ _) _ _ _ (TyArr _ _) (TyArr _ _) = error "?"
+sub2 (ExtraLabel _ _) _ _ _ (TyArr _ _) (TyIs _ _)  = error "?"
+sub2 (ExtraLabel _ _) _ _ _ (TyArr _ _) (TyRec _ _) = error "?"
+sub2 (ExtraLabel _ _) _ _ _ (TyIs _ _)  TyTop       = error "?"
+sub2 (ExtraLabel _ _) _ _ _ (TyIs _ _)  (TyArr _ _) = error "?"
+sub2 (ExtraLabel _ _) _ _ _ (TyIs _ _)  (TyIs _ _)  = error "?"
+sub2 (ExtraLabel _ _) _ _ _ (TyIs _ _)  (TyRec _ _) = error "?"
+sub2 (ExtraLabel _ _) _ _ _ (TyRec _ _) _           = error "?"
+sub2 (ExtraType _ _)  _ _ _ TyNat       _           = error "?"
+sub2 (ExtraType _ _)  _ _ _ TyTop       _           = error "?"
+sub2 (ExtraType _ _)  _ _ _ (TyArr _ _) TyTop       = error "?"
+sub2 (ExtraType _ _)  _ _ _ (TyArr _ _) (TyArr _ _) = error "?"
+sub2 (ExtraType _ _)  _ _ _ (TyArr _ _) (TyIs _ _)  = error "?"
+sub2 (ExtraType _ _)  _ _ _ (TyArr _ _) (TyRec _ _) = error "?"
+sub2 (ExtraType _ _)  _ _ _ (TyIs _ _)  TyTop       = error "?"
+sub2 (ExtraType _ _)  _ _ _ (TyIs _ _)  (TyArr _ _) = error "?"
+sub2 (ExtraType _ _)  _ _ _ (TyIs _ _)  (TyIs _ _)  = error "?"
+sub2 (ExtraType _ _)  _ _ _ (TyIs _ _)  (TyRec _ _) = error "?"
+sub2 (ExtraType _ _)  _ _ _ (TyRec _ _) _           = error "?"
+
+
+-- -- | Algorithmic subtyping
+-- subtype :: Queue -> Type -> Type -> Maybe LC.Coercion
+-- -- A-AND
+-- subtype q a (TyIs b1 b2)
+--   = do c1 <- subtype q a b1
+--        c2 <- subtype q a b2
+--        return (LC.CoTrans (metaIs q b1 b2) (LC.CoPair c1 c2))
+-- -- A-ARR
+-- subtype q a (TyArr b1 b2)
+--   = subtype (ExtraType q b1) a b2
+-- -- A-RCD
+-- subtype q a (TyRec l b)
+--   = subtype (ExtraLabel q l) a b
+-- -- A-TOP
+-- subtype q a TyTop
+--   = return (LC.CoTrans (metaTop q) (LC.CoAnyTop a')) where
+--       a' = elabType a
+-- -- A-ARRNAT
+-- subtype queue (TyArr a1 a2) TyNat
+--   | Just (Right a, q) <- viewL queue
+--   = do c1 <- subtype Null a a1
+--        c2 <- subtype q a2 TyNat
+--        return (LC.CoArr c1 c2)
+-- -- A-RCDNAT
+-- subtype queue (TyRec l' a) TyNat
+--   | Just (Left l, q) <- viewL queue
+--   , l == l'
+--   = do c <- subtype q a TyNat
+--        return (LC.CoRec l c)
+-- -- A-ANDN1 & A-ANDN2
+-- subtype q (TyIs a1 a2) TyNat
+--   =   do c <- subtype q a1 TyNat
+--          return (LC.CoTrans c (LC.CoLeft a1' a2'))
+--   <|> do c <- subtype q a2 TyNat
+--          return (LC.CoTrans c (LC.CoRight a1' a2'))
+--   where
+--     a1' = elabType a1
+--     a2' = elabType a2
+-- -- A-NAT
+-- subtype Null TyNat TyNat = return (LC.CoRefl (elabType TyNat))
+
+-- -- Failing cases...
+-- subtype ExtraLabel{} TyNat   TyNat = fail "Subtype error"
+-- subtype ExtraType{}  TyNat   TyNat = fail "Subtype error"
+-- subtype Null         TyTop   TyNat = fail "Subtype error"
+-- subtype ExtraLabel{} TyTop   TyNat = fail "Subtype error"
+-- subtype ExtraType{}  TyTop   TyNat = fail "Subtype error"
+-- subtype Null         TyArr{} TyNat = fail "Subtype error"
+-- subtype ExtraLabel{} TyArr{} TyNat = fail "Subtype error"
+-- subtype ExtraType{}  TyArr{} TyNat = fail "Subtype error"
+-- subtype Null         TyRec{} TyNat = fail "Subtype error"
+-- subtype ExtraLabel{} TyRec{} TyNat = fail "Subtype error"
+-- subtype ExtraType{}  TyRec{} TyNat = fail "Subtype error"
