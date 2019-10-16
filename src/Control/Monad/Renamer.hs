@@ -12,4 +12,5 @@ type RnM a = SM.State Integer a
 freshVar :: RnM Variable
 freshVar = SM.state (\s -> (MkVar s, s + 1))
 
+runState :: RnM a -> Integer -> (a, Integer)
 runState = SM.runState
