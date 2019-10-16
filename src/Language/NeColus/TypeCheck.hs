@@ -1,6 +1,6 @@
 {-# OPTIONS_GHC -Wall #-}
 
-module Language.NeColus.TypeCheck where
+module Language.NeColus.TypeCheck (inference, checking) where
 
 import qualified Language.LambdaC as LC
 
@@ -20,6 +20,7 @@ elabType TyTop       = LC.TyTop
 elabType (TyArr a b) = LC.TyArr (elabType a) (elabType b)
 elabType (TyIs a b)  = LC.TyTup (elabType a) (elabType b)
 elabType (TyRec l a) = LC.TyRec l (elabType a)
+
 
 -- | Get the type of a variable from a context.
 typeFromContext :: Context -> Variable -> Maybe Type
@@ -94,7 +95,7 @@ inferenceWithContext c (ExMerge e1 e2)
 inferenceWithContext c (ExRec l e)
   = do (a, v) <- inferenceWithContext c e
        return (TyRec l a, LC.TmRecCon l v)
-
+-- failing case
 inferenceWithContext _ ExAbs {} = fail "Inference error"
 
 
@@ -151,19 +152,25 @@ metaIs (ExtraType q a) b1 b2
       arrB2 = elabType $ queueToType q b2
 
 
-distArrows' :: Queue -> LC.Coercion -> LC.Coercion
-distArrows' Null k = k
-distArrows' (ExtraType q t) k = LC.CoTrans (LC.CoArr (LC.CoRefl t') (distArrows' q k)) LC.CoTopArr
+distArrows' :: Queue -> LC.Coercion -> Type -> Type -> LC.Coercion
+distArrows' Null k _ _ = k
+distArrows' (ExtraType q t) k a b = LC.CoTrans (LC.CoArr (LC.CoRefl t') (distArrows' q k a b)) (LC.CoDistArr t' a' b')
   where t' = elabType t
-distArrows' (ExtraLabel _ _) _ = error "?"
+        a' = elabType a
+        b' = elabType b
+
+distArrows' (ExtraLabel _ _) _ _ _ = error "?"
 
 
-distArrows :: Queue -> Type -> LC.Coercion
-distArrows Null t = LC.CoRefl t'
+distArrows :: Queue -> Type -> Type -> LC.Coercion
+distArrows Null t1 t2 = LC.CoRefl t'
+  where t' = elabType (TyIs t1 t2)
+distArrows (ExtraType q t) t1 t2 = LC.CoTrans (LC.CoArr (LC.CoRefl t') (distArrows q t1 t2)) (LC.CoDistArr t' t1' t2')
   where t' = elabType t
-distArrows (ExtraType q t') t = LC.CoTrans (LC.CoArr (LC.CoRefl t'') (distArrows q t')) LC.CoTopArr
-  where t'' = elabType t
-distArrows (ExtraLabel _ _) _ = error "?"
+        t1' = elabType $ queueToType q t1
+        t2' = elabType $ queueToType q t2
+
+distArrows (ExtraLabel _ _) _ _ = error "?"
 
 
 data XEnv
@@ -183,7 +190,7 @@ xSem (XProjLeft x a b) k     = xSem x (LC.CoTrans k (LC.CoLeft a' b'))
 xSem (XProjRight x a b) k    = xSem x (LC.CoTrans k (LC.CoRight a' b'))
   where a' = elabType a
         b' = elabType b
-xSem (XModPon m k1 k2 a b) k = LC.CoTrans (distArrows' m (LC.CoTrans k (LC.CoMP (LC.CoLeft arr a') (LC.CoRight arr a')))) (LC.CoPair k1 k2)
+xSem (XModPon m k1 k2 a b) k = LC.CoTrans (distArrows' m (LC.CoTrans k (LC.CoMP (LC.CoLeft arr a') (LC.CoRight arr a'))) a b) (LC.CoPair k1 k2)
   where a' = elabType a
         arr = elabType (TyArr a b)
 
@@ -200,10 +207,12 @@ sub1 l a (TyArr b1 b2) = sub1 (appendType l b1) a b2
 sub1 l a (TyIs b1 b2) = do
   k1 <- sub1 l a b1
   k2 <- sub1 l a b2
-  return (LC.CoTrans (distArrows l (TyIs b1 b2)) (LC.CoTrans k1 k2))
+  return (LC.CoTrans (distArrows l b1 b2) (LC.CoPair k1 k2))
 sub1 l a TyTop = let a' = elabType a in do
   return (LC.CoTrans (metaTop l) (LC.CoAnyTop a'))
+
 sub1 _ _ (TyRec _ _) = error "?"
+
 
 sub2 :: Queue -> Queue -> Type -> XEnv -> Type -> Type -> Maybe XEnv
 sub2 Null _ _ x TyNat TyNat = return x
@@ -220,37 +229,41 @@ sub2 Null             _ _ _ TyNat       TyTop       = error "?"
 sub2 Null             _ _ _ TyNat       (TyArr _ _) = error "?"
 sub2 Null             _ _ _ TyNat       (TyIs _ _)  = error "?"
 sub2 Null             _ _ _ TyNat       (TyRec _ _) = error "?"
-sub2 Null             _ _ _ TyTop       _           = error "?"
-sub2 Null             _ _ _ (TyArr _ _) TyTop       = error "?"
-sub2 Null             _ _ _ (TyArr _ _) (TyArr _ _) = error "?"
-sub2 Null             _ _ _ (TyArr _ _) (TyIs _ _)  = error "?"
-sub2 Null             _ _ _ (TyArr _ _) (TyRec _ _) = error "?"
-sub2 Null             _ _ _ (TyIs _ _)  TyTop       = error "?"
-sub2 Null             _ _ _ (TyIs _ _)  (TyArr _ _) = error "?"
-sub2 Null             _ _ _ (TyIs _ _)  (TyIs _ _)  = error "?"
-sub2 Null             _ _ _ (TyIs _ _)  (TyRec _ _) = error "?"
-sub2 Null             _ _ _ (TyRec _ _) _           = error "?"
 sub2 (ExtraLabel _ _) _ _ _ TyNat       _           = error "?"
-sub2 (ExtraLabel _ _) _ _ _ TyTop       _           = error "?"
-sub2 (ExtraLabel _ _) _ _ _ (TyArr _ _) TyTop       = error "?"
-sub2 (ExtraLabel _ _) _ _ _ (TyArr _ _) (TyArr _ _) = error "?"
-sub2 (ExtraLabel _ _) _ _ _ (TyArr _ _) (TyIs _ _)  = error "?"
-sub2 (ExtraLabel _ _) _ _ _ (TyArr _ _) (TyRec _ _) = error "?"
-sub2 (ExtraLabel _ _) _ _ _ (TyIs _ _)  TyTop       = error "?"
-sub2 (ExtraLabel _ _) _ _ _ (TyIs _ _)  (TyArr _ _) = error "?"
-sub2 (ExtraLabel _ _) _ _ _ (TyIs _ _)  (TyIs _ _)  = error "?"
-sub2 (ExtraLabel _ _) _ _ _ (TyIs _ _)  (TyRec _ _) = error "?"
-sub2 (ExtraLabel _ _) _ _ _ (TyRec _ _) _           = error "?"
 sub2 (ExtraType _ _)  _ _ _ TyNat       _           = error "?"
+
+sub2 Null             _ _ _ TyTop       _           = error "?"
+sub2 (ExtraLabel _ _) _ _ _ TyTop       _           = error "?"
 sub2 (ExtraType _ _)  _ _ _ TyTop       _           = error "?"
+
+sub2 Null             _ _ _ (TyArr _ _) TyTop       = error "?"
+sub2 (ExtraLabel _ _) _ _ _ (TyArr _ _) TyTop       = error "?"
 sub2 (ExtraType _ _)  _ _ _ (TyArr _ _) TyTop       = error "?"
+sub2 Null             _ _ _ (TyArr _ _) (TyArr _ _) = error "?"
+sub2 (ExtraLabel _ _) _ _ _ (TyArr _ _) (TyArr _ _) = error "?"
 sub2 (ExtraType _ _)  _ _ _ (TyArr _ _) (TyArr _ _) = error "?"
+sub2 Null             _ _ _ (TyArr _ _) (TyIs _ _)  = error "?"
+sub2 (ExtraLabel _ _) _ _ _ (TyArr _ _) (TyIs _ _)  = error "?"
 sub2 (ExtraType _ _)  _ _ _ (TyArr _ _) (TyIs _ _)  = error "?"
+sub2 Null             _ _ _ (TyArr _ _) (TyRec _ _) = error "?"
+sub2 (ExtraLabel _ _) _ _ _ (TyArr _ _) (TyRec _ _) = error "?"
 sub2 (ExtraType _ _)  _ _ _ (TyArr _ _) (TyRec _ _) = error "?"
+
+sub2 Null             _ _ _ (TyIs _ _)  TyTop       = error "?"
+sub2 (ExtraLabel _ _) _ _ _ (TyIs _ _)  TyTop       = error "?"
 sub2 (ExtraType _ _)  _ _ _ (TyIs _ _)  TyTop       = error "?"
+sub2 Null             _ _ _ (TyIs _ _)  (TyArr _ _) = error "?"
+sub2 (ExtraLabel _ _) _ _ _ (TyIs _ _)  (TyArr _ _) = error "?"
 sub2 (ExtraType _ _)  _ _ _ (TyIs _ _)  (TyArr _ _) = error "?"
+sub2 Null             _ _ _ (TyIs _ _)  (TyIs _ _)  = error "?"
+sub2 (ExtraLabel _ _) _ _ _ (TyIs _ _)  (TyIs _ _)  = error "?"
 sub2 (ExtraType _ _)  _ _ _ (TyIs _ _)  (TyIs _ _)  = error "?"
+sub2 Null             _ _ _ (TyIs _ _)  (TyRec _ _) = error "?"
+sub2 (ExtraLabel _ _) _ _ _ (TyIs _ _)  (TyRec _ _) = error "?"
 sub2 (ExtraType _ _)  _ _ _ (TyIs _ _)  (TyRec _ _) = error "?"
+
+sub2 Null             _ _ _ (TyRec _ _) _           = error "?"
+sub2 (ExtraLabel _ _) _ _ _ (TyRec _ _) _           = error "?"
 sub2 (ExtraType _ _)  _ _ _ (TyRec _ _) _           = error "?"
 
 
@@ -294,7 +307,6 @@ sub2 (ExtraType _ _)  _ _ _ (TyRec _ _) _           = error "?"
 --     a2' = elabType a2
 -- -- A-NAT
 -- subtype Null TyNat TyNat = return (LC.CoRefl (elabType TyNat))
-
 -- -- Failing cases...
 -- subtype ExtraLabel{} TyNat   TyNat = fail "Subtype error"
 -- subtype ExtraType{}  TyNat   TyNat = fail "Subtype error"
