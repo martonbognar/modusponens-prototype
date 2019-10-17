@@ -134,7 +134,7 @@ topArrows (ExtraType l a) = LC.CoTrans (LC.CoArr (LC.CoAnyTop a') (topArrows l))
 -- | Convert a queue to a type. (Definition 24)
 queueToType :: Queue -> Type -> Type
 queueToType Null a = a
-queueToType (ExtraType q a) b = queueToType q (TyArr b a)
+queueToType (ExtraType q b) a = queueToType q (TyArr b a)
 -- queueToType (ExtraLabel q l) a = queueToType q (TyRec l a)
 
 
