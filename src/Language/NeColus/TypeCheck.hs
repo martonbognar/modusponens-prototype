@@ -19,7 +19,7 @@ elabType TyNat       = LC.TyNat
 elabType TyTop       = LC.TyTop
 elabType (TyArr a b) = LC.TyArr (elabType a) (elabType b)
 elabType (TyIs a b)  = LC.TyTup (elabType a) (elabType b)
-elabType (TyRec l a) = LC.TyRec l (elabType a)
+-- elabType (TyRec l a) = LC.TyRec l (elabType a)
 
 
 -- | Get the type of a variable from a context.
@@ -37,13 +37,13 @@ disjoint _            TyTop        = True
 disjoint (TyArr _ a2) (TyArr _ b2) = disjoint a2 b2
 disjoint (TyIs a1 a2) b            = disjoint a1 b && disjoint a2 b
 disjoint a            (TyIs b1 b2) = disjoint a b1 && disjoint a b2
-disjoint (TyRec l1 a) (TyRec l2 b) = (l1 /= l2) || disjoint a b
+-- disjoint (TyRec l1 a) (TyRec l2 b) = (l1 /= l2) || disjoint a b
 disjoint TyNat        TyArr{}      = True
 disjoint TyArr{}      TyNat        = True
-disjoint TyNat        TyRec{}      = True
-disjoint TyRec{}      TyNat        = True
-disjoint TyArr{}      TyRec{}      = True
-disjoint TyRec{}      TyArr{}      = True
+-- disjoint TyNat        TyRec{}      = True
+-- disjoint TyRec{}      TyNat        = True
+-- disjoint TyArr{}      TyRec{}      = True
+-- disjoint TyRec{}      TyArr{}      = True
 disjoint TyNat        TyNat        = False
 
 
@@ -53,7 +53,7 @@ uDisjoint TyTop       = True
 uDisjoint TyNat       = True
 uDisjoint (TyIs a b ) = disjoint a b && uDisjoint a && uDisjoint b
 uDisjoint (TyArr _ b) = uDisjoint b
-uDisjoint (TyRec _ t) = uDisjoint t
+-- uDisjoint (TyRec _ t) = uDisjoint t
 
 
 inference :: Expression -> Maybe (Type, LC.Term)
@@ -79,11 +79,11 @@ inferenceWithContext c (ExApp e1 e2)
 inferenceWithContext c (ExAnn e a)
   = do v <- checking c e a
        return (a, v)
--- T-PROJ
-inferenceWithContext c (ExRecFld e l)
-  = do (TyRec l' a, v) <- inferenceWithContext c e
-       guard (l' == l)
-       return (a, LC.TmRecFld v l)
+-- -- T-PROJ
+-- inferenceWithContext c (ExRecFld e l)
+--   = do (TyRec l' a, v) <- inferenceWithContext c e
+--        guard (l' == l)
+--        return (a, LC.TmRecFld v l)
 -- T-MERGE
 inferenceWithContext c (ExMerge e1 e2)
   = do (a1, v1) <- inferenceWithContext c e1
@@ -91,10 +91,10 @@ inferenceWithContext c (ExMerge e1 e2)
       --  guard (disjoint a1 a2) -- the original NeColus implementation
        guard (uDisjoint (TyIs a1 a2))
        return (TyIs a1 a2, LC.TmTup v1 v2)
--- T-RCD
-inferenceWithContext c (ExRec l e)
-  = do (a, v) <- inferenceWithContext c e
-       return (TyRec l a, LC.TmRecCon l v)
+-- -- T-RCD
+-- inferenceWithContext c (ExRec l e)
+--   = do (a, v) <- inferenceWithContext c e
+--        return (TyRec l a, LC.TmRecCon l v)
 -- failing case
 inferenceWithContext _ ExAbs {} = fail "Inference error"
 
@@ -112,44 +112,50 @@ checking c e a
        return (LC.TmCast co v)
 
 
--- | Meta-top function for coercions.
-metaTop :: Queue -> LC.Coercion
-metaTop Null = LC.CoAnyTop (elabType TyTop)
-metaTop (ExtraLabel q l)
-  = LC.CoTrans (LC.CoRec l (metaTop q)) (LC.CoTopRec l)
-metaTop (ExtraType q a)
-  = LC.CoTrans
-      (LC.CoArr (LC.CoAnyTop a') (metaTop q))
-      LC.CoTopArr
-    where
-      a' = elabType a
+-- -- | Meta-top function for coercions.
+-- metaTop :: Queue -> LC.Coercion
+-- metaTop Null = LC.CoAnyTop (elabType TyTop)
+-- metaTop (ExtraLabel q l)
+--   = LC.CoTrans (LC.CoRec l (metaTop q)) (LC.CoTopRec l)
+-- metaTop (ExtraType q a)
+--   = LC.CoTrans
+--       (LC.CoArr (LC.CoAnyTop a') (metaTop q))
+--       LC.CoTopArr
+--     where
+--       a' = elabType a
+
+
+topArrows :: Queue -> LC.Coercion
+topArrows Null = LC.CoAnyTop (elabType TyTop)
+topArrows (ExtraType l a) = LC.CoTrans (LC.CoArr (LC.CoAnyTop a') (topArrows l)) LC.CoTopArr
+  where a' = elabType a
 
 
 -- | Convert a queue to a type. (Definition 24)
 queueToType :: Queue -> Type -> Type
 queueToType Null a = a
 queueToType (ExtraType q a) b = queueToType q (TyArr b a)
-queueToType (ExtraLabel q l) a = queueToType q (TyRec l a)
+-- queueToType (ExtraLabel q l) a = queueToType q (TyRec l a)
 
 
--- | Meta-intersection function for coercions.
-metaIs :: Queue -> Type -> Type -> LC.Coercion
-metaIs Null b1 b2 = LC.CoRefl (elabType (TyIs b1 b2))
-metaIs (ExtraLabel q l) b1 b2
-  = LC.CoTrans
-      (LC.CoRec l (metaIs q b1 b2))
-      (LC.CoDistRec l arrB1 arrB2)
-    where
-      arrB1 = elabType $ queueToType q b1
-      arrB2 = elabType $ queueToType q b2
-metaIs (ExtraType q a) b1 b2
-  = LC.CoTrans
-      (LC.CoArr (LC.CoRefl a') (metaIs q b1 b2))
-      (LC.CoDistArr a' arrB1 arrB2)
-    where
-      a' = elabType a
-      arrB1 = elabType $ queueToType q b1
-      arrB2 = elabType $ queueToType q b2
+-- -- | Meta-intersection function for coercions.
+-- metaIs :: Queue -> Type -> Type -> LC.Coercion
+-- metaIs Null b1 b2 = LC.CoRefl (elabType (TyIs b1 b2))
+-- metaIs (ExtraLabel q l) b1 b2
+--   = LC.CoTrans
+--       (LC.CoRec l (metaIs q b1 b2))
+--       (LC.CoDistRec l arrB1 arrB2)
+--     where
+--       arrB1 = elabType $ queueToType q b1
+--       arrB2 = elabType $ queueToType q b2
+-- metaIs (ExtraType q a) b1 b2
+--   = LC.CoTrans
+--       (LC.CoArr (LC.CoRefl a') (metaIs q b1 b2))
+--       (LC.CoDistArr a' arrB1 arrB2)
+--     where
+--       a' = elabType a
+--       arrB1 = elabType $ queueToType q b1
+--       arrB2 = elabType $ queueToType q b2
 
 
 distArrows' :: Queue -> LC.Coercion -> Type -> Type -> LC.Coercion
@@ -159,9 +165,6 @@ distArrows' (ExtraType q t) k a b = LC.CoTrans (LC.CoArr (LC.CoRefl t') (distArr
         a' = elabType $ queueToType q a
         b' = elabType $ queueToType q b
 
-distArrows' (ExtraLabel _ _) _ _ _ = error "?"
-
-
 distArrows :: Queue -> Type -> Type -> LC.Coercion
 distArrows Null t1 t2 = LC.CoRefl t'
   where t' = elabType (TyIs t1 t2)
@@ -169,9 +172,6 @@ distArrows (ExtraType q t) t1 t2 = LC.CoTrans (LC.CoArr (LC.CoRefl t') (distArro
   where t' = elabType t
         t1' = elabType $ queueToType q t1
         t2' = elabType $ queueToType q t2
-
-distArrows (ExtraLabel _ _) _ _ = error "?"
-
 
 eqTypes :: Type -> Type -> Bool
 eqTypes TyNat TyNat = True
@@ -227,9 +227,7 @@ sub1 s l a (TyIs b1 b2) = do
   k2 <- sub1 s l a b2
   return (LC.CoTrans (distArrows l b1 b2) (LC.CoPair k1 k2))
 sub1 _ l a TyTop = let a' = elabType a in do
-  return (LC.CoTrans (metaTop l) (LC.CoAnyTop a'))
-
-sub1 _ _ _ (TyRec _ _) = error "?"
+  return (LC.CoTrans (topArrows l) (LC.CoAnyTop a'))
 
 
 sub2 :: CallStack -> Queue -> Queue -> Type -> XEnv -> Type -> Type -> Maybe XEnv
@@ -257,43 +255,24 @@ sub2 s l m a0 x (TyIs a1 a2) TyNat =
 sub2 _ Null             _ _ _ TyNat       TyTop       = error "?"
 sub2 _ Null             _ _ _ TyNat       (TyArr _ _) = error "?"
 sub2 _ Null             _ _ _ TyNat       (TyIs _ _)  = error "?"
-sub2 _ Null             _ _ _ TyNat       (TyRec _ _) = error "?"
-sub2 _ (ExtraLabel _ _) _ _ _ TyNat       _           = error "?"
 sub2 _ (ExtraType _ _)  _ _ _ TyNat       _           = error "?"
 
 sub2 _ Null             _ _ _ TyTop       _           = error "?"
-sub2 _ (ExtraLabel _ _) _ _ _ TyTop       _           = error "?"
 sub2 _ (ExtraType _ _)  _ _ _ TyTop       _           = error "?"
 
 sub2 _ Null             _ _ _ (TyArr _ _) TyTop       = error "?"
-sub2 _ (ExtraLabel _ _) _ _ _ (TyArr _ _) TyTop       = error "?"
 sub2 _ (ExtraType _ _)  _ _ _ (TyArr _ _) TyTop       = error "?"
 sub2 _ Null             _ _ _ (TyArr _ _) (TyArr _ _) = error "?"
-sub2 _ (ExtraLabel _ _) _ _ _ (TyArr _ _) (TyArr _ _) = error "?"
 sub2 _ (ExtraType _ _)  _ _ _ (TyArr _ _) (TyArr _ _) = error "?"
 sub2 _ Null             _ _ _ (TyArr _ _) (TyIs _ _)  = error "?"
-sub2 _ (ExtraLabel _ _) _ _ _ (TyArr _ _) (TyIs _ _)  = error "?"
 sub2 _ (ExtraType _ _)  _ _ _ (TyArr _ _) (TyIs _ _)  = error "?"
-sub2 _ Null             _ _ _ (TyArr _ _) (TyRec _ _) = error "?"
-sub2 _ (ExtraLabel _ _) _ _ _ (TyArr _ _) (TyRec _ _) = error "?"
-sub2 _ (ExtraType _ _)  _ _ _ (TyArr _ _) (TyRec _ _) = error "?"
 
 sub2 _ Null             _ _ _ (TyIs _ _)  TyTop       = error "?"
-sub2 _ (ExtraLabel _ _) _ _ _ (TyIs _ _)  TyTop       = error "?"
 sub2 _ (ExtraType _ _)  _ _ _ (TyIs _ _)  TyTop       = error "?"
 sub2 _ Null             _ _ _ (TyIs _ _)  (TyArr _ _) = error "?"
-sub2 _ (ExtraLabel _ _) _ _ _ (TyIs _ _)  (TyArr _ _) = error "?"
 sub2 _ (ExtraType _ _)  _ _ _ (TyIs _ _)  (TyArr _ _) = error "?"
 sub2 _ Null             _ _ _ (TyIs _ _)  (TyIs _ _)  = error "?"
-sub2 _ (ExtraLabel _ _) _ _ _ (TyIs _ _)  (TyIs _ _)  = error "?"
 sub2 _ (ExtraType _ _)  _ _ _ (TyIs _ _)  (TyIs _ _)  = error "?"
-sub2 _ Null             _ _ _ (TyIs _ _)  (TyRec _ _) = error "?"
-sub2 _ (ExtraLabel _ _) _ _ _ (TyIs _ _)  (TyRec _ _) = error "?"
-sub2 _ (ExtraType _ _)  _ _ _ (TyIs _ _)  (TyRec _ _) = error "?"
-
-sub2 _ Null             _ _ _ (TyRec _ _) _           = error "?"
-sub2 _ (ExtraLabel _ _) _ _ _ (TyRec _ _) _           = error "?"
-sub2 _ (ExtraType _ _)  _ _ _ (TyRec _ _) _           = error "?"
 
 
 -- -- | Algorithmic subtyping

@@ -23,7 +23,7 @@ data Type
   | TyTop
   | TyArr Type Type
   | TyIs Type Type
-  | TyRec Label Type
+  -- | TyRec Label Type
 
 data Expression
   = ExVar RawVariable
@@ -33,8 +33,8 @@ data Expression
   | ExApp Expression Expression
   | ExMerge Expression Expression
   | ExAnn Expression Type
-  | ExRec Label Expression
-  | ExRecFld Expression Label
+  -- | ExRec Label Expression
+  -- | ExRecFld Expression Label
 
 -- * Pretty Printing
 -- ----------------------------------------------------------------------------
@@ -47,7 +47,7 @@ instance PrettyPrint Type where
   ppr TyTop         = ppr "Unit"
   ppr (TyArr t1 t2) = parens $ hsep [ppr t1, arrow, ppr t2]
   ppr (TyIs t1 t2)  = parens $ hsep [ppr t1, ppr "&", ppr t2]
-  ppr (TyRec l t)   = braces $ hsep [ppr l, colon, ppr t]
+  -- ppr (TyRec l t)   = braces $ hsep [ppr l, colon, ppr t]
 
 instance PrettyPrint Expression where
   ppr (ExVar v)       = ppr v
@@ -57,8 +57,8 @@ instance PrettyPrint Expression where
   ppr (ExApp e1 e2)   = parens $ hsep [ppr e1, ppr e2]
   ppr (ExMerge e1 e2) = parens $ hsep [ppr e1, comma <> comma, ppr e2]
   ppr (ExAnn e t)     = parens $ hsep [ppr e, colon, ppr t]
-  ppr (ExRec l e)     = braces $ hsep [ppr l, equals, ppr e]
-  ppr (ExRecFld e l)  = hcat [ppr e, dot, ppr l]
+  -- ppr (ExRec l e)     = braces $ hsep [ppr l, equals, ppr e]
+  -- ppr (ExRecFld e l)  = hcat [ppr e, dot, ppr l]
 
 instance Show RawVariable where
   show = render . ppr

@@ -14,7 +14,7 @@ rnType Raw.TyNat         = TyNat
 rnType Raw.TyTop         = TyTop
 rnType (Raw.TyArr t1 t2) = TyArr (rnType t1) (rnType t2)
 rnType (Raw.TyIs t1 t2)  = TyIs (rnType t1) (rnType t2)
-rnType (Raw.TyRec l t)   = TyRec l (rnType t)
+-- rnType (Raw.TyRec l t)   = TyRec l (rnType t)
 
 -- | A stack for storing raw - NeColus variable assignments.
 data RnEnv = EmptyRnEnv
@@ -59,10 +59,10 @@ rnExprM env (Raw.ExAnn e t) = do
   e' <- rnExprM env e
   return (ExAnn e' (rnType t))
 
-rnExprM env (Raw.ExRec l e) = do
-  e' <- rnExprM env e
-  return (ExRec l e')
+-- rnExprM env (Raw.ExRec l e) = do
+--   e' <- rnExprM env e
+--   return (ExRec l e')
 
-rnExprM env (Raw.ExRecFld e l) = do
-  e' <- rnExprM env e
-  return (ExRecFld e' l)
+-- rnExprM env (Raw.ExRecFld e l) = do
+--   e' <- rnExprM env e
+--   return (ExRecFld e' l)

@@ -69,7 +69,7 @@ integer    = Token.integer    lexer
 pPrimTy :: Parser NC.Type
 pPrimTy =   tyNat
         <|> tyTop
-        <|> tyRec
+        -- <|> tyRec
         <|> parens pType
 
 -- | Parse a type (lowest priority).
@@ -88,13 +88,13 @@ tyNat = reserved "Nat" *> pure NC.TyNat
 tyTop :: Parser NC.Type
 tyTop = reserved "T" *> pure NC.TyTop
 
--- | Parse a record type.
-tyRec :: Parser NC.Type
-tyRec = braces $ do
-    l <- pLabel
-    reservedOp ":"
-    a <- pPrimTy
-    return (NC.TyRec l a)
+-- -- | Parse a record type.
+-- tyRec :: Parser NC.Type
+-- tyRec = braces $ do
+--     l <- pLabel
+--     reservedOp ":"
+--     a <- pPrimTy
+--     return (NC.TyRec l a)
 
 -- ----------------------------------------------------------------------------
 
@@ -103,7 +103,7 @@ pPrimExpr :: Parser NC.Expression
 pPrimExpr =   exVar
           <|> exLit
           <|> exTop
-          <|> exRec
+          -- <|> exRec
           <|> parens pExpr
 
 -- | Parse a term variable.
@@ -118,13 +118,13 @@ exLit = NC.ExLit . fromIntegral <$> integer
 exTop :: Parser NC.Expression
 exTop = reserved "T" *> pure NC.ExTop
 
--- | Parse a record.
-exRec :: Parser NC.Expression
-exRec = braces $ do
-    l <- identifier
-    reservedOp "="
-    e <- pExpr
-    return (NC.ExRec (MkLabel l) e)
+-- -- | Parse a record.
+-- exRec :: Parser NC.Expression
+-- exRec = braces $ do
+--     l <- identifier
+--     reservedOp "="
+--     e <- pExpr
+--     return (NC.ExRec (MkLabel l) e)
 
 -- ----------------------------------------------------------------------------
 
@@ -151,11 +151,12 @@ pExpr = pExAbs <|> pExpr4
       e <- pExpr
       return (NC.ExAbs x e)
 
-    pExpr1 :: Parser NC.Expression
-    pExpr1 = hetChainl1 pPrimExpr pLabel (NC.ExRecFld <$ reservedOp ".")
+    -- pExpr1 :: Parser NC.Expression
+    -- pExpr1 = hetChainl1 pPrimExpr pLabel (NC.ExRecFld <$ reservedOp ".")
 
     pExpr2 :: Parser NC.Expression
-    pExpr2 = chainl1 pExpr1 (pure NC.ExApp)
+    -- pExpr2 = chainl1 pExpr1 (pure NC.ExApp)
+    pExpr2 = chainl1 pPrimExpr (pure NC.ExApp)
 
     pExpr3 :: Parser NC.Expression
     pExpr3 = chainl1 pExpr2 (NC.ExMerge <$ reservedOp ",,")
