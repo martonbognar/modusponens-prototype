@@ -252,27 +252,27 @@ sub2 s l m a0 x (TyArr a1 a2) TyNat =
 sub2 s l m a0 x (TyIs a1 a2) TyNat =
   sub2 s l m a0 (XProjLeft x a1 a2) a1 TyNat
   <|> sub2 s l m a0 (XProjRight x a1 a2) a2 TyNat
-sub2 _ Null             _ _ _ TyNat       TyTop       = error "?"
-sub2 _ Null             _ _ _ TyNat       (TyArr _ _) = error "?"
-sub2 _ Null             _ _ _ TyNat       (TyIs _ _)  = error "?"
-sub2 _ (ExtraType _ _)  _ _ _ TyNat       _           = error "?"
+sub2 _ Null             _ _ _ TyNat       TyTop       = Nothing
+sub2 _ Null             _ _ _ TyNat       (TyArr _ _) = Nothing
+sub2 _ Null             _ _ _ TyNat       (TyIs _ _)  = Nothing
+sub2 _ (ExtraType _ _)  _ _ _ TyNat       _           = Nothing
 
-sub2 _ Null             _ _ _ TyTop       _           = error "?"
-sub2 _ (ExtraType _ _)  _ _ _ TyTop       _           = error "?"
+sub2 _ Null             _ _ _ TyTop       _           = Nothing
+sub2 _ (ExtraType _ _)  _ _ _ TyTop       _           = Nothing
 
-sub2 _ Null             _ _ _ (TyArr _ _) TyTop       = error "?"
-sub2 _ (ExtraType _ _)  _ _ _ (TyArr _ _) TyTop       = error "?"
-sub2 _ Null             _ _ _ (TyArr _ _) (TyArr _ _) = error "?"
-sub2 _ (ExtraType _ _)  _ _ _ (TyArr _ _) (TyArr _ _) = error "?"
-sub2 _ Null             _ _ _ (TyArr _ _) (TyIs _ _)  = error "?"
-sub2 _ (ExtraType _ _)  _ _ _ (TyArr _ _) (TyIs _ _)  = error "?"
+sub2 _ Null             _ _ _ (TyArr _ _) TyTop       = Nothing
+sub2 _ (ExtraType _ _)  _ _ _ (TyArr _ _) TyTop       = Nothing
+sub2 _ Null             _ _ _ (TyArr _ _) (TyArr _ _) = Nothing
+sub2 _ (ExtraType _ _)  _ _ _ (TyArr _ _) (TyArr _ _) = Nothing
+sub2 _ Null             _ _ _ (TyArr _ _) (TyIs _ _)  = Nothing
+sub2 _ (ExtraType _ _)  _ _ _ (TyArr _ _) (TyIs _ _)  = Nothing
 
-sub2 _ Null             _ _ _ (TyIs _ _)  TyTop       = error "?"
-sub2 _ (ExtraType _ _)  _ _ _ (TyIs _ _)  TyTop       = error "?"
-sub2 _ Null             _ _ _ (TyIs _ _)  (TyArr _ _) = error "?"
-sub2 _ (ExtraType _ _)  _ _ _ (TyIs _ _)  (TyArr _ _) = error "?"
-sub2 _ Null             _ _ _ (TyIs _ _)  (TyIs _ _)  = error "?"
-sub2 _ (ExtraType _ _)  _ _ _ (TyIs _ _)  (TyIs _ _)  = error "?"
+sub2 _ Null             _ _ _ (TyIs _ _)  TyTop       = Nothing
+sub2 _ (ExtraType _ _)  _ _ _ (TyIs _ _)  TyTop       = Nothing
+sub2 _ Null             _ _ _ (TyIs _ _)  (TyArr _ _) = Nothing
+sub2 _ (ExtraType _ _)  _ _ _ (TyIs _ _)  (TyArr _ _) = Nothing
+sub2 _ Null             _ _ _ (TyIs _ _)  (TyIs _ _)  = Nothing
+sub2 _ (ExtraType _ _)  _ _ _ (TyIs _ _)  (TyIs _ _)  = Nothing
 
 
 -- -- | Algorithmic subtyping
