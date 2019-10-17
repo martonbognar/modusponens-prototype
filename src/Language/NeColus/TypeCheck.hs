@@ -156,8 +156,8 @@ distArrows' :: Queue -> LC.Coercion -> Type -> Type -> LC.Coercion
 distArrows' Null k _ _ = k
 distArrows' (ExtraType q t) k a b = LC.CoTrans (LC.CoArr (LC.CoRefl t') (distArrows' q k a b)) (LC.CoDistArr t' a' b')
   where t' = elabType t
-        a' = elabType a
-        b' = elabType b
+        a' = elabType $ queueToType q a
+        b' = elabType $ queueToType q b
 
 distArrows' (ExtraLabel _ _) _ _ _ = error "?"
 
