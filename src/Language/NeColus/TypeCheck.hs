@@ -234,20 +234,26 @@ sub1 _ _ _ (TyRec _ _) = error "?"
 
 sub2 :: CallStack -> Queue -> Queue -> Type -> XEnv -> Type -> Type -> Maybe XEnv
 sub2 _ Null _ _ x TyNat TyNat = return x
-sub2 s (ExtraType l b1) m a0 x (TyArr a1 a2) TyNat = do
-  k <- sub1 s Null b1 a1
-  sub2 s l (appendType m b1) a0 (XCoArr x b1 a1 k) a2 TyNat
+sub2 s l m a0 x (TyArr a1 a2) TyNat =
+  case l of
+    Null -> sub2ModPon
+    (ExtraType l' b1) -> sub2Arr l' b1 <|> sub2ModPon
+  where
+    sub2Arr l' b1 = do
+      k <- sub1 s Null b1 a1
+      sub2 s l' (appendType m b1) a0 (XCoArr x b1 a1 k) a2 TyNat
+
+    sub2ModPon =
+      let arr = elabType (TyArr a1 a2)
+          t = (queueToType m a1)
+          s' = Add a0 t s
+      in do
+        guard (not (stackContains s a0 t))
+        k1 <- sub1 s' Null a0 t
+        sub2 s' l m a0 (XModPon m (xSem x (LC.CoRefl arr)) k1 a1 a2) a2 TyNat
 sub2 s l m a0 x (TyIs a1 a2) TyNat =
   sub2 s l m a0 (XProjLeft x a1 a2) a1 TyNat
   <|> sub2 s l m a0 (XProjRight x a1 a2) a2 TyNat
-sub2 s l m a0 x (TyArr a1 a2) TyNat
-  = let arr = elabType (TyArr a1 a2)
-        t = (queueToType m a1)
-        s' = Add a0 t s
-    in do
-      guard (not (stackContains s a0 t))
-      k1 <- sub1 s' Null a0 t
-      sub2 s' l m a0 (XModPon m (xSem x (LC.CoRefl arr)) k1 a1 a2) a2 TyNat
 sub2 _ Null             _ _ _ TyNat       TyTop       = error "?"
 sub2 _ Null             _ _ _ TyNat       (TyArr _ _) = error "?"
 sub2 _ Null             _ _ _ TyNat       (TyIs _ _)  = error "?"
