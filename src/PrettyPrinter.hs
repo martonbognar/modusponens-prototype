@@ -32,3 +32,8 @@ instance PrettyPrintList a => PrettyPrint [a] where
 
 instance PrettyPrint Integer where
   ppr = integer
+
+instance PrettyPrint Bool where
+  ppr True  = text "true"   -- NOTE: lowercase
+  ppr False = text "false"  -- NOTE: lowercase
+

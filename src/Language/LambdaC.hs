@@ -3,7 +3,7 @@
 
 module Language.LambdaC where
 
-import Prelude hiding ((<>))
+import Prelude
 
 import Control.Monad (guard)
 import Control.Monad.Renamer
@@ -19,6 +19,7 @@ import PrettyPrinter
 -- | Target types
 data Type
   = TyNat
+  | TyBool
   | TyTop
   | TyTup Type Type
   | TyArr Type Type
@@ -33,6 +34,7 @@ data Context
 data Term
   = TmVar Variable
   | TmLit Integer
+  | TmBool Bool
   | TmTop
   | TmAbs Variable Type Term
   | TmApp Term Term
@@ -59,8 +61,9 @@ data Coercion
 
 -- | Determine equality between two types.
 eqTypes :: Type -> Type -> Bool
-eqTypes TyNat TyNat                 = True
-eqTypes TyTop TyTop                 = True
+eqTypes TyNat  TyNat                = True
+eqTypes TyBool TyBool               = True
+eqTypes TyTop  TyTop                = True
 eqTypes (TyTup t1 t2) (TyTup t3 t4) = eqTypes t1 t3 && eqTypes t2 t4
 eqTypes (TyArr t1 t2) (TyArr t3 t4) = eqTypes t1 t3 && eqTypes t2 t4
 eqTypes (TyRec l1 t1) (TyRec l2 t2) = eqTypes t1 t2 && l1 == l2
@@ -71,6 +74,7 @@ eqTypes _ _                         = False
 
 instance PrettyPrint Type where
   ppr TyNat         = ppr "Nat"
+  ppr TyBool        = ppr "Bool"
   ppr TyTop         = ppr "Unit"
   ppr (TyTup t1 t2) = parens $ hsep [ppr t1, ppr "✕", ppr t2]
   ppr (TyArr t1 t2) = parens $ hsep [ppr t1, arrow, ppr t2]
@@ -83,6 +87,7 @@ instance PrettyPrint Context where
 instance PrettyPrint Term where
   ppr (TmVar v)      = ppr v
   ppr (TmLit i)      = ppr i
+  ppr (TmBool b)     = ppr b
   ppr TmTop          = parens empty
   ppr (TmAbs v vt t)
     = hcat [ppr "\\", parens $ hsep [ppr v, colon, ppr vt], ppr t]
@@ -146,6 +151,7 @@ isValue :: Term -> Bool
 isValue TmAbs{}                  = True
 isValue TmTop                    = True
 isValue (TmLit _)                = True
+isValue (TmBool _)               = True
 isValue (TmTup v1 v2)            = isValue v1 && isValue v2
 isValue (TmCast CoArr{} v)       = isValue v
 isValue (TmCast CoDistArr{} v)   = isValue v
@@ -170,8 +176,9 @@ refreshTerm :: Term -> RnM Term
 refreshTerm = go EmptyRefreshEnv
   where
     go :: RefreshEnv -> Term -> RnM Term
-    go _ (TmLit i) = return (TmLit i)
-    go _ TmTop     = return TmTop
+    go _ (TmLit i)  = return (TmLit i)
+    go _ (TmBool b) = return (TmBool b)
+    go _ TmTop      = return TmTop
     go env (TmVar x) = case rnLookup x env of
       Nothing -> return (TmVar x)
       Just x' -> return (TmVar x')
@@ -208,6 +215,7 @@ subst orig var term
         TmVar x' | x' == x   -> return v
                  | otherwise -> return (TmVar x')
         TmLit i        -> return (TmLit i)
+        TmBool b       -> return (TmBool b)
         TmTop          -> return TmTop
         TmAbs b t e -> do
           e' <- go e x v
@@ -379,6 +387,8 @@ tcTerm = go Empty
     go _ TmTop = return TyTop
     -- TYP-LIT
     go _ (TmLit _) = return TyNat
+    -- TYP-BOOL
+    go _ (TmBool _) = return TyBool
     -- TYP-TmVar
     go c (TmVar x) = typeFromContext c x
     -- TYP-ABS

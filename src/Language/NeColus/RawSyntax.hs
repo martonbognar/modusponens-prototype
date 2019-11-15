@@ -2,10 +2,10 @@
 
 module Language.NeColus.RawSyntax where
 
-import Prelude hiding ((<>))
+import Prelude
 
 import Data.Function (on)
-import Data.Label
+--import Data.Label
 import Text.PrettyPrint
 
 import PrettyPrinter
@@ -21,6 +21,7 @@ eqRawVariable = (==) `on` unRawVar
 data Type
   = TyNat
   | TyTop
+  | TyBool
   | TyArr Type Type
   | TyIs Type Type
   -- | TyRec Label Type
@@ -28,6 +29,7 @@ data Type
 data Expression
   = ExVar RawVariable
   | ExLit Integer
+  | ExBool Bool
   | ExTop
   | ExAbs RawVariable Expression
   | ExApp Expression Expression
@@ -44,6 +46,7 @@ instance PrettyPrint RawVariable where
 
 instance PrettyPrint Type where
   ppr TyNat         = ppr "Nat"
+  ppr TyBool        = ppr "Bool"
   ppr TyTop         = ppr "Unit"
   ppr (TyArr t1 t2) = parens $ hsep [ppr t1, arrow, ppr t2]
   ppr (TyIs t1 t2)  = parens $ hsep [ppr t1, ppr "&", ppr t2]
@@ -52,6 +55,7 @@ instance PrettyPrint Type where
 instance PrettyPrint Expression where
   ppr (ExVar v)       = ppr v
   ppr (ExLit i)       = ppr i
+  ppr (ExBool b)      = ppr b
   ppr ExTop           = parens empty
   ppr (ExAbs v e)     = parens $ hcat [ppr "\\", ppr v, dot, ppr e]
   ppr (ExApp e1 e2)   = parens $ hsep [ppr e1, ppr e2]

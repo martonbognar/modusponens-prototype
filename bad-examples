@@ -1,0 +1,4 @@
+
+(5 ,, ((\x. \y. true) : Nat -> Nat -> Bool)) : Bool         --> Fails but it shouldn't
+(5 ,, ((\x. \y. true) : Nat -> Nat -> Bool)) : Nat -> Bool  --> passes cause it performs a single case
+

@@ -11,6 +11,7 @@ import Language.NeColus.Syntax
 -- | Convert a raw syntax type to a NeColus type.
 rnType :: Raw.Type -> Type
 rnType Raw.TyNat         = TyNat
+rnType Raw.TyBool        = TyBool
 rnType Raw.TyTop         = TyTop
 rnType (Raw.TyArr t1 t2) = TyArr (rnType t1) (rnType t2)
 rnType (Raw.TyIs t1 t2)  = TyIs (rnType t1) (rnType t2)
@@ -34,8 +35,9 @@ rnExpr ex = runState (rnExprM EmptyRnEnv ex) 0
 
 -- | Convert a raw expression to NeColus syntax.
 rnExprM :: RnEnv -> Raw.Expression -> RnM Expression
-rnExprM _ (Raw.ExLit i) = return (ExLit i)
-rnExprM _ Raw.ExTop     = return ExTop
+rnExprM _ (Raw.ExLit i)  = return (ExLit i)
+rnExprM _ (Raw.ExBool b) = return (ExBool b)
+rnExprM _ Raw.ExTop      = return ExTop
 rnExprM env (Raw.ExVar x) = case rnLookup x env of
   Nothing -> error $ "Unbound variable " ++ show x -- fail miserably here
   Just y  -> return (ExVar y)

@@ -2,6 +2,8 @@
 
 module Data.Variable where
 
+import Data.Semigroup ((<>))
+
 import PrettyPrinter
 
 -- | Data type for variables.

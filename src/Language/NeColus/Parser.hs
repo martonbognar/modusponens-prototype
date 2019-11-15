@@ -28,7 +28,7 @@ languageDef =
            , Token.opLetter = oneOf ":!#$%&*+./<=>?@\\^|-~"
 
              -- Reserved names and operators
-           , Token.reservedNames   = ["T", "Nat"]
+           , Token.reservedNames   = ["T", "Nat", "Bool", "true", "false"]
            , Token.reservedOpNames = [
                ".", "\\", ",,", ":", "->", "&"
            ]
@@ -65,9 +65,15 @@ braces     = Token.braces     lexer
 integer :: Parser Integer
 integer    = Token.integer    lexer
 
+-- | Create a parser for booleans in the language.
+bool :: Parser Bool
+bool =   (reserved "true"  *> pure True)
+     <|> (reserved "false" *> pure False)
+
 -- | Parse a type (highest priority).
 pPrimTy :: Parser NC.Type
 pPrimTy =   tyNat
+        <|> tyBool
         <|> tyTop
         -- <|> tyRec
         <|> parens pType
@@ -83,6 +89,10 @@ pType = chainr1
 -- | Parse a type "Nat".
 tyNat :: Parser NC.Type
 tyNat = reserved "Nat" *> pure NC.TyNat
+
+-- | Parse a type "Bool".
+tyBool :: Parser NC.Type
+tyBool = reserved "Bool" *> pure NC.TyBool
 
 -- | Parse the top type "T".
 tyTop :: Parser NC.Type
@@ -100,9 +110,10 @@ tyTop = reserved "T" *> pure NC.TyTop
 
 -- | Parse a term (highest priority).
 pPrimExpr :: Parser NC.Expression
-pPrimExpr =   exVar
-          <|> exLit
+pPrimExpr =   exLit
+          <|> exBool
           <|> exTop
+          <|> exVar
           -- <|> exRec
           <|> parens pExpr
 
@@ -113,6 +124,10 @@ exVar = NC.ExVar . NC.MkRawVar <$> identifier
 -- | Parse a natural number.
 exLit :: Parser NC.Expression
 exLit = NC.ExLit . fromIntegral <$> integer
+
+-- | Parse a boolean value.
+exBool :: Parser NC.Expression
+exBool = NC.ExBool <$> bool
 
 -- | Parse the top expression.
 exTop :: Parser NC.Expression

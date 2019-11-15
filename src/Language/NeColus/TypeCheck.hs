@@ -16,6 +16,7 @@ import Language.NeColus.Syntax
 -- | For a NeColus type, get the corresponding LambdaC type.
 elabType :: Type -> LC.Type
 elabType TyNat       = LC.TyNat
+elabType TyBool      = LC.TyBool
 elabType TyTop       = LC.TyTop
 elabType (TyArr a b) = LC.TyArr (elabType a) (elabType b)
 elabType (TyIs a b)  = LC.TyTup (elabType a) (elabType b)
@@ -38,19 +39,25 @@ disjoint (TyArr _ a2) (TyArr _ b2) = disjoint a2 b2
 disjoint (TyIs a1 a2) b            = disjoint a1 b && disjoint a2 b
 disjoint a            (TyIs b1 b2) = disjoint a b1 && disjoint a b2
 -- disjoint (TyRec l1 a) (TyRec l2 b) = (l1 /= l2) || disjoint a b
-disjoint TyNat        TyArr{}      = True
-disjoint TyArr{}      TyNat        = True
+disjoint TyNat        (TyArr _ b2) = disjoint TyNat b2 -- was buggy before
+disjoint (TyArr _ b2) TyNat        = disjoint b2 TyNat -- was buggy before
 -- disjoint TyNat        TyRec{}      = True
 -- disjoint TyRec{}      TyNat        = True
 -- disjoint TyArr{}      TyRec{}      = True
 -- disjoint TyRec{}      TyArr{}      = True
 disjoint TyNat        TyNat        = False
+disjoint TyBool       TyBool       = False
+disjoint TyNat        TyBool       = True
+disjoint TyBool       TyNat        = True
+disjoint TyBool       (TyArr _ b2) = disjoint TyBool b2
+disjoint (TyArr _ b2) TyBool       = disjoint b2 TyBool
 
 
 -- | Experimental unary disjoint.
 uDisjoint :: Type -> Bool
 uDisjoint TyTop       = True
 uDisjoint TyNat       = True
+uDisjoint TyBool      = True
 uDisjoint (TyIs a b ) = disjoint a b && uDisjoint a && uDisjoint b
 uDisjoint (TyArr _ b) = uDisjoint b
 -- uDisjoint (TyRec _ t) = uDisjoint t
@@ -66,6 +73,8 @@ inferenceWithContext :: Context -> Expression -> Maybe (Type, LC.Term)
 inferenceWithContext _ ExTop = return (TyTop, LC.TmTop)
 -- T-LIT
 inferenceWithContext _ (ExLit i) = return (TyNat, LC.TmLit i)
+-- T-BOOL
+inferenceWithContext _ (ExBool b) = return (TyBool, LC.TmBool b)
 -- T-VAR
 inferenceWithContext c (ExVar v)
   = do t <- typeFromContext c v
@@ -174,8 +183,9 @@ distArrows (ExtraType q t) t1 t2 = LC.CoTrans (LC.CoArr (LC.CoRefl t') (distArro
         t2' = elabType $ queueToType q t2
 
 eqTypes :: Type -> Type -> Bool
-eqTypes TyNat TyNat = True
-eqTypes TyTop TyTop = True
+eqTypes TyNat  TyNat  = True
+eqTypes TyBool TyBool = True
+eqTypes TyTop  TyTop  = True
 eqTypes (TyArr t1 t2) (TyArr t1' t2') = eqTypes t1 t1' && eqTypes t2 t2'
 eqTypes (TyIs t1 t2) (TyIs t1' t2') = eqTypes t1 t1' && eqTypes t2 t2'
 eqTypes _ _ = False
@@ -218,9 +228,12 @@ subtype a b = sub1 EmptyStack Null a b
 
 
 sub1 :: CallStack -> Queue -> Type -> Type -> Maybe LC.Coercion
-sub1 s l a TyNat = let nat = elabType TyNat in do
+sub1 s l a TyNat = do
   x <- sub2 s l Null a XHole a TyNat
-  return (xSem x (LC.CoRefl nat))
+  return (xSem x (LC.CoRefl (elabType TyNat)))
+sub1 s l a TyBool = do
+  x <- sub2 s l Null a XHole a TyBool
+  return (xSem x (LC.CoRefl (elabType TyBool)))
 sub1 s l a (TyArr b1 b2) = sub1 s (appendType l b1) a b2
 sub1 s l a (TyIs b1 b2) = do
   k1 <- sub1 s l a b1
@@ -231,9 +244,9 @@ sub1 _ l a TyTop = let a' = elabType a in do
 
 
 sub2 :: CallStack -> Queue -> Queue -> Type -> XEnv -> Type -> Type -> Maybe XEnv
-sub2 _ Null _ _ x TyNat TyNat = return x
-sub2 s l m a0 x (TyArr a1 a2) TyNat =
-  case l of
+sub2 _ Null _ _ x TyNat  TyNat  = return x
+sub2 _ Null _ _ x TyBool TyBool = return x
+sub2 s l m a0 x (TyArr a1 a2) TyNat = case l of
     Null -> sub2ModPon
     (ExtraType l' b1) -> sub2Arr l' b1 <|> sub2ModPon
   where
@@ -241,20 +254,48 @@ sub2 s l m a0 x (TyArr a1 a2) TyNat =
       k <- sub1 s Null b1 a1
       sub2 s l' (appendType m b1) a0 (XCoArr x b1 a1 k) a2 TyNat
 
-    sub2ModPon =
+    sub2ModPon = do
       let arr = elabType (TyArr a1 a2)
-          t = (queueToType m a1)
-          s' = Add a0 t s
-      in do
-        guard (not (stackContains s a0 t))
-        k1 <- sub1 s' Null a0 t
-        sub2 s' l m a0 (XModPon m (xSem x (LC.CoRefl arr)) k1 a1 a2) a2 TyNat
-sub2 s l m a0 x (TyIs a1 a2) TyNat =
-  sub2 s l m a0 (XProjLeft x a1 a2) a1 TyNat
+          t   = (queueToType m a1)
+          s'  = Add a0 t s
+      guard (not (stackContains s a0 t))
+      k1 <- sub1 s' Null a0 t
+      sub2 s' l m a0 (XModPon m (xSem x (LC.CoRefl arr)) k1 a1 a2) a2 TyNat
+
+sub2 s l m a0 x (TyArr a1 a2) TyBool = case l of
+    Null -> sub2ModPon
+    (ExtraType l' b1) -> sub2Arr l' b1 <|> sub2ModPon
+  where
+    sub2Arr l' b1 = do
+      k <- sub1 s Null b1 a1
+      sub2 s l' (appendType m b1) a0 (XCoArr x b1 a1 k) a2 TyBool
+
+    sub2ModPon = do
+      let arr = elabType (TyArr a1 a2)
+          t   = (queueToType m a1)
+          s'  = Add a0 t s
+      guard (not (stackContains s a0 t))
+      k1 <- sub1 s' Null a0 t
+      sub2 s' l m a0 (XModPon m (xSem x (LC.CoRefl arr)) k1 a1 a2) a2 TyBool
+
+sub2 s l m a0 x (TyIs a1 a2) TyNat
+   =  sub2 s l m a0 (XProjLeft  x a1 a2) a1 TyNat
   <|> sub2 s l m a0 (XProjRight x a1 a2) a2 TyNat
+sub2 s l m a0 x (TyIs a1 a2) TyBool
+   =  sub2 s l m a0 (XProjLeft  x a1 a2) a1 TyBool
+  <|> sub2 s l m a0 (XProjRight x a1 a2) a2 TyBool
+
 sub2 _ Null             _ _ _ TyNat       TyTop       = Nothing
+sub2 _ Null             _ _ _ TyNat       TyBool      = Nothing
 sub2 _ Null             _ _ _ TyNat       (TyArr _ _) = Nothing
 sub2 _ Null             _ _ _ TyNat       (TyIs _ _)  = Nothing
+
+sub2 _ Null             _ _ _ TyBool      TyTop       = Nothing
+sub2 _ Null             _ _ _ TyBool      TyNat       = Nothing
+sub2 _ Null             _ _ _ TyBool      (TyArr _ _) = Nothing
+sub2 _ Null             _ _ _ TyBool      (TyIs _ _)  = Nothing
+
+sub2 _ (ExtraType _ _)  _ _ _ TyBool      _           = Nothing
 sub2 _ (ExtraType _ _)  _ _ _ TyNat       _           = Nothing
 
 sub2 _ Null             _ _ _ TyTop       _           = Nothing
