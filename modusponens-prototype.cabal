@@ -57,7 +57,8 @@ library
     Language.NeColus.RawSyntax,
     Language.NeColus.Renamer,
     Language.NeColus.Syntax,
-    Language.NeColus.TypeCheck
+    Language.NeColus.TypeCheck,
+    Main
 
   -- Modules included in this library but not exported.
   other-modules: PrettyPrinter
