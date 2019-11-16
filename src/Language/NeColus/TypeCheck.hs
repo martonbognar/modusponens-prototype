@@ -260,7 +260,7 @@ sub2 s l m a0 x (TyArr a1 a2) TyNat = case l of
           s'  = Add a0 t s
       guard (not (stackContains s a0 t))
       k1 <- sub1 s' Null a0 t
-      sub2 s' l m a0 (XModPon m (xSem x (LC.CoRefl arr)) k1 a1 a2) a2 TyNat
+      sub2 s l m a0 (XModPon m (xSem x (LC.CoRefl arr)) k1 a1 a2) a2 TyNat
 
 sub2 s l m a0 x (TyArr a1 a2) TyBool = case l of
     Null -> sub2ModPon
@@ -276,7 +276,7 @@ sub2 s l m a0 x (TyArr a1 a2) TyBool = case l of
           s'  = Add a0 t s
       guard (not (stackContains s a0 t))
       k1 <- sub1 s' Null a0 t
-      sub2 s' l m a0 (XModPon m (xSem x (LC.CoRefl arr)) k1 a1 a2) a2 TyBool
+      sub2 s l m a0 (XModPon m (xSem x (LC.CoRefl arr)) k1 a1 a2) a2 TyBool
 
 sub2 s l m a0 x (TyIs a1 a2) TyNat
    =  sub2 s l m a0 (XProjLeft  x a1 a2) a1 TyNat
