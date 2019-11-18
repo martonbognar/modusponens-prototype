@@ -10,6 +10,8 @@ import Data.Variable
 
 import Language.NeColus.Syntax
 
+type TcM a = Either String a
+
 -- * NeColus Typing
 -- ----------------------------------------------------------------------------
 
@@ -24,8 +26,8 @@ elabType (TyIs a b)  = LC.TyTup (elabType a) (elabType b)
 
 
 -- | Get the type of a variable from a context.
-typeFromContext :: Context -> Variable -> Maybe Type
-typeFromContext Empty _ = fail "Variable not in context"
+typeFromContext :: Context -> Variable -> TcM Type
+typeFromContext Empty _ = Left "Variable not in context"
 typeFromContext (Snoc c v vt) x
   | v == x    = return vt
   | otherwise = typeFromContext c x
@@ -63,12 +65,12 @@ uDisjoint (TyArr _ b) = uDisjoint b
 -- uDisjoint (TyRec _ t) = uDisjoint t
 
 
-inference :: Expression -> Maybe (Type, LC.Term)
+inference :: Expression -> TcM (Type, LC.Term)
 inference = inferenceWithContext Empty
 
 
 -- | inferenceWithContext
-inferenceWithContext :: Context -> Expression -> Maybe (Type, LC.Term)
+inferenceWithContext :: Context -> Expression -> TcM (Type, LC.Term)
 -- T-TOP
 inferenceWithContext _ ExTop = return (TyTop, LC.TmTop)
 -- T-LIT
@@ -105,11 +107,11 @@ inferenceWithContext c (ExMerge e1 e2)
 --   = do (a, v) <- inferenceWithContext c e
 --        return (TyRec l a, LC.TmRecCon l v)
 -- failing case
-inferenceWithContext _ ExAbs {} = fail "Inference error"
+inferenceWithContext _ ExAbs {} = Left "inferenceWithContext: ExAbs"
 
 
 -- | Checking
-checking :: Context -> Expression -> Type -> Maybe LC.Term
+checking :: Context -> Expression -> Type -> TcM LC.Term
 -- T-ABS
 checking c (ExAbs x e) (TyArr a b)
   = do v <- checking (Snoc c x a) e b
@@ -223,11 +225,11 @@ xSem (XModPon m k1 k2 a b) k = LC.CoTrans (distArrows' m (LC.CoTrans k (LC.CoMP 
         arr = elabType (TyArr a b)
 
 
-subtype :: Type -> Type -> Maybe LC.Coercion
+subtype :: Type -> Type -> TcM LC.Coercion
 subtype a b = sub1 EmptyStack Null a b
 
 
-sub1 :: CallStack -> Queue -> Type -> Type -> Maybe LC.Coercion
+sub1 :: CallStack -> Queue -> Type -> Type -> TcM LC.Coercion
 sub1 s l a TyNat = do
   x <- sub2 s l Null a XHole a TyNat
   return (xSem x (LC.CoRefl (elabType TyNat)))
@@ -243,7 +245,7 @@ sub1 _ l a TyTop = let a' = elabType a in do
   return (LC.CoTrans (topArrows l) (LC.CoAnyTop a'))
 
 
-sub2 :: CallStack -> Queue -> Queue -> Type -> XEnv -> Type -> Type -> Maybe XEnv
+sub2 :: CallStack -> Queue -> Queue -> Type -> XEnv -> Type -> Type -> TcM XEnv
 sub2 _ Null _ _ x TyNat  TyNat  = return x
 sub2 _ Null _ _ x TyBool TyBool = return x
 sub2 s l m a0 x (TyArr a1 a2) TyNat = case l of
@@ -285,35 +287,35 @@ sub2 s l m a0 x (TyIs a1 a2) TyBool
    =  sub2 s l m a0 (XProjLeft  x a1 a2) a1 TyBool
   <|> sub2 s l m a0 (XProjRight x a1 a2) a2 TyBool
 
-sub2 _ Null             _ _ _ TyNat       TyTop       = Nothing
-sub2 _ Null             _ _ _ TyNat       TyBool      = Nothing
-sub2 _ Null             _ _ _ TyNat       (TyArr _ _) = Nothing
-sub2 _ Null             _ _ _ TyNat       (TyIs _ _)  = Nothing
+sub2 _ Null             _ _ _ TyNat       TyTop       = Left "sub2 ... Null ... TyNat       TyTop      "
+sub2 _ Null             _ _ _ TyNat       TyBool      = Left "sub2 ... Null ... TyNat       TyBool     "
+sub2 _ Null             _ _ _ TyNat       (TyArr _ _) = Left "sub2 ... Null ... TyNat       (TyArr _ _)"
+sub2 _ Null             _ _ _ TyNat       (TyIs _ _)  = Left "sub2 ... Null ... TyNat       (TyIs _ _) "
 
-sub2 _ Null             _ _ _ TyBool      TyTop       = Nothing
-sub2 _ Null             _ _ _ TyBool      TyNat       = Nothing
-sub2 _ Null             _ _ _ TyBool      (TyArr _ _) = Nothing
-sub2 _ Null             _ _ _ TyBool      (TyIs _ _)  = Nothing
+sub2 _ Null             _ _ _ TyBool      TyTop       = Left "sub2 ... Null ... TyBool      TyTop      "
+sub2 _ Null             _ _ _ TyBool      TyNat       = Left "sub2 ... Null ... TyBool      TyNat      "
+sub2 _ Null             _ _ _ TyBool      (TyArr _ _) = Left "sub2 ... Null ... TyBool      (TyArr _ _)"
+sub2 _ Null             _ _ _ TyBool      (TyIs _ _)  = Left "sub2 ... Null ... TyBool      (TyIs _ _) "
 
-sub2 _ (ExtraType _ _)  _ _ _ TyBool      _           = Nothing
-sub2 _ (ExtraType _ _)  _ _ _ TyNat       _           = Nothing
+sub2 _ (ExtraType _ _)  _ _ _ TyBool      _           = Left "sub2 ... (ExtraType _ _) ... TyBool"
+sub2 _ (ExtraType _ _)  _ _ _ TyNat       _           = Left "sub2 ... (ExtraType _ _) ... TyNat "
 
-sub2 _ Null             _ _ _ TyTop       _           = Nothing
-sub2 _ (ExtraType _ _)  _ _ _ TyTop       _           = Nothing
+sub2 _ Null             _ _ _ TyTop       _           = Left "sub2 ... Null            ... TyTop"
+sub2 _ (ExtraType _ _)  _ _ _ TyTop       _           = Left "sub2 ... (ExtraType _ _) ... TyTop"
 
-sub2 _ Null             _ _ _ (TyArr _ _) TyTop       = Nothing
-sub2 _ (ExtraType _ _)  _ _ _ (TyArr _ _) TyTop       = Nothing
-sub2 _ Null             _ _ _ (TyArr _ _) (TyArr _ _) = Nothing
-sub2 _ (ExtraType _ _)  _ _ _ (TyArr _ _) (TyArr _ _) = Nothing
-sub2 _ Null             _ _ _ (TyArr _ _) (TyIs _ _)  = Nothing
-sub2 _ (ExtraType _ _)  _ _ _ (TyArr _ _) (TyIs _ _)  = Nothing
+sub2 _ Null             _ _ _ (TyArr _ _) TyTop       = Left "sub2 ... (TyArr _ _) TyTop      "
+sub2 _ (ExtraType _ _)  _ _ _ (TyArr _ _) TyTop       = Left "sub2 ... (TyArr _ _) TyTop      "
+sub2 _ Null             _ _ _ (TyArr _ _) (TyArr _ _) = Left "sub2 ... (TyArr _ _) (TyArr _ _)"
+sub2 _ (ExtraType _ _)  _ _ _ (TyArr _ _) (TyArr _ _) = Left "sub2 ... (TyArr _ _) (TyArr _ _)"
+sub2 _ Null             _ _ _ (TyArr _ _) (TyIs _ _)  = Left "sub2 ... (TyArr _ _) (TyIs _ _) "
+sub2 _ (ExtraType _ _)  _ _ _ (TyArr _ _) (TyIs _ _)  = Left "sub2 ... (TyArr _ _) (TyIs _ _) "
 
-sub2 _ Null             _ _ _ (TyIs _ _)  TyTop       = Nothing
-sub2 _ (ExtraType _ _)  _ _ _ (TyIs _ _)  TyTop       = Nothing
-sub2 _ Null             _ _ _ (TyIs _ _)  (TyArr _ _) = Nothing
-sub2 _ (ExtraType _ _)  _ _ _ (TyIs _ _)  (TyArr _ _) = Nothing
-sub2 _ Null             _ _ _ (TyIs _ _)  (TyIs _ _)  = Nothing
-sub2 _ (ExtraType _ _)  _ _ _ (TyIs _ _)  (TyIs _ _)  = Nothing
+sub2 _ Null             _ _ _ (TyIs _ _)  TyTop       = Left "sub2 ... (TyIs _ _)  TyTop      "
+sub2 _ (ExtraType _ _)  _ _ _ (TyIs _ _)  TyTop       = Left "sub2 ... (TyIs _ _)  TyTop      "
+sub2 _ Null             _ _ _ (TyIs _ _)  (TyArr _ _) = Left "sub2 ... (TyIs _ _)  (TyArr _ _)"
+sub2 _ (ExtraType _ _)  _ _ _ (TyIs _ _)  (TyArr _ _) = Left "sub2 ... (TyIs _ _)  (TyArr _ _)"
+sub2 _ Null             _ _ _ (TyIs _ _)  (TyIs _ _)  = Left "sub2 ... (TyIs _ _)  (TyIs _ _) "
+sub2 _ (ExtraType _ _)  _ _ _ (TyIs _ _)  (TyIs _ _)  = Left "sub2 ... (TyIs _ _)  (TyIs _ _) "
 
 
 -- -- | Algorithmic subtyping
