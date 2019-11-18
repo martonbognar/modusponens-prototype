@@ -5,12 +5,15 @@ module Language.NeColus.TypeCheck (inference, checking) where
 import qualified Language.LambdaC as LC
 
 import Control.Applicative ((<|>))
-import Control.Monad (guard)
 import Data.Variable
 
 import Language.NeColus.Syntax
 
 type TcM a = Either String a
+
+guardWithMsg :: Bool -> String -> TcM ()
+guardWithMsg True  _ = return ()
+guardWithMsg False s = Left s
 
 -- * NeColus Typing
 -- ----------------------------------------------------------------------------
@@ -100,7 +103,9 @@ inferenceWithContext c (ExMerge e1 e2)
   = do (a1, v1) <- inferenceWithContext c e1
        (a2, v2) <- inferenceWithContext c e2
       --  guard (disjoint a1 a2) -- the original NeColus implementation
-       guard (uDisjoint (TyIs a1 a2))
+       guardWithMsg
+         (uDisjoint (TyIs a1 a2))
+         ("Not uDisjoint: " ++ show (TyIs a1 a2))
        return (TyIs a1 a2, LC.TmTup v1 v2)
 -- -- T-RCD
 -- inferenceWithContext c (ExRec l e)
@@ -260,7 +265,9 @@ sub2 s l m a0 x (TyArr a1 a2) TyNat = case l of
       let arr = elabType (TyArr a1 a2)
           t   = (queueToType m a1)
           s'  = Add a0 t s
-      guard (not (stackContains s a0 t))
+      guardWithMsg
+        (not (stackContains s a0 t))
+        ("loop detected: " ++ show a0 ++ " < " ++ show t)
       k1 <- sub1 s' Null a0 t
       sub2 s l m a0 (XModPon m (xSem x (LC.CoRefl arr)) k1 a1 a2) a2 TyNat
 
@@ -276,7 +283,10 @@ sub2 s l m a0 x (TyArr a1 a2) TyBool = case l of
       let arr = elabType (TyArr a1 a2)
           t   = (queueToType m a1)
           s'  = Add a0 t s
-      guard (not (stackContains s a0 t))
+      guardWithMsg
+        (not (stackContains s a0 t))
+        ("loop detected: " ++ show a0 ++ " < " ++ show t)
+
       k1 <- sub1 s' Null a0 t
       sub2 s l m a0 (XModPon m (xSem x (LC.CoRefl arr)) k1 a1 a2) a2 TyBool
 
