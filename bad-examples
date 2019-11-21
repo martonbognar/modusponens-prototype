@@ -6,3 +6,5 @@
 
 5 ,, ((\x. x) : Nat -> Nat)
 
+((\x. \y. x) : Nat -> T -> Nat) -- OK
+

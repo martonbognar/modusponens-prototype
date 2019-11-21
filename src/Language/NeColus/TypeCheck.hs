@@ -281,13 +281,12 @@ sub2 s l m a0 x (TyArr a1 a2) TyBool = case l of
 
     sub2ModPon = do
       let arr = elabType (TyArr a1 a2)
-          t   = (queueToType m a1)
-          s'  = Add a0 t s
+          t   = queueToType m a1
       guardWithMsg
         (not (stackContains s a0 t))
         ("loop detected: " ++ show a0 ++ " < " ++ show t)
 
-      k1 <- sub1 s' Null a0 t
+      k1 <- sub1 (Add a0 t s) Null a0 t
       sub2 s l m a0 (XModPon m (xSem x (LC.CoRefl arr)) k1 a1 a2) a2 TyBool
 
 sub2 s l m a0 x (TyIs a1 a2) TyNat
