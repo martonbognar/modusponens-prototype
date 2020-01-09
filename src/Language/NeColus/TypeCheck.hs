@@ -127,20 +127,6 @@ checking c e a
        co <- subtype b a
        return (LC.TmCast co v)
 
-
--- -- | Meta-top function for coercions.
--- metaTop :: Queue -> LC.Coercion
--- metaTop Null = LC.CoAnyTop (elabType TyTop)
--- metaTop (ExtraLabel q l)
---   = LC.CoTrans (LC.CoRec l (metaTop q)) (LC.CoTopRec l)
--- metaTop (ExtraType q a)
---   = LC.CoTrans
---       (LC.CoArr (LC.CoAnyTop a') (metaTop q))
---       LC.CoTopArr
---     where
---       a' = elabType a
-
-
 topArrows :: Queue -> LC.Coercion
 topArrows Null = LC.CoAnyTop (elabType TyTop)
 topArrows (ExtraType l a) = LC.CoTrans (LC.CoArr (LC.CoAnyTop a') (topArrows l)) LC.CoTopArr
@@ -152,26 +138,6 @@ queueToType :: Queue -> Type -> Type
 queueToType Null a = a
 queueToType (ExtraType q b) a = queueToType q (TyArr b a)
 -- queueToType (ExtraLabel q l) a = queueToType q (TyRec l a)
-
-
--- -- | Meta-intersection function for coercions.
--- metaIs :: Queue -> Type -> Type -> LC.Coercion
--- metaIs Null b1 b2 = LC.CoRefl (elabType (TyIs b1 b2))
--- metaIs (ExtraLabel q l) b1 b2
---   = LC.CoTrans
---       (LC.CoRec l (metaIs q b1 b2))
---       (LC.CoDistRec l arrB1 arrB2)
---     where
---       arrB1 = elabType $ queueToType q b1
---       arrB2 = elabType $ queueToType q b2
--- metaIs (ExtraType q a) b1 b2
---   = LC.CoTrans
---       (LC.CoArr (LC.CoRefl a') (metaIs q b1 b2))
---       (LC.CoDistArr a' arrB1 arrB2)
---     where
---       a' = elabType a
---       arrB1 = elabType $ queueToType q b1
---       arrB2 = elabType $ queueToType q b2
 
 
 distArrows' :: Queue -> LC.Coercion -> Type -> Type -> LC.Coercion
@@ -326,56 +292,3 @@ sub2 _ (ExtraType _ _)  _ _ _ (TyIs _ _)  (TyArr _ _) = Left "sub2 ... (TyIs _ _
 sub2 _ Null             _ _ _ (TyIs _ _)  (TyIs _ _)  = Left "sub2 ... (TyIs _ _)  (TyIs _ _) "
 sub2 _ (ExtraType _ _)  _ _ _ (TyIs _ _)  (TyIs _ _)  = Left "sub2 ... (TyIs _ _)  (TyIs _ _) "
 
-
--- -- | Algorithmic subtyping
--- subtype :: Queue -> Type -> Type -> Maybe LC.Coercion
--- -- A-AND
--- subtype q a (TyIs b1 b2)
---   = do c1 <- subtype q a b1
---        c2 <- subtype q a b2
---        return (LC.CoTrans (metaIs q b1 b2) (LC.CoPair c1 c2))
--- -- A-ARR
--- subtype q a (TyArr b1 b2)
---   = subtype (ExtraType q b1) a b2
--- -- A-RCD
--- subtype q a (TyRec l b)
---   = subtype (ExtraLabel q l) a b
--- -- A-TOP
--- subtype q a TyTop
---   = return (LC.CoTrans (metaTop q) (LC.CoAnyTop a')) where
---       a' = elabType a
--- -- A-ARRNAT
--- subtype queue (TyArr a1 a2) TyNat
---   | Just (Right a, q) <- viewL queue
---   = do c1 <- subtype Null a a1
---        c2 <- subtype q a2 TyNat
---        return (LC.CoArr c1 c2)
--- -- A-RCDNAT
--- subtype queue (TyRec l' a) TyNat
---   | Just (Left l, q) <- viewL queue
---   , l == l'
---   = do c <- subtype q a TyNat
---        return (LC.CoRec l c)
--- -- A-ANDN1 & A-ANDN2
--- subtype q (TyIs a1 a2) TyNat
---   =   do c <- subtype q a1 TyNat
---          return (LC.CoTrans c (LC.CoLeft a1' a2'))
---   <|> do c <- subtype q a2 TyNat
---          return (LC.CoTrans c (LC.CoRight a1' a2'))
---   where
---     a1' = elabType a1
---     a2' = elabType a2
--- -- A-NAT
--- subtype Null TyNat TyNat = return (LC.CoRefl (elabType TyNat))
--- -- Failing cases...
--- subtype ExtraLabel{} TyNat   TyNat = fail "Subtype error"
--- subtype ExtraType{}  TyNat   TyNat = fail "Subtype error"
--- subtype Null         TyTop   TyNat = fail "Subtype error"
--- subtype ExtraLabel{} TyTop   TyNat = fail "Subtype error"
--- subtype ExtraType{}  TyTop   TyNat = fail "Subtype error"
--- subtype Null         TyArr{} TyNat = fail "Subtype error"
--- subtype ExtraLabel{} TyArr{} TyNat = fail "Subtype error"
--- subtype ExtraType{}  TyArr{} TyNat = fail "Subtype error"
--- subtype Null         TyRec{} TyNat = fail "Subtype error"
--- subtype ExtraLabel{} TyRec{} TyNat = fail "Subtype error"
--- subtype ExtraType{}  TyRec{} TyNat = fail "Subtype error"

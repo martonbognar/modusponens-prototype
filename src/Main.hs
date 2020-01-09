@@ -1,6 +1,6 @@
 {-# OPTIONS_GHC -Wall #-}
 
-module Main where
+module Main (main) where
 
 import Language.LambdaC
 import Language.NeColus.Parser
