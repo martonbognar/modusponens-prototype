@@ -1,4 +1,5 @@
-{-# OPTIONS_GHC -Wall #-}
+-- {-# OPTIONS_GHC -Wall #-}
+{-# LANGUAGE FlexibleInstances #-}
 
 module Language.NeColus.TypeCheck (inference, checking) where
 
@@ -6,10 +7,14 @@ import qualified Language.LambdaC as LC
 
 import Control.Applicative ((<|>))
 import Data.Variable
+import Control.Monad.Fail
 
 import Language.NeColus.Syntax
 
 type TcM a = Either String a
+
+instance MonadFail (Either String) where
+  fail = Left
 
 guardWithMsg :: Bool -> String -> TcM ()
 guardWithMsg True  _ = return ()

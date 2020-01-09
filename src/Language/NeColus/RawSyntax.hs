@@ -2,7 +2,7 @@
 
 module Language.NeColus.RawSyntax where
 
-import Prelude
+import Prelude hiding ((<>))
 
 import Data.Function (on)
 --import Data.Label

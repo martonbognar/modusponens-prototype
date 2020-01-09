@@ -3,7 +3,7 @@
 
 module Language.LambdaC where
 
-import Prelude
+import Prelude hiding ((<>))
 
 import Control.Monad (guard)
 import Control.Monad.Renamer
