@@ -19,50 +19,56 @@ import PrettyPrinter
 -- | Target types
 data Type
   = TyNat
-  | TyBool
   | TyTop
-  | TyTup Type Type
   | TyArr Type Type
+  | TyTup Type Type
+  | TyVar Variable
+  | TyAll Variable Type
   | TyRec Label Type
 
 -- | Typing contexts
-data Context
-  = Empty
-  | Snoc Context Variable Type
+data TermContext
+  = TermEmpty
+  | TermSnoc TermContext Variable Type
+
+data TypeContext
+  = TypeEmpty
+  | TypeSnoc TypeContext Variable
 
 -- | Target terms
-data Term
-  = TmVar Variable
-  | TmLit Integer
-  | TmBool Bool
-  | TmTop
-  | TmAbs Variable Type Term
-  | TmApp Term Term
-  | TmTup Term Term
-  | TmRecCon Label Term
-  | TmRecFld Term Label
-  | TmCast Coercion Term
+data Expression
+  = ExLit Integer
+  | ExTop
+  | ExVar Variable
+  | ExAbs Variable Expression
+  | ExApp Expression Expression
+  | ExMerge Expression Expression
+  | ExAnn Expression Type
+  | ExCoApp Coercion Expression
+  | ExTyAbs Variable Expression
+  | ExTyApp Expression Type
+  | ExRec Label Expression
+  | ExRecFld Expression Label
 
 -- | Coercions
 data Coercion
-  = CoRefl Type
-  | CoTrans Coercion Coercion
-  | CoAnyTop Type
+  = CoId Type
+  | CoTop Type
   | CoTopArr
-  | CoTopRec Label
-  | CoArr Coercion Coercion
-  | CoPair Coercion Coercion
-  | CoLeft Type Type
-  | CoRight Type Type
-  | CoRec Label Coercion
-  | CoDistRec Label Type Type
+  | CoTopAll
   | CoDistArr Type Type Type
-  | CoMP Coercion Coercion
+  | CoDistAll Type Type Type
+  | CoPr1 Type Type
+  | CoPr2 Type Type
+  | CoComp Coercion Coercion
+  | CoPair Coercion Coercion
+  | CoArr Coercion Coercion
+  | CoAt Coercion Type
+  | CoTyAbs Variable Coercion
 
 -- | Determine equality between two types.
 eqTypes :: Type -> Type -> Bool
 eqTypes TyNat  TyNat                = True
-eqTypes TyBool TyBool               = True
 eqTypes TyTop  TyTop                = True
 eqTypes (TyTup t1 t2) (TyTup t3 t4) = eqTypes t1 t3 && eqTypes t2 t4
 eqTypes (TyArr t1 t2) (TyArr t3 t4) = eqTypes t1 t3 && eqTypes t2 t4
@@ -74,59 +80,68 @@ eqTypes _ _                         = False
 
 instance PrettyPrint Type where
   ppr TyNat         = ppr "Nat"
-  ppr TyBool        = ppr "Bool"
-  ppr TyTop         = ppr "Unit"
-  ppr (TyTup t1 t2) = parens $ hsep [ppr t1, ppr "✕", ppr t2]
+  ppr TyTop         = ppr "Top"
   ppr (TyArr t1 t2) = parens $ hsep [ppr t1, arrow, ppr t2]
+  ppr (TyTup t1 t2) = parens $ hsep [ppr t1, ppr "✕", ppr t2]
+  ppr (TyVar v)     = ppr v
+  ppr (TyAll v t)   = parens $ hcat [ppr "\\/", ppr v, dot, ppr t]
   ppr (TyRec l t)   = braces $ hsep [ppr l, colon, ppr t]
 
-instance PrettyPrint Context where
-  ppr Empty        = ppr "•"
-  ppr (Snoc c v t) = hcat [ppr c, comma, ppr v, colon, ppr t]
+instance PrettyPrint TypeContext where
+  ppr TypeEmpty        = ppr "•"
+  ppr (TypeSnoc c v t) = hcat [ppr c, comma, ppr v, colon, ppr t]
 
-instance PrettyPrint Term where
-  ppr (TmVar v)      = ppr v
-  ppr (TmLit i)      = ppr i
-  ppr (TmBool b)     = ppr b
-  ppr TmTop          = parens empty
-  ppr (TmAbs v vt t)
-    = hcat [ppr "\\", parens $ hsep [ppr v, colon, ppr vt], ppr t]
-  ppr (TmApp t1 t2)  = parens $ hsep [ppr t1, ppr t2]
-  ppr (TmTup t1 t2)  = parensList [ppr t1, ppr t2]
-  ppr (TmRecCon l t) = braces $ hsep [ppr l, equals, ppr t]
-  ppr (TmRecFld t l) = hcat [ppr t, dot, ppr l]
-  ppr (TmCast c t)   = parens $ hsep [ppr c, ppr t]
+instance PrettyPrint TermContext where
+  ppr TermEmpty        = ppr "•"
+  ppr (TermSnoc c v t) = hcat [ppr c, comma, ppr v, colon, ppr t]
+
+instance PrettyPrint Expression where
+  ppr (ExLit i)       = ppr i
+  ppr (ExTop)         = parens empty
+  ppr (ExVar v)       = ppr v
+  ppr (ExAbs v e)     = hcat [ppr "\\", parens (ppr v, ppr t)]
+  ppr (ExApp e1 e2)   = parens $ hsep [ppr e1, ppr e2]
+  ppr (ExMerge e1 e2) = parens $ hcat [ppr e1, ppr ",,", ppr e2]
+  ppr (ExAnn e t)     = parens $ hsep [ppr e, colon, ppr t]
+  ppr (ExCoApp c e)   = parens $ hsep [ppr c, ppr e]
+  ppr (ExTyAbs v e)   = parens $ hcat [ppr "/\\", ppr v, dot, ppr e]
+  ppr (ExTyApp e t)   = parens $ hsep [ppr e, ppr t]
+  ppr (ExRec l e)     = braces $ hsep [ppr l, equals, ppr e]
+  ppr (ExRecFld e l)  = hcat [ppr e, dot, ppr l]
 
 instance PrettyPrint Coercion where
-  ppr (CoRefl t)           = ppr "id" <> braces (ppr t)
-  ppr (CoTrans c1 c2)      = parens $ hsep [ppr c1, dot, ppr c2]
-  ppr (CoAnyTop t)         = ppr "top" <> braces (ppr t)
+  ppr (CoId t)           = ppr "id" <> braces (ppr t)
+  ppr (CoTop t)         = ppr "top" <> braces (ppr t)
   ppr CoTopArr             = ppr "top" <> arrow
-  ppr (CoTopRec l)         = ppr "top" <> braces (ppr l)
-  ppr (CoArr c1 c2)        = parens $ hsep [ppr c1, arrow, ppr c2]
-  ppr (CoPair c1 c2)       = parensList [ppr c1, ppr c2]
-  ppr (CoLeft t1 t2)       = hcat [ppr "π₁", parensList [ppr t1, ppr t2]]
-  ppr (CoRight t1 t2)      = hcat [ppr "π₂", parensList [ppr t1, ppr t2]]
-  ppr (CoRec l c)          = braces $ hsep [ppr l, colon, ppr c]
-  ppr (CoDistRec l t1 t2)
-    = hsep [ppr "dist", braces $ hcat [
-        ppr l,
-        parensList [ppr t1, ppr t2]
-      ]]
+  ppr CoTopAll             = ppr "top" <> ppr "\\/"
   ppr (CoDistArr t1 t2 t3)
     = hcat [ppr "dist" <> arrow, parensList [
         hcat [ppr t1, arrow, ppr t2],
         hcat [ppr t1, arrow, ppr t3]
       ]]
-  ppr (CoMP c1 c2) = hcat [ppr c1, ppr "MP", ppr c2]
+  ppr (CoDistAll t1 t2 t3)
+    = hcat [ppr "dist" <> ppr "\\/", parensList [
+        hcat [ppr t1, arrow, ppr t2],
+        hcat [ppr t1, arrow, ppr t3]
+      ]]
+  ppr (CoPr1 t1 t2)       = hcat [ppr "π₁", parensList [ppr t1, ppr t2]]
+  ppr (CoPr2 t1 t2)      = hcat [ppr "π₂", parensList [ppr t1, ppr t2]]
+  ppr (CoComp c1 c2)      = parens $ hsep [ppr c1, dot, ppr c2]
+  ppr (CoPair c1 c2)       = parensList [ppr c1, ppr c2]
+  ppr (CoArr c1 c2)        = parens $ hsep [ppr c1, arrow, ppr c2]
+  ppr (CoAt c t) = hcat [ppr c, ppr "@", ppr t]
+  ppr (CoTyAbs v c)   = parens $ hcat [ppr "/\\", ppr v, dot, ppr c]
 
 instance Show Type where
   show = render . ppr
 
-instance Show Context where
+instance Show TypeContext where
   show = render . ppr
 
-instance Show Term where
+instance Show TermContext where
+  show = render . ppr
+
+instance Show Expression where
   show = render . ppr
 
 instance Show Coercion where
