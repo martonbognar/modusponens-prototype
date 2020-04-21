@@ -86,7 +86,7 @@ inferenceWithContext c (ExVar v)
        return (t, LC.TmVar v)
 -- T-APP
 inferenceWithContext c (ExApp e1 e2)
-  = do (TyArr a1 a2, v1) <- inferenceWithContext c e1
+  = do ~(TyArr a1 a2, v1) <- inferenceWithContext c e1
        v2 <- checking c e2 a1
        return (a2, LC.TmApp v1 v2)
 -- T-ANNO
