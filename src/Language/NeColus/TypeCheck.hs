@@ -7,6 +7,7 @@ import qualified Language.LambdaC as Target
 import Control.Applicative ((<|>))
 import Data.Variable
 import Data.Label
+import Data.Maybe
 
 import Language.NeColus.Syntax
 
@@ -63,45 +64,88 @@ typeFromContext (VarSnoc c v vt) x
 wellFormedSubst :: TypeContext -> Substitution -> Bool
 wellFormedSubst _ EmptySubst = True
 wellFormedSubst (SubstSnoc ctx v1 b) (Cons v2 a sub)
-  | v1 == v2  = wellFormedSubst ctx sub && disjoint a b
+  | v1 == v2  = wellFormedSubst ctx sub && isJust (disjoint ctx a b)
   | otherwise = wellFormedSubst ctx (Cons v2 a sub)
 wellFormedSubst (VarSnoc ctx v1 b) (Cons v2 a sub) = wellFormedSubst ctx (Cons v2 a sub)
 
--- disjoint :: TypeContext -> Type -> Type -> Maybe Substitution
+unify :: TypeContext -> Type -> Type -> Maybe Substitution
+unify ctx (TyMono TyNat) (TyMono TyNat) = Just EmptySubst
+unify ctx (TyMono TyNat) (TySubstVar v)
+  | wellFormedSubst ctx (Cons v (TyMono TyNat) EmptySubst) = Just (Cons v (TyMono TyNat) EmptySubst)
+unify ctx (TySubstVar v1) (TyMono (TyVar v2))
+  | v1 == v2 && wellFormedSubst ctx (Cons v1 (TyMono (TyVar v1)) EmptySubst) = Just (Cons v1 (TyMono (TyVar v1)) EmptySubst)
+unify _ _ _ = Nothing
 
--- unify :: TypeContext -> Type -> Type -> Maybe Substitution
+disjoint :: TypeContext -> Type -> Type -> Maybe Substitution
+disjoint ctx (TyMono TyTop)         a
+  = Just EmptySubst
+disjoint ctx a                      (TyMono TyTop)
+  = Just EmptySubst
+disjoint ctx (TyMono (TyVar ap))     b
+  = case (typeFromContext ctx ap) of
+      Left _ -> Nothing
+      Right a -> do
+        (c, s) <- subRight ctx Null a b
+        return s
+disjoint ctx a                      (TyMono (TyVar bt))
+  = case (typeFromContext ctx bt) of
+      Left _ -> Nothing
+      Right b -> if eqTypes a b then Just EmptySubst else Nothing
+disjoint ctx (TyArr a1 a2) (TyArr b1 b2)
+  = disjoint ctx a2 b2
+disjoint ctx a                      (TyArr b1 b2)
+  = disjoint ctx a b2
+disjoint ctx (TyArr a1 a2) b
+  = disjoint ctx a2 b
+disjoint ctx (TyIs a1 a2)           b
+  = do
+    s1 <- disjoint ctx a1 b
+    s2 <- disjoint ctx a2 b
+    return s2
+disjoint ctx a                      (TyIs b1 b2)
+  = do
+    s1 <- disjoint ctx a b1
+    s2 <- disjoint ctx a b2
+    return s2
+disjoint ctx (TyAbs a a1 a2)        (TyAbs b b1 b2)
+  = disjoint (VarSnoc ctx a (TyIs a1 b1)) a2 b2
+disjoint ctx a                      b
+  = undefined
 
--- subtyping :: Type -> Type -> Maybe Target.Coercion
+subtyping :: Type -> Type -> Maybe Target.Coercion
+subtyping = undefined
 
--- subRight :: TypeContext -> Queue -> Type -> Type -> Maybe (Target.Coercion, Substitution)
+subRight :: TypeContext -> Queue -> Type -> Type -> Maybe (Target.Coercion, Substitution)
+subRight = undefined
 
--- subLeft :: TypeContext -> Queue -> Queue -> Substitution -> Type -> Type -> Maybe (Substitution, AlgContext)
+subLeft :: TypeContext -> Queue -> Queue -> Substitution -> Type -> Type -> Maybe (Substitution, AlgContext)
+subLeft = undefined
 
 
 -- | Check whether two types are disjoint.
-disjoint :: Type -> Type -> Bool
-disjoint (TyMono TyTop)        _            = True
-disjoint _            (TyMono TyTop)        = True
-disjoint (TyArr _ a2) (TyArr _ b2) = disjoint a2 b2
-disjoint (TyIs a1 a2) b            = disjoint a1 b && disjoint a2 b
-disjoint a            (TyIs b1 b2) = disjoint a b1 && disjoint a b2
--- disjoint (TyRec l1 a) (TyRec l2 b) = (l1 /= l2) || disjoint a b
-disjoint (TyMono TyNat)        (TyArr _ b2) = disjoint (TyMono TyNat) b2 -- was buggy before
-disjoint (TyArr _ b2) (TyMono TyNat)        = disjoint b2 (TyMono TyNat) -- was buggy before
--- disjoint (TyMono TyNat)        TyRec{}      = True
--- disjoint TyRec{}      (TyMono TyNat)        = True
--- disjoint TyArr{}      TyRec{}      = True
--- disjoint TyRec{}      TyArr{}      = True
-disjoint (TyMono TyNat)        (TyMono TyNat)        = False
+-- disjoint :: Type -> Type -> Bool
+-- disjoint (TyMono TyTop)        _            = True
+-- disjoint _            (TyMono TyTop)        = True
+-- disjoint (TyArr _ a2) (TyArr _ b2) = disjoint a2 b2
+-- disjoint (TyIs a1 a2) b            = disjoint a1 b && disjoint a2 b
+-- disjoint a            (TyIs b1 b2) = disjoint a b1 && disjoint a b2
+-- -- disjoint (TyRec l1 a) (TyRec l2 b) = (l1 /= l2) || disjoint a b
+-- disjoint (TyMono TyNat)        (TyArr _ b2) = disjoint (TyMono TyNat) b2 -- was buggy before
+-- disjoint (TyArr _ b2) (TyMono TyNat)        = disjoint b2 (TyMono TyNat) -- was buggy before
+-- -- disjoint (TyMono TyNat)        TyRec{}      = True
+-- -- disjoint TyRec{}      (TyMono TyNat)        = True
+-- -- disjoint TyArr{}      TyRec{}      = True
+-- -- disjoint TyRec{}      TyArr{}      = True
+-- disjoint (TyMono TyNat)        (TyMono TyNat)        = False
 
 
 -- | Experimental unary disjoint.
-uDisjoint :: Type -> Bool
-uDisjoint (TyMono TyTop)       = True
-uDisjoint (TyMono TyNat)       = True
-uDisjoint (TyIs a b ) = disjoint a b && uDisjoint a && uDisjoint b
-uDisjoint (TyArr _ b) = uDisjoint b
--- uDisjoint (TyRec _ t) = uDisjoint t
+-- uDisjoint :: Type -> Bool
+-- uDisjoint (TyMono TyTop)       = True
+-- uDisjoint (TyMono TyNat)       = True
+-- uDisjoint (TyIs a b ) = disjoint a b && uDisjoint a && uDisjoint b
+-- uDisjoint (TyArr _ b) = uDisjoint b
+-- -- uDisjoint (TyRec _ t) = uDisjoint t
 
 
 inference :: Expression -> TcM (Type, Target.Expression)
@@ -137,9 +181,9 @@ inferenceWithContext c (ExMerge e1 e2)
   = do (a1, v1) <- inferenceWithContext c e1
        (a2, v2) <- inferenceWithContext c e2
       --  guard (disjoint a1 a2) -- the original NeColus implementation
-       guardWithMsg
-         (uDisjoint (TyIs a1 a2))
-         ("Not uDisjoint: " ++ show (TyIs a1 a2))
+      --  guardWithMsg
+      --    (uDisjoint (TyIs a1 a2))
+      --    ("Not uDisjoint: " ++ show (TyIs a1 a2))
        return (TyIs a1 a2, Target.ExMerge v1 v2)
 -- -- T-RCD
 -- inferenceWithContext c (ExRec l e)

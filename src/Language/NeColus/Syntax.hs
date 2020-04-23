@@ -26,6 +26,7 @@ data Type
   | TyIs Type Type
   | TyAbs Variable Type Type
   | TyRec Label Type
+  | TySubstVar Variable -- should only be used during typechecking
 
 data Expression
   = ExLit Integer
