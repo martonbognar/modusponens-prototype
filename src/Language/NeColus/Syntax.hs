@@ -53,7 +53,7 @@ data Queue
 
 
 data Substitution
-  = Empty
+  = EmptySubst
   | Cons Variable Type Substitution
 
 
