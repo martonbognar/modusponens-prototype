@@ -40,9 +40,12 @@ data Expression
   | ExRec Label Expression
   | ExRecFld Expression Label
 
+-- data SubstitutionVariable = SubstVar Variable
+
 data TypeContext
   = Empty
-  | Snoc TypeContext Variable Type
+  | VarSnoc TypeContext Variable Type
+  | SubstSnoc TypeContext Variable Type
 
 
 -- | The queue for implementing algorithmic subtyping rules.
@@ -117,7 +120,7 @@ instance PrettyPrint Expression where
 
 instance PrettyPrint TypeContext where
   ppr Empty        = ppr "•"
-  ppr (Snoc c v t) = hcat [ppr c, comma, ppr v, colon, ppr t]
+  ppr (VarSnoc c v t) = hcat [ppr c, comma, ppr v, colon, ppr t]
 
 instance Show Type where
   show = render . ppr

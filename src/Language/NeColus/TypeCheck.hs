@@ -55,12 +55,17 @@ elabType (TyIs a b)  = Target.TyTup (elabType a) (elabType b)
 -- | Get the type of a variable from a context.
 typeFromContext :: TypeContext -> Variable -> TcM Type
 typeFromContext Empty _ = Left "Variable not in context"
-typeFromContext (Snoc c v vt) x
+typeFromContext (VarSnoc c v vt) x
   | v == x    = return vt
   | otherwise = typeFromContext c x
 
 
--- wellFormedSubst :: TypeContext -> Substitution -> Bool
+wellFormedSubst :: TypeContext -> Substitution -> Bool
+wellFormedSubst _ EmptySubst = True
+wellFormedSubst (SubstSnoc ctx v1 b) (Cons v2 a sub)
+  | v1 == v2  = wellFormedSubst ctx sub && disjoint a b
+  | otherwise = wellFormedSubst ctx (Cons v2 a sub)
+wellFormedSubst (VarSnoc ctx v1 b) (Cons v2 a sub) = wellFormedSubst ctx (Cons v2 a sub)
 
 -- disjoint :: TypeContext -> Type -> Type -> Maybe Substitution
 
@@ -148,7 +153,7 @@ inferenceWithContext _ ExAbs {} = Left "inferenceWithContext: ExAbs"
 checking :: TypeContext -> Expression -> Type -> TcM Target.Expression
 -- T-ABS
 checking c (ExAbs x e) (TyArr a b)
-  = do v <- checking (Snoc c x a) e b
+  = do v <- checking (VarSnoc c x a) e b
        return (Target.ExAbs x (elabType a) v)
 -- T-SUB
 checking c e a
