@@ -11,6 +11,15 @@ import Language.NeColus.Syntax
 
 type TcM a = Either String a
 
+data AlgContext
+  = Empty
+  | ContextAbs Variable AlgContext
+  | ExprApp AlgContext Expression
+  | ContextApp Expression AlgContext
+  | ContextPair AlgContext Expression
+  | ExprPair Expression AlgContext
+  | ContextRec Label AlgContext
+
 guardWithMsg :: Bool -> String -> TcM ()
 guardWithMsg True  _ = return ()
 guardWithMsg False s = Left s
@@ -34,6 +43,19 @@ typeFromContext Empty _ = Left "Variable not in context"
 typeFromContext (Snoc c v vt) x
   | v == x    = return vt
   | otherwise = typeFromContext c x
+
+
+-- wellFormedSubst :: TypeContext -> Substitution -> Bool
+
+-- disjoint :: TypeContext -> Type -> Type -> Maybe Substitution
+
+-- unify :: TypeContext -> Type -> Type -> Maybe Substitution
+
+-- subtyping :: Type -> Type -> Maybe Target.Coercion
+
+-- subRight :: TypeContext -> Queue -> Type -> Type -> Maybe (Target.Coercion, Substitution)
+
+-- subLeft :: TypeContext -> Queue -> Queue -> Substitution -> Type -> Type -> Maybe (Substitution, AlgContext)
 
 
 -- | Check whether two types are disjoint.

@@ -51,6 +51,12 @@ data Queue
   -- | ExtraLabel Queue Label
   | ExtraType Queue Type
 
+
+data Substitution
+  = Empty
+  | Cons Variable Type Substitution
+
+
 -- | Check whether a queue is empty.
 isNullQueue :: Queue -> Bool
 isNullQueue Null = True

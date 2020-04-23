@@ -26,15 +26,6 @@ data Type
   | TyAll Variable Type
   | TyRec Label Type
 
--- | Typing contexts
-data TermContext
-  = TermEmpty
-  | TermSnoc TermContext Variable Type
-
-data TypeContext
-  = TypeEmpty
-  | TypeSnoc TypeContext Variable
-
 -- | Target terms
 data Expression
   = ExLit Integer
@@ -43,7 +34,6 @@ data Expression
   | ExAbs Variable Expression
   | ExApp Expression Expression
   | ExMerge Expression Expression
-  | ExAnn Expression Type
   | ExCoApp Coercion Expression
   | ExTyAbs Variable Expression
   | ExTyApp Expression Type
@@ -66,6 +56,15 @@ data Coercion
   | CoAt Coercion Type
   | CoTyAbs Variable Coercion
 
+
+data TermContext
+  = TermEmpty
+  | TermSnoc TermContext Variable Type
+
+data TypeContext
+  = TypeEmpty
+  | TypeSnoc TypeContext Variable
+
 -- | Determine equality between two types.
 eqTypes :: Type -> Type -> Bool
 eqTypes TyNat  TyNat                = True
@@ -86,14 +85,6 @@ instance PrettyPrint Type where
   ppr (TyVar v)     = ppr v
   ppr (TyAll v t)   = parens $ hcat [ppr "\\/", ppr v, dot, ppr t]
   ppr (TyRec l t)   = braces $ hsep [ppr l, colon, ppr t]
-
-instance PrettyPrint TypeContext where
-  ppr TypeEmpty        = ppr "•"
-  ppr (TypeSnoc c v t) = hcat [ppr c, comma, ppr v, colon, ppr t]
-
-instance PrettyPrint TermContext where
-  ppr TermEmpty        = ppr "•"
-  ppr (TermSnoc c v t) = hcat [ppr c, comma, ppr v, colon, ppr t]
 
 instance PrettyPrint Expression where
   ppr (ExLit i)       = ppr i
@@ -131,6 +122,14 @@ instance PrettyPrint Coercion where
   ppr (CoArr c1 c2)        = parens $ hsep [ppr c1, arrow, ppr c2]
   ppr (CoAt c t) = hcat [ppr c, ppr "@", ppr t]
   ppr (CoTyAbs v c)   = parens $ hcat [ppr "/\\", ppr v, dot, ppr c]
+
+instance PrettyPrint TypeContext where
+  ppr TypeEmpty        = ppr "•"
+  ppr (TypeSnoc c v t) = hcat [ppr c, comma, ppr v, colon, ppr t]
+
+instance PrettyPrint TermContext where
+  ppr TermEmpty        = ppr "•"
+  ppr (TermSnoc c v t) = hcat [ppr c, comma, ppr v, colon, ppr t]
 
 instance Show Type where
   show = render . ppr
