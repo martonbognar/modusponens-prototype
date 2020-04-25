@@ -13,6 +13,9 @@ import Language.NeColus.Syntax
 
 type TcM a = Either String a
 
+-- * New code from here
+-- ----------------------------------------------------------------------------
+
 data AlgContext
   = Hole
   | ContextAbs Variable AlgContext
@@ -21,6 +24,178 @@ data AlgContext
   | ContextPair AlgContext Expression
   | ExprPair Expression AlgContext
   | ContextRec Label AlgContext
+  | ContextAll Variable Type AlgContext
+  | ContextType AlgContext Target.Type
+
+data BaseType
+  = BaseNat
+  | BaseTop
+  | BaseVar Variable
+  | BaseSubstVar Variable
+
+
+typeToBase :: Type -> Maybe BaseType
+typeToBase (TyMono (TyNat)) = Just BaseNat
+typeToBase (TyMono (TyTop)) = Just BaseTop
+typeToBase (TyMono (TyVar v)) = Just (BaseVar v)
+typeToBase (TySubstVar v) = Just (BaseSubstVar v)
+typeToBase _ = Nothing
+
+baseToType :: BaseType -> Type
+baseToType BaseNat = TyMono TyNat
+baseToType BaseTop = TyMono TyTop
+baseToType (BaseVar v) = TyMono (TyVar v)
+baseToType (BaseSubstVar v) = TySubstVar v
+
+
+elabMono :: Monotype -> Target.Type
+elabMono TyNat = Target.TyNat
+elabMono TyTop = Target.TyTop
+
+
+appendSubst :: Substitution -> Substitution -> Substitution
+appendSubst s1 s2 = undefined
+
+
+wellFormedSubst :: TypeContext -> Substitution -> Maybe Substitution
+wellFormedSubst _ EmptySubst = Just EmptySubst
+wellFormedSubst (VarSnoc ctx ap b) (Cons ap' a sub)
+  | ap == ap'  = wellFormedSubst ctx (Cons ap' a sub)
+wellFormedSubst (SubstSnoc ctx ap b) (Cons ap' a sub)
+  | ap == ap' = do
+    s1 <- wellFormedSubst ctx sub
+    ds <- disjoint ctx a b
+    let s2 = appendSubst s1 (appendSubst sub ds)
+      in return $ appendSubst s1 s2
+
+
+unifyB :: TypeContext -> BaseType -> BaseType -> Maybe Substitution
+unifyB ctx e e' = Just EmptySubst
+unifyB ctx BaseNat (BaseSubstVar ap) = let nat = baseToType BaseNat in do
+  sub <- wellFormedSubst ctx (Cons ap nat EmptySubst)
+  return $ (Cons ap nat sub)
+unifyB ctx (BaseSubstVar ap) BaseNat = let nat = baseToType BaseNat in do
+  sub <- wellFormedSubst ctx (Cons ap nat EmptySubst)
+  return $ (Cons ap nat sub)
+unifyB ctx (BaseSubstVar ap) (BaseVar ap')
+  | ap == ap' = let var = baseToType (BaseVar ap') in do
+    sub <- wellFormedSubst ctx (Cons ap var EmptySubst)
+    return $ (Cons ap var sub)
+unifyB ctx (BaseVar ap) (BaseSubstVar ap')
+  | ap == ap' = let var = baseToType (BaseVar ap) in do
+    sub <- wellFormedSubst ctx (Cons ap var EmptySubst)
+    return $ (Cons ap var sub)
+
+
+unifyM :: TypeContext -> BaseType -> BaseType -> Maybe Substitution
+unifyM = unifyB
+
+
+substitute :: Substitution -> Type -> Type
+substitute = undefined
+
+
+disjoint :: TypeContext -> Type -> Type -> Maybe Substitution
+-- AD-TopL
+disjoint ctx (TyMono TyTop)         a
+  = Just EmptySubst
+-- AD-TopR
+disjoint ctx a                      (TyMono TyTop)
+  = Just EmptySubst
+-- AD-VarL
+disjoint ctx (TyMono (TyVar ap))     b
+  = case (typeFromContext ctx ap) of
+      Left _ -> Nothing
+      Right a -> do
+        (c, s) <- subRight ctx Null a b
+        return s
+-- AD-VarR
+disjoint ctx a                      (TyMono (TyVar bt))
+  = case (typeFromContext ctx bt) of
+      Left _ -> Nothing
+      Right b -> do
+        (c, s) <- subRight ctx Null b a
+        return s
+-- AD-Arr
+disjoint ctx (TyArr a1 a2) (TyArr b1 b2)
+  = disjoint ctx a2 b2
+-- AD-ArrL
+disjoint ctx (TyArr a1 a2)          b
+  -- B not arrow type is implicitly covered by AD-Arr
+  = disjoint ctx a2 b
+-- AD-ArrR
+disjoint ctx a                      (TyArr b1 b2)
+  -- A not arrow type is implicitly covered by AD-Arr
+  = disjoint ctx a b2
+-- AD-AndL
+disjoint ctx (TyIs a1 a2)           b
+  -- B not arrow type is implicitly covered by AD-ArrR
+  = do
+    s1 <- disjoint ctx a1 b
+    s2 <- disjoint ctx a2 b
+    if s1 == s2 then return s2 else Nothing
+-- AD-AndR
+disjoint ctx a                      (TyIs b1 b2)
+  -- A not arrow type is implicitly covered by AD-ArrL
+  = do
+    s1 <- disjoint ctx a b1
+    s2 <- disjoint ctx a b2
+    if s1 == s2 then return s2 else Nothing
+-- AD-All
+disjoint ctx (TyAbs ap a1 a2)        (TyAbs ap' b1 b2)
+  | ap == ap' = disjoint (SubstSnoc ctx ap (TyIs a1 b1)) (substitute (Cons ap (TySubstVar ap) EmptySubst) a2) (substitute (Cons ap (TySubstVar ap) EmptySubst) b2)
+-- AD-AllL
+disjoint ctx (TyAbs ap a b1)        b2
+  = disjoint (SubstSnoc ctx ap a) (substitute (Cons ap (TySubstVar ap) EmptySubst) b1) b2
+-- AD-AllR
+disjoint ctx b1        (TyAbs ap a b2)
+  = disjoint (SubstSnoc ctx ap a) b1 (substitute (Cons ap (TySubstVar ap) EmptySubst) b2)
+-- AD-Ax
+disjoint ctx a                      b
+  = disjointAx a b
+
+
+disjointAx :: Type -> Type -> Maybe Substitution
+disjointAx = undefined
+
+
+subtyping :: Type -> Type -> Maybe Target.Coercion
+subtyping a b = do
+  (c, s) <- subRight Empty Null a b
+  return c
+
+
+subRight :: TypeContext -> Queue -> Type -> Type -> Maybe (Target.Coercion, Substitution)
+subRight ctx l a (TyMono TyTop) = undefined
+subRight ctx l a (TyIs b1 b2) = undefined
+subRight ctx l a (TyArr b1 b2) = undefined
+subRight ctx l a (TyAbs ap b1 b2) = undefined
+subRight ctx l a b = case b of
+  (TyMono TyNat) -> undefined
+  (TyMono TyTop) -> undefined-- isn't this case already covered?
+  (TyMono (TyVar ap)) -> undefined
+  (TySubstVar ap) -> undefined
+  _ -> Nothing
+
+
+subLeft :: TypeContext -> Queue -> Queue -> Type -> AlgContext -> Type -> Type -> Maybe (Substitution, AlgContext)
+-- AL-Base
+subLeft ctx Null m a0 c e1 e2 = undefined
+-- AL-VarArr
+subLeft ctx Null m a0 c (TySubstVar ap) e = undefined
+-- AL-AndL
+subLeft ctx Null m a0 c (TyIs a1 a2) e = undefined
+-- AL-AndR
+subLeft ctx Null m a0 c (TyIs a1 a2) e = undefined
+-- AL-Arr
+subLeft ctx Null m a0 c (TyArr a1 a2) e = undefined
+-- AL-MP
+subLeft ctx Null m a0 c (TyArr a1 a2) e = undefined
+-- AL-Forall
+subLeft ctx Null m a0 c (TyAbs ap a b) e = undefined
+
+-- * Old code from here
+-- ----------------------------------------------------------------------------
 
 guardWithMsg :: Bool -> String -> TcM ()
 guardWithMsg True  _ = return ()
@@ -29,20 +204,7 @@ guardWithMsg False s = Left s
 -- * NeColus Typing
 -- ----------------------------------------------------------------------------
 
-eqMono :: Monotype -> Monotype -> Bool
-eqMono TyNat  TyNat  = True
-eqMono TyTop  TyTop  = True
 
-eqTypes :: Type -> Type -> Bool
-eqTypes (TyMono m1) (TyMono m2) = eqMono m1 m2
-eqTypes (TyArr t1 t2) (TyArr t1' t2') = eqTypes t1 t1' && eqTypes t2 t2'
-eqTypes (TyIs t1 t2) (TyIs t1' t2') = eqTypes t1 t1' && eqTypes t2 t2'
-eqTypes _ _ = False
-
-
-elabMono :: Monotype -> Target.Type
-elabMono TyNat = Target.TyNat
-elabMono TyTop = Target.TyTop
 
 
 -- | For a NeColus type, get the corresponding LambdaC type.
@@ -59,68 +221,6 @@ typeFromContext Empty _ = Left "Variable not in context"
 typeFromContext (VarSnoc c v vt) x
   | v == x    = return vt
   | otherwise = typeFromContext c x
-
-
-wellFormedSubst :: TypeContext -> Substitution -> Bool
-wellFormedSubst _ EmptySubst = True
-wellFormedSubst (SubstSnoc ctx v1 b) (Cons v2 a sub)
-  | v1 == v2  = wellFormedSubst ctx sub && isJust (disjoint ctx a b)
-  | otherwise = wellFormedSubst ctx (Cons v2 a sub)
-wellFormedSubst (VarSnoc ctx v1 b) (Cons v2 a sub) = wellFormedSubst ctx (Cons v2 a sub)
-
-unify :: TypeContext -> Type -> Type -> Maybe Substitution
-unify ctx (TyMono TyNat) (TyMono TyNat) = Just EmptySubst
-unify ctx (TyMono TyNat) (TySubstVar v)
-  | wellFormedSubst ctx (Cons v (TyMono TyNat) EmptySubst) = Just (Cons v (TyMono TyNat) EmptySubst)
-unify ctx (TySubstVar v1) (TyMono (TyVar v2))
-  | v1 == v2 && wellFormedSubst ctx (Cons v1 (TyMono (TyVar v1)) EmptySubst) = Just (Cons v1 (TyMono (TyVar v1)) EmptySubst)
-unify _ _ _ = Nothing
-
-disjoint :: TypeContext -> Type -> Type -> Maybe Substitution
-disjoint ctx (TyMono TyTop)         a
-  = Just EmptySubst
-disjoint ctx a                      (TyMono TyTop)
-  = Just EmptySubst
-disjoint ctx (TyMono (TyVar ap))     b
-  = case (typeFromContext ctx ap) of
-      Left _ -> Nothing
-      Right a -> do
-        (c, s) <- subRight ctx Null a b
-        return s
-disjoint ctx a                      (TyMono (TyVar bt))
-  = case (typeFromContext ctx bt) of
-      Left _ -> Nothing
-      Right b -> if eqTypes a b then Just EmptySubst else Nothing
-disjoint ctx (TyArr a1 a2) (TyArr b1 b2)
-  = disjoint ctx a2 b2
-disjoint ctx a                      (TyArr b1 b2)
-  = disjoint ctx a b2
-disjoint ctx (TyArr a1 a2) b
-  = disjoint ctx a2 b
-disjoint ctx (TyIs a1 a2)           b
-  = do
-    s1 <- disjoint ctx a1 b
-    s2 <- disjoint ctx a2 b
-    return s2
-disjoint ctx a                      (TyIs b1 b2)
-  = do
-    s1 <- disjoint ctx a b1
-    s2 <- disjoint ctx a b2
-    return s2
-disjoint ctx (TyAbs a a1 a2)        (TyAbs b b1 b2)
-  = disjoint (VarSnoc ctx a (TyIs a1 b1)) a2 b2
-disjoint ctx a                      b
-  = undefined
-
-subtyping :: Type -> Type -> Maybe Target.Coercion
-subtyping = undefined
-
-subRight :: TypeContext -> Queue -> Type -> Type -> Maybe (Target.Coercion, Substitution)
-subRight = undefined
-
-subLeft :: TypeContext -> Queue -> Queue -> Substitution -> Type -> Type -> Maybe (Substitution, AlgContext)
-subLeft = undefined
-
 
 -- | Check whether two types are disjoint.
 -- disjoint :: Type -> Type -> Bool
@@ -241,7 +341,7 @@ data CallStack
 
 stackContains :: CallStack -> Type -> Type -> Bool
 stackContains EmptyStack _ _ = False
-stackContains (Add a' t' s) a t = (eqTypes t t' && eqTypes a a') || stackContains s a t
+stackContains (Add a' t' s) a t = (t == t' && a == a') || stackContains s a t
 
 
 data XEnv

@@ -20,6 +20,10 @@ data Monotype
   | TyMonoArr Monotype Monotype
   | TyMonoIs Monotype Monotype
 
+instance Eq Monotype where
+  TyNat == TyNat  = True
+  TyTop == TyTop  = True
+
 data Type
   = TyMono Monotype
   | TyArr Type Type
@@ -27,6 +31,12 @@ data Type
   | TyAbs Variable Type Type
   | TyRec Label Type
   | TySubstVar Variable -- should only be used during typechecking
+
+instance Eq Type where
+  (TyMono m1)   == (TyMono m2) = m1 == m2
+  (TyArr t1 t2) == (TyArr t1' t2') = t1 == t1' && t2 == t2'
+  (TyIs t1 t2)  == (TyIs t1' t2') = t1 == t1' && t2 == t2'
+  _             == _ = False
 
 data Expression
   = ExLit Integer
@@ -59,6 +69,7 @@ data Queue
 data Substitution
   = EmptySubst
   | Cons Variable Type Substitution
+  deriving (Eq)
 
 
 -- | Check whether a queue is empty.
