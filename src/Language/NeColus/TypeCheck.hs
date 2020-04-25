@@ -5,6 +5,7 @@ module Language.NeColus.TypeCheck (inference, checking) where
 import qualified Language.LambdaC as Target
 
 import Control.Applicative ((<|>))
+import Control.Monad (guard)
 import Data.Variable
 import Data.Label
 import Data.Maybe
@@ -159,40 +160,52 @@ disjointAx :: Type -> Type -> Maybe Substitution
 disjointAx = undefined
 
 
-subtyping :: Type -> Type -> Maybe Target.Coercion
-subtyping a b = do
-  (c, s) <- subRight Empty Null a b
-  return c
+subtyping :: Type -> Type -> Maybe (Target.Coercion, Substitution)
+subtyping = subRight Empty Null
+
+
+queueToCoercion :: Queue -> Type -> Target.Coercion
+queueToCoercion = undefined
 
 
 subRight :: TypeContext -> Queue -> Type -> Type -> Maybe (Target.Coercion, Substitution)
-subRight ctx l a (TyMono TyTop) = undefined
-subRight ctx l a (TyIs b1 b2) = undefined
-subRight ctx l a (TyArr b1 b2) = undefined
-subRight ctx l a (TyAbs ap b1 b2) = undefined
-subRight ctx l a b = case b of
-  (TyMono TyNat) -> undefined
-  (TyMono TyTop) -> undefined-- isn't this case already covered?
-  (TyMono (TyVar ap)) -> undefined
-  (TySubstVar ap) -> undefined
-  _ -> Nothing
+-- ?
+subRight ctx l a (TyMono TyTop) = return (Target.CoComp (queueToCoercion l (TyMono TyTop)) (Target.CoTop (elabType a)), EmptySubst)
+-- AR-and
+subRight ctx l a (TyIs b1 b2) = do
+  (c1, s1) <- subRight ctx l a b1
+  (c2, s2) <- subRight ctx l a b2
+  guard (s1 == s2)
+  return (Target.CoComp (queueToCoercion l (TyIs b1 b2)) (Target.CoPair c1 c2), s1)
+-- ?
+subRight ctx l a (TyArr b1 b2) = subRight ctx (ExtraType l b1) a b2
+-- AR-all
+subRight ctx l a (TyAbs ap b1 b2) = do
+  (c, s) <- subRight (VarSnoc ctx ap b1) l a b2
+  return (Target.CoTyAbs ap c, s)
+-- AR-base
+subRight ctx l a b = case typeToBase b of
+  Nothing -> Nothing
+  Just bb -> do
+    (s, ac) <- subLeft ctx l Null a (ContextAbs _ _) a bb
+    return (_, s)
 
 
-subLeft :: TypeContext -> Queue -> Queue -> Type -> AlgContext -> Type -> Type -> Maybe (Substitution, AlgContext)
+subLeft :: TypeContext -> Queue -> Queue -> Type -> AlgContext -> Type -> BaseType -> Maybe (Substitution, AlgContext)
 -- AL-Base
 subLeft ctx Null m a0 c e1 e2 = undefined
 -- AL-VarArr
-subLeft ctx Null m a0 c (TySubstVar ap) e = undefined
+subLeft ctx (ExtraType l b1) m a0 c (TySubstVar ap) e = undefined
 -- AL-AndL
-subLeft ctx Null m a0 c (TyIs a1 a2) e = undefined
+subLeft ctx l m a0 c (TyIs a1 a2) e = undefined
 -- AL-AndR
-subLeft ctx Null m a0 c (TyIs a1 a2) e = undefined
+subLeft ctx l m a0 c (TyIs a1 a2) e = undefined  -- TODO: when does this apply?
 -- AL-Arr
-subLeft ctx Null m a0 c (TyArr a1 a2) e = undefined
+subLeft ctx (ExtraType l b1) m a0 c (TyArr a1 a2) e = undefined
 -- AL-MP
-subLeft ctx Null m a0 c (TyArr a1 a2) e = undefined
+subLeft ctx l m a0 c (TyArr a1 a2) e = undefined  -- TODO: same question
 -- AL-Forall
-subLeft ctx Null m a0 c (TyAbs ap a b) e = undefined
+subLeft ctx l m a0 c (TyAbs ap a b) e = undefined
 
 -- * Old code from here
 -- ----------------------------------------------------------------------------
