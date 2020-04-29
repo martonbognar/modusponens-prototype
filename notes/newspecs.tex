@@ -180,9 +180,7 @@ Rule \textsc{S-DistAll} of $F_{i}^{+}$ is subsumed by our rules:
     Type context  & $\Delta$ & $::=$ & $\bullet~\mid~\Delta,\tentry{\alpha}{A}~\mid~\Delta,\tentry{\hat{\alpha}}{A}$\vspace{0.3cm}\\
     Type queue    & $\mathcal{L},\mathcal{M}$ & $::=$ & $\bullet~\mid~\mathcal{L},A$\vspace{0.3cm}\\
     Coercion context & $\mathcal{C}$ & $::=$ & $\bullet~\mid~\arrCC{\mathcal{C}}{c}$\vspace{0.3cm}\\%\abs{c}{\mathcal{C}}~\mid~\mid~\pair{\mathcal{C}}{e}~\mid~\pair{e}{\mathcal{C}}~\mid~\record{l}{\mathcal{C}}~\mid~$\vspace{0.1cm}\\
-                  %% &          &       & $\textcolor{magenta}{\tabs{\alpha}{A}{\mathcal{C}}}~\mid~\textcolor{magenta}{\tabs{\hat\alpha}{A}{\mathcal{C}}}~\mid~\textcolor{magenta}{\mathcal{C}\,A}$\vspace{0.3cm}\\
-    Type variable substitutions & $\theta$ & $::=$ & $\bullet~\mid~\unification{\alpha}{A},\theta~\mid~\substitution{\alpha}{A},\theta$\vspace{0.3cm}\\
-    %% Unification variable substitutions & $\theta$ & $::=$ & $\bullet~\mid~\substitution{\alpha}{A},\theta$
+    Type variable substitutions & $\theta$ & $::=$ & $\bullet~\mid~\unification{\alpha}{A},\theta~\mid~\substitution{\alpha}{A},\theta$\vspace{0.3cm}
   \end{tabular}
   \caption{The language of the algorithm}
 \end{table}
@@ -200,7 +198,6 @@ Rule \textsc{S-DistAll} of $F_{i}^{+}$ is subsumed by our rules:
     [\unification{\alpha}{\tau}](A\to B)              &= ([\unification{\alpha}{\tau}]A)\to([\unification{\alpha}{\tau}]B)\\
     [\unification{\alpha}{\tau}](A\& B)               &= ([\unification{\alpha}{\tau}]A)\&([\unification{\alpha}{\tau}]B)\\
     [\unification{\alpha}{\tau}](\Tabs{\alpha}{A}{B}) &= \Tabs{\alpha}{[\unification{\alpha}{\tau}]A}{[\unification{\alpha}{\tau}]B}\\
-    %% [\unification{\alpha}{\tau}](\Tabs{\hat\beta}{A}{B}) &= \Tabs{\hat\beta}{[\unification{\alpha}{\tau}]A}{[\unification{\alpha}{\tau}]B}\\
     [\unification{\alpha}{\tau}]\trecord{l}{A}        &= \trecord{l}{[\unification{\alpha}{\tau}]A}
   \end{align*}
 \end{minipage}
@@ -214,7 +211,6 @@ Rule \textsc{S-DistAll} of $F_{i}^{+}$ is subsumed by our rules:
     [\unification{\alpha}{\tau}](E_1\,E_2) &= ([\unification{\alpha}{\tau}]E_1)\,([\unification{\alpha}{\tau}]E_2)\\
     [\unification{\alpha}{\tau}](E : A) &= [\unification{\alpha}{\tau}]E : [\unification{\alpha}{\tau}]A\\
     [\unification{\alpha}{\tau}]\tabs{\alpha}{A}{E} &= \tabs{\alpha}{[\unification{\alpha}{\tau}]A}{[\unification{\alpha}{\tau}]E}\\
-    %% [\unification{\alpha}{\tau}]\tabs{\hat\beta}{A}{E} &= \tabs{\hat\beta}{[\unification{\alpha}{\tau}]A}{[\unification{\alpha}{\tau}]E}\\
     [\unification{\alpha}{\tau}](E\,A) &= ([\unification{\alpha}{\tau}]E)\, ([\unification{\alpha}{\tau}]A)
   \end{align*}
 \end{minipage}\\
@@ -235,19 +231,6 @@ Rule \textsc{S-DistAll} of $F_{i}^{+}$ is subsumed by our rules:
     [\unification{\alpha}{\tau}]\bullet &= \bullet\\
     [\unification{\alpha}{\tau}](\mathcal{M},A) &= [\unification{\alpha}{\tau}]\mathcal{M},([\unification{\alpha}{\tau}]A)\\
   \end{align*}
-  %% \mypar{\large{...on coercion contexts}}
-  %% \begin{align*}
-  %%   [\unification{\alpha}{\tau}]\bullet &= \bullet\\
-  %%   [\unification{\alpha}{\tau}]\abs{c}{\mathcal{C}} &= \abs{c}{[\unification{\alpha}{\tau}]\mathcal{C}}\\
-  %%   [\unification{\alpha}{\tau}](\mathcal{C}\,e) &= ([\unification{\alpha}{\tau}]\mathcal{C})\, ([\unification{\alpha}{\tau}]e)\\
-  %%   [\unification{\alpha}{\tau}](e\,\mathcal{C}) &= ([\unification{\alpha}{\tau}]e)\, ([\unification{\alpha}{\tau}]\mathcal{C})\\
-  %%   [\unification{\alpha}{\tau}]\pair{\mathcal{C}}{e} &= \pair{[\unification{\alpha}{\tau}]\mathcal{C}}{[\unification{\alpha}{\tau}]e}\\
-  %%   [\unification{\alpha}{\tau}]\pair{e}{\mathcal{C}} &= \pair{[\unification{\alpha}{\tau}]e}{[\unification{\alpha}{\tau}]\mathcal{C}}\\
-  %%   [\unification{\alpha}{\tau}]\record{l}{\mathcal{C}} &= \record{l}{[\unification{\alpha}{\tau}]\mathcal{C}}\\
-  %%   [\unification{\alpha}{\tau}]\tabs{\alpha}{A}{\mathcal{C}} &= \tabs{\alpha}{[\unification{\alpha}{\tau}]A}{[\unification{\alpha}{\tau}]\mathcal{C}}\\
-  %%   [\unification{\alpha}{\tau}]\tabs{\hat\beta}{A}{\mathcal{C}} &= \tabs{\hat\beta}{[\unification{\alpha}{\tau}]A}{[\unification{\alpha}{\tau}]\mathcal{C}}\\
-  %%   [\unification{\alpha}{\tau}](\mathcal{C}\,A) &= ([\unification{\alpha}{\tau}]\mathcal{C})\, ([\unification{\alpha}{\tau}]A)
-  %% \end{align*}
 \end{minipage}\vspace{3pt}
 
 \subsubsection{Applying type variable substitution...}
@@ -262,7 +245,6 @@ Rule \textsc{S-DistAll} of $F_{i}^{+}$ is subsumed by our rules:
     [{\alpha}\mapsto{\tau}](A\to B)              &= ([\substitution{\alpha}{\tau}]A)\to([\substitution{\alpha}{\tau}]B)\\
     [{\alpha}\mapsto{\tau}](A\& B)               &= ([\substitution{\alpha}{\tau}]A)\&([\substitution{\alpha}{\tau}]B)\\
     [{\alpha}\mapsto{\tau}](\Tabs{\alpha}{A}{B}) &= \Tabs{\alpha}{[\substitution{\alpha}{\tau}]A}{[\substitution{\alpha}{\tau}]B}\\
-    %% [{\alpha}\mapsto{\tau}](\Tabs{\hat\beta}{A}{B}) &= \Tabs{\hat\beta}{[\substitution{\alpha}{\tau}]A}{[\substitution{\alpha}{\tau}]B}\\
     [{\alpha}\mapsto{\tau}]\trecord{l}{A}        &= \trecord{l}{[\substitution{\alpha}{\tau}]A}
   \end{align*}
 \end{minipage}
@@ -276,7 +258,6 @@ Rule \textsc{S-DistAll} of $F_{i}^{+}$ is subsumed by our rules:
     [\substitution{\alpha}{\tau}](E_1\,E_2) &= ([\substitution{\alpha}{\tau}]E_1)\,([\substitution{\alpha}{\tau}]E_2)\\
     [\substitution{\alpha}{\tau}](E : A) &= [\substitution{\alpha}{\tau}]E : [\substitution{\alpha}{\tau}]A\\
     [\substitution{\alpha}{\tau}]\tabs{\beta}{A}{E} &= \tabs{\beta}{[\substitution{\alpha}{\tau}]A}{[\substitution{\alpha}{\tau}]E}\\
-    %% [\substitution{\alpha}{\tau}]\tabs{\hat\alpha}{A}{E} &= \tabs{\hat\alpha}{[\substitution{\alpha}{\tau}]A}{[\substitution{\alpha}{\tau}]E}\\
     [\substitution{\alpha}{\tau}](E\,A) &= ([\substitution{\alpha}{\tau}]E)\, ([\substitution{\alpha}{\tau}]A)
   \end{align*}
 \end{minipage}\\
@@ -298,14 +279,22 @@ Rule \textsc{S-DistAll} of $F_{i}^{+}$ is subsumed by our rules:
     [\substitution{\alpha}{\tau}](\mathcal{M},A) &= [\substitution{\alpha}{\tau}]\mathcal{M},([\substitution{\alpha}{\tau}]A)\\
   \end{align*}
 \end{minipage}\vspace{3pt}
-\subsubsection{Completing coercion contexts}
-\begin{minipage}[t]{0.47\textwidth}
+\subsubsection{Coercion context completion}
+%% \begin{minipage}[t]{0.47\textwidth}
+%% \mypar{$\dblarrow{\mathcal{M}}{\mathcal{C}}$}
+%% \begin{align*}
+%%   \dblarrow{\bullet}{\mathcal{C}} &= \mathcal{C}\\
+%%   \dblarrow{(A,\mathcal{M})}{\mathcal{C}} &= \arrCC{(\dblarrow{\mathcal{M}}{\mathcal{C}})}{\idC{\toTarget{A}}}\\
+%% \end{align*}
+%% \end{minipage}
+\begin{minipage}[t]{\textwidth}
 \begin{align*}
   \bullet [c] &= c\\
   (\arrCC{\mathcal{C}}{c'})[c] &= \mathcal{C}[c'\to c]\\
   \projlCC{\mathcal{C}}{A}{B}[c] &= \mathcal{C}[\compC{c}{\projlC{A}{B}}]\\
   \projrCC{\mathcal{C}}{A}{B}[c] &= \mathcal{C}[\compC{c}{\projrC{A}{B}}]\\
-  \mpCC{\mathcal{C}}{\mathcal{M}}{c_1}{A}{B}[c] &= \ldots
+  \mpCC{\mathcal{C}}{\mathcal{M}}{c_1}{A}{B}[c] &= \compC{\distarrowqueueC{\mathcal{M}}{\left(\compC{c}{(\mpC{\projlC{A\to B}{A}}{\projrC{A\to B}{A}})}\right)}{(A\to B)}{A}}{\pairC{\mathcal{C}[\idC{A\to B}]}{c_1}}\\
+  \alllCC{\mathcal{C}}{\tau}[c] &= \mathcal{C}[\alllC{c}{\tau}]
 \end{align*}
 \end{minipage}
 
