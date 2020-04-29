@@ -1,0 +1,549 @@
+\documentclass{article}
+
+\usepackage{xcolor}
+\usepackage{mathpartir}
+\usepackage{amsthm}
+\usepackage{mathtools}
+\usepackage{amssymb}
+\usepackage{latexsym}
+\usepackage{stmaryrd}
+\usepackage{fullpage}
+\usepackage{subcaption}
+\usepackage{tikz}
+
+
+\input{macros}
+\newcommand{\mypar}[1]{\vspace{0.2cm}\paragraph{#1:} \hfill\vspace{0.1cm}}
+
+\newtheorem{theorem}{Theorem}
+
+\begin{document}
+\section{Syntax}
+\mypar{Syntax of source language, $F_{MP}^{+}$}
+\noindent\begin{tabular}{l r l}
+    Types        & $A, B$   & $::=~\tau~\mid~A \to B~\mid~A \& B~\mid~\textcolor{magenta}{\Tabs{\alpha}{A}{B}}$\vspace{0.3cm}\\
+    Monotypes    & $\tau$   & $::=~\nat~\mid~\top~\mid~\textcolor{magenta}{\alpha}~\mid~\tau_1\to\tau_2~\mid~\tau_1\&\tau_2$ \vspace{0.3cm}\\
+    Expressions  & $E$      & $::=~i~\mid~()~\mid~x~\mid~\abs{x}{E}~\mid~E_1\,E_2~\mid~E_1,,E_2~\mid~E : A~\mid~\textcolor{magenta}{\tabs{\alpha}{A}{E}}~\mid~\textcolor{magenta}{E\,A}$\vspace{0.3cm}\\
+    Type context & $\Delta$ & $::=~\bullet~\mid~\Delta,\tentry{\alpha}{A}$
+  \end{tabular}
+
+\mypar{Syntax of target language}
+\noindent\begin{tabular}{l r r l}
+    Types        & $\rho$   & $::=~$ & $\nat~\mid~\top~\mid~ \rho_1 \to \rho_2~\mid~\rho_1 \times \rho_2~\mid~\alpha~\mid~\Tabs{\alpha}{A}{\rho}$ \vspace{0.3cm}\\
+    Expressions  & $e$      & $::=~$ & $i~\mid~()~\mid~x~\mid~\abs{x}{e}~\mid~e_1\,e_2~\mid~e_1 , , e_2~\mid~c\,e~\mid~\Lambda{\alpha}.{e}~\mid~e\,A$ \vspace{0.3cm}\\
+    Coercions    & $c$      & $::=~$ & $\idC{\rho}~\mid~\topC{\rho}~\mid~\topArrC~\mid~\topAllC~\mid~\distArrC{\rho_1}{\rho_2}{\rho_3}~\mid~\distAllC{\rho_1}{\rho_2}{\rho_3}~\mid$\vspace{0.1cm}\\
+                 &          & & $\projlC{\rho_1}{\rho_2}~\mid~\projrC{\rho_1}{\rho_2}~\mid~\compC{c_1}{c_2}~\mid~\pairC{c_1}{c_2}~\mid~\arrC{c_1}{c_2}~\mid~\alllC{c}{\rho}~\mid~\allrC{\alpha}{c}$\vspace{0.3cm}\\
+    Type context & $\Phi$   & $::=~$ & $\bullet~\mid~\Phi,\alpha$\vspace{0.1cm}\\
+    Term context & $\Psi$   & $::=~$ & $\bullet~\mid~\Psi,\eentry{x}{\rho}$
+  \end{tabular}
+
+\vspace{1cm}
+\paragraph{Helper definitions:}
+Desugaring of new coercion operators into target functions.
+  \begin{align*}
+    \alllC{c}{\rho}   &= \abs{x}{(c\,(x\,\rho))}\\
+    \allrC{\alpha}{c} &= \abs{x}{\tabst{\alpha}{c\, x}}
+  \end{align*}
+
+\section{Declarative Specification}
+\mypar{Disjointness - Declarative}
+\fbox{
+  \begin{mathpar}
+    \inferrule*[right=D-TopL]{ }{\disjoint{\Delta}{\top}{A}} \and
+    \inferrule*[right=D-TopR]{ }{\disjoint{\Delta}{A}{\top}} \\
+    \inferrule*[right=D-Arr]{\disjoint{\Delta}{A_2}{B_2}}{\disjoint{\Delta}{A_1\to A_2}{B_1\to B_2}} \and
+    \inferrule*[right=D-ArrL]{\disjoint{\Delta}{A_2}{B}}{\disjoint{\Delta}{A_1\to A_2}{B}} \and
+    \inferrule*[right=D-ArrR]{\disjoint{\Delta}{A}{B_2}}{\disjoint{\Delta}{A}{B_1\to B_2}} \and
+    \inferrule*[right=D-AndL]{\disjoint{\Delta}{A_1}{B} \\ \disjoint{\Delta}{A_2}{B}}{\disjoint{\Delta}{A_1\& A_2}{B}} \and
+    \inferrule*[right=D-AndR]{\disjoint{\Delta}{A}{B_1} \\ \disjoint{\Delta}{A}{B_2}}{\disjoint{\Delta}{A}{B_1\& B_2}} \and
+    \inferrule*[right=D-VarL]{\tentry{\alpha}{A}\in{\Delta} \\ \subt{A}{B}}{\disjoint{\Delta}{\alpha}{B}} \and
+    \inferrule*[right=D-VarR]{\tentry{\beta}{B}\in{\Delta} \\ \subt{B}{A}}{\disjoint{\Delta}{A}{\beta}} \and
+%    \inferrule{\disjoint{\Delta}{A}{B}}{\disjoint{\Delta}{\trecord{l}{A}}{\trecord{l}{B}}} \and
+    %% \inferrule{l_1\neq l_2}{\disjoint{\Delta}{\trecord{l_1}{A}}{\trecord{l_2}{B}}}\\
+    \mprset{sep=1em}
+    \inferrule*[right=D-AllL]{(\forall \tau,\,\disjoint{\Delta}{\tau}{A}\implies\disjoint{\Delta}{[\alpha\mapsto\tau]B_1}{B_2})}{\disjoint{\Delta}{\Tabs{\alpha}{A}{B_1}}{B_2}}\and
+    \inferrule*[right=D-AllR]{(\forall \tau,\,\disjoint{\Delta}{\tau}{A}\implies\disjoint{\Delta}{B_1}{[\alpha\mapsto\tau]B_2})}{\disjoint{\Delta}{B_1}{\Tabs{\alpha}{A}{B_2}}}\and
+    %% \inferrule*[right=D-All]{\disjoint{\Delta,\tentry{\alpha}{A_1\& B_1}}{A_2}{B_2}}{\disjoint{\Delta}{\Tabs{\alpha}{A_1}{A_2}}{\Tabs{\alpha}{B_1}{B_2}}} \and
+    \inferrule*[right=]{\starax{A}{B}}{\disjoint{\Delta}{A}{B}}
+  \end{mathpar}
+}
+\subsection{Notes}
+\subsubsection{Subsumption of \textsc{D-Forall} from $F_{i}^{+}$}
+Rule \textsc{D-Forall} of $F_{i}^{+}$ is subsumed by our rules:
+\[
+\inferrule*[right=D-forall]
+    {\disjoint{\Delta,\tentry{\alpha}{A_1\& B_1}}{A_2}{B_2}}
+    {\disjoint{\Delta}{\Tabs{\alpha}{A_1}{A_2}}{\Tabs{\alpha}{B_1}{B_2}}}
+\]
+For any well-formed substitution $\wfSubst{\Delta,\tentry{\alpha}{A_1\& B_1}}{\theta\circ[{\alpha}\mapsto{\tau_0}]}$,
+it follows by case analysis that $\wfT{\Delta}{\tau_0}$, $\disjoint{\Delta}{\tau_0}{A_1}$ and $\disjoint{\Delta}{\tau_0}{B_1}$.
+Applying $\theta\circ[{\alpha}\mapsto{\tau_0}]$ in the premise of \textsc{D-forall}, yields $\disjoint{\theta(\Delta)}{[{\alpha}\mapsto{\tau_0}]{A_2}}{[{\alpha}\mapsto{\tau_0}]{B_2}}$. In our system,
+this behaviour is recovered by:
+\[
+\inferrule*[right=D-allL($\tau_0$)]
+           { \inferrule*{\text{given}}{\disjoint{\Delta}{\tau_0}{A_1}}
+             \\
+             \inferrule*[right=D-allR($\tau_0$)]
+                        {
+                          \inferrule*{\text{given}}{\disjoint{\Delta}{\tau_0}{B_1}}
+                          \\
+                          \inferrule*
+                              {\text{given}}
+                              {\disjoint{\Delta}{[\alpha\mapsto\tau_0]A_1}{[\alpha\mapsto\tau_0]{B_2}}}
+                        }
+                        {\disjoint{\Delta}{[\alpha\mapsto\tau_0]A_1}{\Tabs{\alpha}{B_1}{B_2}}}
+           }
+    {\disjoint{\Delta}{\Tabs{\alpha}{A_1}{A_2}}{\Tabs{\alpha}{B_1}{B_2}}}
+\]
+
+\mypar{Subtyping - Declarative}
+\fbox{
+  \begin{mathpar}
+    \inferrule*[right=S-refl]{ }{\Subtype{\Delta}{A}{A}{\idC{\toTarget{A}}}} \and
+    \inferrule*[right=S-trans]{\Subtype{\Delta}{A_1}{A_2}{c} \\ \Subtype{\Delta}{A_2}{A_3}{c'}}{\Subtype{\Delta}{A_1}{A_3}{\compC{c'}{c}}} \\
+    \inferrule*[right=S-top]{ }{\Subtype{\Delta}{A}{\top}{\topC{\toTarget{A}}}} \and
+    \inferrule*[right=S-topArr]{ }{\Subtype{\Delta}{\top}{\top\to\top}{\topArrC}} \and
+    \inferrule*[right=S-topAll]{ }{\Subtype{\Delta}{\top}{\Tabs{\alpha}{A}{\top}}{\topAllC}} \and
+    \inferrule*[right=S-and]{\Subtype{\Delta}{A}{B_1}{c_1} \\ \Subtype{\Delta}{A}{B_2}{c_2}}{\Subtype{\Delta}{A}{B_1 \& B_2}{\pairC{c_1}{c_2}}} \and
+    \inferrule*[right=S-andL]{ }{\Subtype{\Delta}{A_1\& A_2}{A_1}{\projlC{\toTarget{A_1}}{\toTarget{A_2}}}} \and
+    \inferrule*[right=S-andR]{ }{\Subtype{\Delta}{A_1\& A_2}{A_2}{\projrC{\toTarget{A_1}}{\toTarget{A_2}}}} \and
+    \inferrule*[right=S-arr]{\Subtype{\Delta}{B_1}{A_1}{c_1}\\ \Subtype{\Delta}{A_2}{B_2}{c_2}}{\Subtype{\Delta}{A_1\to A_2}{B_1\to B_2}{\arrC{c_1}{c_2}}} \and
+    \inferrule*[right=S-mp]{\Subtype{\Delta}{A}{B_1\to B_2}{c_1} \\ \Subtype{\Delta}{A}{B_1}{c_2}}{\Subtype{\Delta}{A}{B_2}{\mpC{c_1}{c_2}}} \and
+    \inferrule*[right=S-distArr]{ }{\Subtype{\Delta}{(A\to B_1)\&(A\to B_2)}{A\to{B_1\& B_2}}{\distArrC{\toTarget{A}}{\toTarget{B_1}}{\toTarget{B_2}}}} \and
+    \inferrule*[right=S-allL]{\disjoint{\Delta}{\tau}{A} \\ \Subtype{\Delta}{[\alpha\mapsto\tau]B}{B'}{c}}{\Subtype{\Delta}{\Tabs{\alpha}{A}{B}}{B'}{\alllC{c}{\tau}}} \and
+    \inferrule*[right=S-allR]{\Subtype{\Delta,\tentry{\alpha}{B_1}}{A}{B_2}{c}}{\Subtype{\Delta}{A}{\Tabs{\alpha}{B_1}{B_2}}{\allrC{\alpha}{c}}}
+  \end{mathpar}\hfill
+}\\
+\subsection{Notes}
+\subsubsection{Predicative instantiation}
+We use predicative type instantiation (rule \textsc{S-allL}) to avoid following kind of non-termination, where $\mathcal{A} :=\Tabs{\alpha}{A}{\alpha\to\alpha}$.
+In the premise of rule \textsc{S-allL} below, we use substitution $[\alpha\mapsto\mathcal{A}]$.
+\begin{mathpar}
+  \inferrule*[right=S-MP]
+             {
+               \inferrule*[right=S-allL]
+                          {\disjoint{\Delta}{\mathcal{A}}{A}
+                           \\
+                           \inferrule*
+                                      {\vdots}
+                                      {\Subtype{\Delta}{\mathcal{A}\to\mathcal{A}}{\mathcal{A}\to\mathcal{A}}{?}}
+                          }
+                          {\Subtype{\Delta}{\mathcal{A}}{\mathcal{A}\to\mathcal{A}}{\alllC{?}{\toTarget{\mathcal{A}}}}}
+               \\
+               \inferrule*[right=S-refl]
+                          { }
+                          {\Subtype{\Delta}{\mathcal{A}}{\mathcal{A}}{\idC{\toTarget{\mathcal{A}}}}}
+             }
+             {\Subtype{\Delta}{\mathcal{A}}{\mathcal{A}}{\mpC{(\alllC{?}{\toTarget{\mathcal{A}}})}{\idC{\toTarget{\mathcal{A}}}}}}
+\end{mathpar}
+
+\subsubsection{Subsumption of \textsc{S-DistAll} and \textsc{S-topAll} from $F_{i}^{+}$}
+Rule \textsc{S-DistAll} of $F_{i}^{+}$ is subsumed by our rules:
+\begin{mathpar}
+  \inferrule*
+      {
+        \inferrule*
+            {
+              \inferrule*
+                  {
+                    \inferrule*
+                        {\disjoint{\bullet,\tentry{a}{A}}{a}{A}
+                          \\
+                         \inferrule*{ }{\Subtype{\bullet,\tentry{a}{A}}{[\alpha\mapsto\alpha]B_1}{B_1}{\idC{\toTarget{B_1}}}}
+                        }
+                        {\Subtype{\bullet,\tentry{a}{A}}{\Tabs{\alpha}{A}{B_1}}{B_1}{\alllC{\idC{\toTarget{B_1}}}{\alpha}}}
+                    \\
+                    \vdots
+                  }
+                  {\Subtype{\bullet,\tentry{a}{A}}{(\Tabs{\alpha}{A}{B_1})\&(\Tabs{\alpha}{A}{B_2})}{B_1}{\compC{(\alllC{\idC{\toTarget{B_1}}}{\alpha})}{\projlC{\Tabst{\alpha}{\toTarget{B_1}}}{\Tabst{\alpha}{\toTarget{B_2}}}}}}
+                  \\
+                  \vdots
+              %% \inferrule*
+              %%     { }
+              %%     {\Subtype{\bullet,\tentry{a}{A}}{(\Tabs{\alpha}{A}{B_1})\&(\Tabs{\alpha}{A}{B_2})}{B_2}{ }}    
+            }
+            {\Subtype{\bullet,\tentry{a}{A}}{(\Tabs{\alpha}{A}{B_1})\&(\Tabs{\alpha}{A}{B_2})}{B_1\&B_2}{\pairC{\compC{(\alllC{\idC{\toTarget{B_1}}}{\alpha})}{\projlC{\Tabst{\alpha}{\toTarget{B_1}}}{\Tabst{\alpha}{\toTarget{B_2}}}}}{\compC{(\alllC{\idC{\toTarget{B_2}}}{\alpha})}{\projrC{\Tabst{\alpha}{\toTarget{B_1}}}{\Tabst{\alpha}{\toTarget{B_2}}}}}}}
+      }
+      {\Subtype{\bullet}{(\Tabs{\alpha}{A}{B_1})\&(\Tabs{\alpha}{A}{B_2})}{\Tabs{\alpha}{A}{B_1\&B_2}}{\allrC{\alpha}{\pairC{\compC{(\alllC{\idC{\toTarget{B_1}}}{\alpha})}{\projlC{\Tabst{\alpha}{\toTarget{B_1}}}{\Tabst{\alpha}{\toTarget{B_2}}}}}{\compC{(\alllC{\idC{\toTarget{B_2}}}{\alpha})}{\projrC{\Tabst{\alpha}{\toTarget{B_1}}}{\Tabst{\alpha}{\toTarget{B_2}}}}}}}}
+\end{mathpar}
+
+\clearpage
+\section{Algorithmic Specification}
+
+\begin{table}[h]
+  \begin{tabular}{l r r l}
+    Types         & $A, B$   & $::=$ & $\tau~\mid~A \to B~\mid~A \& B~\mid~\textcolor{magenta}{\Tabs{\alpha}{A}{B}}~\mid~\trecord{l}{A}$\vspace{0.1cm}\\
+    Monotypes     & $\tau$   & $::=$ & $\xi~\mid~\tau_1\to\tau_2~\mid~\tau_1\&\tau_2~\mid~\trecord{l}{\tau}$ \vspace{0.1cm}\\
+    Base types    & $\xi$    & $::=$ & $\nat~\mid~\bool~\mid~\top~\mid~\textcolor{magenta}{\alpha}~\mid~\textcolor{magenta}{\hat{\alpha}}$ \vspace{0.3cm}\\
+    Expressions   & $E$      & $::=$ & $i~\mid~\True~\mid~\False~\mid~()~\mid~x~\mid~\abs{x}{E}~\mid~E_1\,E_2~\mid~E_1,,E_2~\mid$\vspace{0.1cm}\\
+                  &          &       & $E : A~\mid~\textcolor{magenta}{\tabs{\alpha}{A}{E}}~\mid~\textcolor{magenta}{E\,A}$\vspace{0.3cm}\\
+    Type context  & $\Delta$ & $::=$ & $\bullet~\mid~\Delta,\tentry{\alpha}{A}~\mid~\Delta,\tentry{\hat{\alpha}}{A}$\vspace{0.3cm}\\
+    Type queue    & $\mathcal{L},\mathcal{M}$ & $::=$ & $\bullet~\mid~\mathcal{L},A$\vspace{0.3cm}\\
+    Coercion context & $\mathcal{C}$ & $::=$ & $\bullet~\mid~\arrCC{\mathcal{C}}{c}$\vspace{0.3cm}\\%\abs{c}{\mathcal{C}}~\mid~\mid~\pair{\mathcal{C}}{e}~\mid~\pair{e}{\mathcal{C}}~\mid~\record{l}{\mathcal{C}}~\mid~$\vspace{0.1cm}\\
+                  %% &          &       & $\textcolor{magenta}{\tabs{\alpha}{A}{\mathcal{C}}}~\mid~\textcolor{magenta}{\tabs{\hat\alpha}{A}{\mathcal{C}}}~\mid~\textcolor{magenta}{\mathcal{C}\,A}$\vspace{0.3cm}\\
+    Type variable substitutions & $\theta$ & $::=$ & $\bullet~\mid~\unification{\alpha}{A},\theta~\mid~\substitution{\alpha}{A},\theta$\vspace{0.3cm}\\
+    %% Unification variable substitutions & $\theta$ & $::=$ & $\bullet~\mid~\substitution{\alpha}{A},\theta$
+  \end{tabular}
+  \caption{The language of the algorithm}
+\end{table}
+
+\subsection{Substitutions}
+\subsubsection{Applying unification variable substitution...}
+\begin{minipage}[t]{0.5\textwidth}
+  \mypar{{...on types}}
+  \begin{align*}
+    [\unification{\alpha}{\tau}]\nat                  &= \nat\\
+    [\unification{\alpha}{\tau}]\top                  &= \top\\
+    [\unification{\alpha}{\tau}]\alpha                &= \alpha\\
+    [\unification{\alpha}{\tau}]\hat\alpha            &= \tau\\
+    [\unification{\alpha}{\tau}]\hat\beta             &= \hat\beta\\
+    [\unification{\alpha}{\tau}](A\to B)              &= ([\unification{\alpha}{\tau}]A)\to([\unification{\alpha}{\tau}]B)\\
+    [\unification{\alpha}{\tau}](A\& B)               &= ([\unification{\alpha}{\tau}]A)\&([\unification{\alpha}{\tau}]B)\\
+    [\unification{\alpha}{\tau}](\Tabs{\alpha}{A}{B}) &= \Tabs{\alpha}{[\unification{\alpha}{\tau}]A}{[\unification{\alpha}{\tau}]B}\\
+    %% [\unification{\alpha}{\tau}](\Tabs{\hat\beta}{A}{B}) &= \Tabs{\hat\beta}{[\unification{\alpha}{\tau}]A}{[\unification{\alpha}{\tau}]B}\\
+    [\unification{\alpha}{\tau}]\trecord{l}{A}        &= \trecord{l}{[\unification{\alpha}{\tau}]A}
+  \end{align*}
+\end{minipage}
+\begin{minipage}[t]{0.5\textwidth}
+  \mypar{{...on terms}}
+  \begin{align*}
+    [\unification{\alpha}{\tau}]i &= i\\
+    [\unification{\alpha}{\tau}]() &= ()\\
+    [\unification{\alpha}{\tau}]x &= x\\
+    [\unification{\alpha}{\tau}]\abs{x}{E} &= \abs{x}{[\unification{\alpha}{\tau}]E}\\
+    [\unification{\alpha}{\tau}](E_1\,E_2) &= ([\unification{\alpha}{\tau}]E_1)\,([\unification{\alpha}{\tau}]E_2)\\
+    [\unification{\alpha}{\tau}](E : A) &= [\unification{\alpha}{\tau}]E : [\unification{\alpha}{\tau}]A\\
+    [\unification{\alpha}{\tau}]\tabs{\alpha}{A}{E} &= \tabs{\alpha}{[\unification{\alpha}{\tau}]A}{[\unification{\alpha}{\tau}]E}\\
+    %% [\unification{\alpha}{\tau}]\tabs{\hat\beta}{A}{E} &= \tabs{\hat\beta}{[\unification{\alpha}{\tau}]A}{[\unification{\alpha}{\tau}]E}\\
+    [\unification{\alpha}{\tau}](E\,A) &= ([\unification{\alpha}{\tau}]E)\, ([\unification{\alpha}{\tau}]A)
+  \end{align*}
+\end{minipage}\\
+
+\noindent
+\begin{minipage}[t]{0.47\textwidth}
+  \mypar{{...on type contexts}}
+  \begin{align*}
+    [\unification{\alpha}{\tau}]\bullet &= \bullet\\
+    [\unification{\alpha}{\tau}](\Delta,\tentry{\alpha}{A}) &= [\unification{\alpha}{\tau}]\Delta,\tentry{\alpha}{[\unification{\alpha}{\tau}]A}\\
+    [\unification{\alpha}{\tau}](\Delta,\tentry{\hat\alpha}{A}) &= [\unification{\alpha}{\tau}]\Delta\\
+    [\unification{\alpha}{\tau}](\Delta,\tentry{\hat\beta}{A}) &= [\unification{\alpha}{\tau}]\Delta,\tentry{\hat\beta}{[\unification{\alpha}{\tau}]A}\\
+  \end{align*}
+\end{minipage}
+\begin{minipage}[t]{0.47\textwidth}
+    \mypar{{...on type queues}}
+  \begin{align*}
+    [\unification{\alpha}{\tau}]\bullet &= \bullet\\
+    [\unification{\alpha}{\tau}](\mathcal{M},A) &= [\unification{\alpha}{\tau}]\mathcal{M},([\unification{\alpha}{\tau}]A)\\
+  \end{align*}
+  %% \mypar{\large{...on coercion contexts}}
+  %% \begin{align*}
+  %%   [\unification{\alpha}{\tau}]\bullet &= \bullet\\
+  %%   [\unification{\alpha}{\tau}]\abs{c}{\mathcal{C}} &= \abs{c}{[\unification{\alpha}{\tau}]\mathcal{C}}\\
+  %%   [\unification{\alpha}{\tau}](\mathcal{C}\,e) &= ([\unification{\alpha}{\tau}]\mathcal{C})\, ([\unification{\alpha}{\tau}]e)\\
+  %%   [\unification{\alpha}{\tau}](e\,\mathcal{C}) &= ([\unification{\alpha}{\tau}]e)\, ([\unification{\alpha}{\tau}]\mathcal{C})\\
+  %%   [\unification{\alpha}{\tau}]\pair{\mathcal{C}}{e} &= \pair{[\unification{\alpha}{\tau}]\mathcal{C}}{[\unification{\alpha}{\tau}]e}\\
+  %%   [\unification{\alpha}{\tau}]\pair{e}{\mathcal{C}} &= \pair{[\unification{\alpha}{\tau}]e}{[\unification{\alpha}{\tau}]\mathcal{C}}\\
+  %%   [\unification{\alpha}{\tau}]\record{l}{\mathcal{C}} &= \record{l}{[\unification{\alpha}{\tau}]\mathcal{C}}\\
+  %%   [\unification{\alpha}{\tau}]\tabs{\alpha}{A}{\mathcal{C}} &= \tabs{\alpha}{[\unification{\alpha}{\tau}]A}{[\unification{\alpha}{\tau}]\mathcal{C}}\\
+  %%   [\unification{\alpha}{\tau}]\tabs{\hat\beta}{A}{\mathcal{C}} &= \tabs{\hat\beta}{[\unification{\alpha}{\tau}]A}{[\unification{\alpha}{\tau}]\mathcal{C}}\\
+  %%   [\unification{\alpha}{\tau}](\mathcal{C}\,A) &= ([\unification{\alpha}{\tau}]\mathcal{C})\, ([\unification{\alpha}{\tau}]A)
+  %% \end{align*}
+\end{minipage}\vspace{3pt}
+
+\subsubsection{Applying type variable substitution...}
+\begin{minipage}[t]{0.5\textwidth}
+  \mypar{{...on types}}
+  \begin{align*}
+    [{\alpha}\mapsto{\tau}]\nat                  &= \nat\\
+    [{\alpha}\mapsto{\tau}]\top                  &= \top\\
+    [{\alpha}\mapsto{\tau}]\alpha                &= \tau\\
+    [{\alpha}\mapsto{\tau}]\beta                 &= \beta\\
+    [{\alpha}\mapsto{\tau}]\hat\alpha            &= \hat\alpha\\
+    [{\alpha}\mapsto{\tau}](A\to B)              &= ([\substitution{\alpha}{\tau}]A)\to([\unification{\alpha}{\tau}]B)\\
+    [{\alpha}\mapsto{\tau}](A\& B)               &= ([\substitution{\alpha}{\tau}]A)\&([\unification{\alpha}{\tau}]B)\\
+    [{\alpha}\mapsto{\tau}](\Tabs{\alpha}{A}{B}) &= \Tabs{\alpha}{[\substitution{\alpha}{\tau}]A}{[\substitution{\alpha}{\tau}]B}\\
+    %% [{\alpha}\mapsto{\tau}](\Tabs{\hat\beta}{A}{B}) &= \Tabs{\hat\beta}{[\substitution{\alpha}{\tau}]A}{[\substitution{\alpha}{\tau}]B}\\
+    [{\alpha}\mapsto{\tau}]\trecord{l}{A}        &= \trecord{l}{[\substitution{\alpha}{\tau}]A}
+  \end{align*}
+\end{minipage}
+\begin{minipage}[t]{0.5\textwidth}
+  \mypar{{...on terms}}
+  \begin{align*}
+    [\substitution{\alpha}{\tau}]i &= i\\
+    [\substitution{\alpha}{\tau}]() &= ()\\
+    [\substitution{\alpha}{\tau}]x &= x\\
+    [\substitution{\alpha}{\tau}]\abs{x}{E} &= \abs{x}{[\substitution{\alpha}{\tau}]E}\\
+    [\substitution{\alpha}{\tau}](E_1\,E_2) &= ([\substitution{\alpha}{\tau}]E_1)\,([\substitution{\alpha}{\tau}]E_2)\\
+    [\substitution{\alpha}{\tau}](E : A) &= [\substitution{\alpha}{\tau}]E : [\substitution{\alpha}{\tau}]A\\
+    [\substitution{\alpha}{\tau}]\tabs{\beta}{A}{E} &= \tabs{\beta}{[\substitution{\alpha}{\tau}]A}{[\substitution{\alpha}{\tau}]E}\\
+    %% [\substitution{\alpha}{\tau}]\tabs{\hat\alpha}{A}{E} &= \tabs{\hat\alpha}{[\substitution{\alpha}{\tau}]A}{[\substitution{\alpha}{\tau}]E}\\
+    [\substitution{\alpha}{\tau}](E\,A) &= ([\substitution{\alpha}{\tau}]E)\, ([\substitution{\alpha}{\tau}]A)
+  \end{align*}
+\end{minipage}\\
+
+\noindent
+\begin{minipage}[t]{0.47\textwidth}
+  \mypar{{...on type contexts}}
+  \begin{align*}
+    [\substitution{\alpha}{\tau}]\bullet &= \bullet\\
+    [\substitution{\alpha}{\tau}](\Delta,\tentry{\alpha}{A}) &= [\substitution{\alpha}{\tau}]\Delta\\
+    [\substitution{\alpha}{\tau}](\Delta,\tentry{\beta}{A}) &= [\substitution{\alpha}{\tau}]\Delta,\tentry{\beta}{[\substitution{\alpha}{\tau}]A}\\
+    [\substitution{\alpha}{\tau}](\Delta,\tentry{\hat\alpha}{A}) &= [\substitution{\alpha}{\tau}]\Delta,\tentry{\hat\alpha}{[\substitution{\alpha}{\tau}]A}
+  \end{align*}
+\end{minipage}
+\begin{minipage}[t]{0.47\textwidth}
+    \mypar{{...on type queues}}
+  \begin{align*}
+    [\substitution{\alpha}{\tau}]\bullet &= \bullet\\
+    [\substitution{\alpha}{\tau}](\mathcal{M},A) &= [\substitution{\alpha}{\tau}]\mathcal{M},([\substitution{\alpha}{\tau}]A)\\
+  \end{align*}
+  %% \mypar{\large{...on coercion contexts}}
+  %% \begin{align*}
+  %%   [\unification{\alpha}{\tau}]\bullet &= \bullet\\
+  %%   [\unification{\alpha}{\tau}]\abs{c}{\mathcal{C}} &= \abs{c}{[\unification{\alpha}{\tau}]\mathcal{C}}\\
+  %%   [\unification{\alpha}{\tau}](\mathcal{C}\,e) &= ([\unification{\alpha}{\tau}]\mathcal{C})\, ([\unification{\alpha}{\tau}]e)\\
+  %%   [\unification{\alpha}{\tau}](e\,\mathcal{C}) &= ([\unification{\alpha}{\tau}]e)\, ([\unification{\alpha}{\tau}]\mathcal{C})\\
+  %%   [\unification{\alpha}{\tau}]\pair{\mathcal{C}}{e} &= \pair{[\unification{\alpha}{\tau}]\mathcal{C}}{[\unification{\alpha}{\tau}]e}\\
+  %%   [\unification{\alpha}{\tau}]\pair{e}{\mathcal{C}} &= \pair{[\unification{\alpha}{\tau}]e}{[\unification{\alpha}{\tau}]\mathcal{C}}\\
+  %%   [\unification{\alpha}{\tau}]\record{l}{\mathcal{C}} &= \record{l}{[\unification{\alpha}{\tau}]\mathcal{C}}\\
+  %%   [\unification{\alpha}{\tau}]\tabs{\alpha}{A}{\mathcal{C}} &= \tabs{\alpha}{[\unification{\alpha}{\tau}]A}{[\unification{\alpha}{\tau}]\mathcal{C}}\\
+  %%   [\unification{\alpha}{\tau}]\tabs{\hat\beta}{A}{\mathcal{C}} &= \tabs{\hat\beta}{[\unification{\alpha}{\tau}]A}{[\unification{\alpha}{\tau}]\mathcal{C}}\\
+  %%   [\unification{\alpha}{\tau}](\mathcal{C}\,A) &= ([\unification{\alpha}{\tau}]\mathcal{C})\, ([\unification{\alpha}{\tau}]A)
+  %% \end{align*}
+\end{minipage}\vspace{3pt}
+\subsubsection{Completing coercion contexts}
+\begin{minipage}[t]{0.47\textwidth}
+\begin{align*}
+  \bullet [c] &= c\\
+  (\arrCC{\mathcal{C}}{c'})[c] &= \mathcal{C}[c'\to c]\\
+  (\projlCC{\mathcal{C}}{A}{B})[c] &= \mathcal{C}[\compC{c}{\projlC{A}{B}}]\\
+  (\projrCC{\mathcal{C}}{A}{B})[c] &= \mathcal{C}[\compC{c}{\projrC{A}{B}}]\\
+  (\mpCC{\mathcal{C}}{\mathcal{M}}{c_1}{c_2}{A}{B})[c] &= \ldots
+\end{align*}
+\end{minipage}
+
+\subsection{Judgments}
+\mypar{Well-formed substitution (algorithmic)}
+\fbox{
+\begin{mathpar}
+  \inferrule*[right=WFS-nil]{ }{\wfSubst{\Delta}{\bullet}{\bullet}} \and
+  \inferrule*[]{\wfSubst{\Delta}{\theta,\unification{\alpha}{A}}{\theta'}}{\wfSubst{\Delta,\tentry{\alpha}{B}}{\theta,\unification{\alpha}{A}}{\theta'}} \and
+  \inferrule*{\wfSubst{\Delta}{\theta,\unification{\beta}{A}}{\theta'}}{\wfSubst{\Delta,\tentry{\hat{\alpha}}{B}}{\theta,\unification{\beta}{A}}{\theta'}} \and
+  \inferrule*[right=WFS-next]{\wfSubst{\Delta}{\theta}{\theta_1} \\ \theta_1\circ\theta(\algdisjoint{\Delta}{A}{B)}{\theta_2}}{\wfSubst{\Delta,\tentry{\hat{\alpha}}{B}}{\theta,\unification{\alpha}{A}}{\theta_1\circ\theta_2}}
+\end{mathpar}
+}
+\mypar{Unification algorithm}
+\fbox{
+  \begin{mathpar}
+    \inferrule*[right=U-refl]{ }{\unifyB{\Delta}{\xi}{\xi}{\bullet}} \and
+    \inferrule*[right=U-NatV]{\wfSubst{\Delta}{\unification{\alpha}{\nat}}{\theta}}{\unifyB{\Delta}{\nat}{\hat{\alpha}}{\theta,\unification{\alpha}{\nat}}} \and
+    \inferrule*[right=U-VNat]{\wfSubst{\Delta}{\unification{\alpha}{\nat}}{\theta}}{\unifyB{\Delta}{\hat{\alpha}}{\nat}{\theta,\unification{\alpha}{\nat}}} \and
+    \inferrule*[right=U-CV]{\wfSubst{\Delta}{\unification{\alpha}{\alpha}}{\theta}}{\unifyB{\Delta}{\alpha}{\hat{\alpha}}{\theta,\hat{\alpha}\mapsto\alpha}}\and
+    \inferrule*[right=U-VC]{\wfSubst{\Delta}{\unification{\alpha}{\alpha}}{\theta}}{\unifyB{\Delta}{\hat{\alpha}}{\alpha}{\theta,\hat{\alpha}\mapsto\alpha}}
+  \end{mathpar}
+}\\
+\fbox{
+  \begin{mathpar}
+    \inferrule{\unifyB{\Delta}{\xi_1}{\xi_2}{\theta}}{\unifyM{\Delta}{\xi_1}{\xi_2}{\theta}}
+  \end{mathpar}
+}
+\mypar{Algorithmic disjointness}
+
+Formula $\notarrow{A}$, in the rules below, means that $A$ is not a function type.\\
+\fbox{
+\begin{mathpar}
+  \inferrule*[right=AD-TopL]{ }{\algdisjoint{\Delta}{\top}{A}{\bullet}} \and
+  \inferrule*[right=AD-TopR]{ }{\algdisjoint{\Delta}{A}{\top}{\bullet}} \\
+  \inferrule*[right=AD-VarL]{\tentry{\alpha}{A}\in\Delta \\ \algSubRight{\Delta}{\bullet}{A}{B}{c}{\theta}}{\algdisjoint{\Delta}{\alpha}{B}{\theta}} \and
+  \inferrule*[right=AD-VarR]{\tentry{\beta}{B}\in{\Delta} \\ \algSubRight{\Delta}{\bullet}{B}{A}{c}{\theta}}{\algdisjoint{\Delta}{A}{\beta}{\theta}} \and
+  \inferrule*[right=AD-UVarL]{\tentry{\hat\alpha}{A}\in\Delta \\ \algSubRight{\Delta}{\bullet}{A}{B}{c}{\theta}}{\algdisjoint{\Delta}{\hat\alpha}{B}{\theta}} \and
+  \inferrule*[right=AD-UVarR]{\tentry{\hat\beta}{B}\in{\Delta} \\ \algSubRight{\Delta}{\bullet}{B}{A}{c}{\theta}}{\algdisjoint{\Delta}{A}{\hat\beta}{\theta}} \and
+  \inferrule*[right=AD-Arr]{\algdisjoint{\Delta}{A_2}{B_2}{\theta}}{\algdisjoint{\Delta}{A_1\to A_2}{B_1\to B_2}{\theta}} \and
+  \inferrule*[right=AD-ArrL]{\algdisjoint{\Delta}{A_2}{B}{\theta} \\ \notarrow{B}}{\algdisjoint{\Delta}{A_1\to A_2}{B}{\theta}} \and
+  \inferrule*[right=AD-ArrR]{\algdisjoint{\Delta}{A}{B_2}{\theta} \\ \notarrow{A}}{\algdisjoint{\Delta}{A}{B_1\to B_2}{\theta}} \and
+  \inferrule*[right=AD-AndL]{\algdisjoint{\Delta}{A_1}{B}{\theta} \\ \algdisjoint{\Delta}{A_2}{B}{\theta} \\ \notarrow{B}}{\algdisjoint{\Delta}{A_1\& A_2}{B}{\theta}} \and
+  \inferrule*[right=AD-AndR]{\algdisjoint{\Delta}{A}{B_1}{\theta} \\ \algdisjoint{\Delta}{A}{B_2}{\theta} \\ \notarrow{A}}{\algdisjoint{\Delta}{A}{B_1\& B_2}{\theta}} \and
+  \inferrule*[right=AD-All]{\algdisjoint{\Delta,\tentry{\hat\alpha}{A_1\& B_1}}{[\alpha\mapsto\hat\alpha]B_1}{[\alpha\mapsto\hat\alpha]B_2}{\theta}}{\algdisjoint{\Delta}{\Tabs{\alpha}{A_1}{A_2}}{\Tabs{\alpha}{B_1}{B_2}}{\theta}}\and
+  \inferrule*[right=AD-AllL]{\algdisjoint{\Delta,\tentry{\hat\alpha}{A}}{[\alpha\mapsto\hat\alpha]B_1}{B_2}{\theta}}{\algdisjoint{\Delta}{\Tabs{\alpha}{A}{B_1}}{B_2}{\theta}}\and
+  \inferrule*[right=AD-AllR]{\algdisjoint{\Delta,\tentry{\hat\alpha}{A}}{B_1}{[\alpha\mapsto\hat\alpha]B_2}{\theta}}{\algdisjoint{\Delta}{B_1}{\Tabs{\alpha}{A}{B_2}}{\theta}}\and
+  \inferrule*[right=AD-AX]{\starax{A}{B}}{\algdisjoint{\Delta}{A}{B}{\bullet}}
+\end{mathpar}
+}\\
+\fbox{
+  \begin{mathpar}
+    \inferrule*[right=AX-NatBool]{ }{\starax{\nat}{\bool}}\and
+    \inferrule*[right=AX-BoolNat]{ }{\starax{\bool}{\nat}}
+    %% \inferrule*{}
+  \end{mathpar}
+}
+
+\begin{figure}[h]
+  \caption{Algorithmic subtyping}
+  \begin{subfigure}{\textwidth}
+    \begin{mathpar}
+      \inferrule{\algSubRight{\bullet}{\bullet}{A}{B}{c}{\theta}}{\algSubMain{A}{B}{c}{\theta}}
+    \end{mathpar}
+    \caption{Main judgment}
+  \end{subfigure}
+  
+  \begin{subfigure}{\textwidth}
+    \begin{mathpar}
+      \inferrule
+          { }
+          {\algSubRight{\Delta}{\mathcal{L}}{A}{\top}{\compC{\toparrowqueue{\mathcal{L}}}{\topC{\toTarget{A}}}}{\bullet}}
+      \and
+      \inferrule*[right=AR-and]
+          {\algSubRight{\Delta}{\mathcal{L}}{A}{B_1}{c_1}{\theta} \\ \algSubRight{\Delta}{\mathcal{L}}{A}{B_2}{c_2}{\theta}}
+          {\algSubRight{\Delta}{\mathcal{L}}{A}{B_1\& B_2}{\compC{\distarrowqueue{\mathcal{L}}{B_1}{B_2}}{\pairC{c_1}{c_2}}}{\theta}}
+      \and
+      \inferrule
+          {\algSubRight{\Delta}{\mathcal{L},B_1}{A}{B_2}{c}{\theta}}
+          {\algSubRight{\Delta}{\mathcal{L}}{A}{B_1\to B_2}{c}{\theta}}
+      \and
+      \inferrule*[right=AR-all]
+          {\algSubRight{\Delta,\tentry{\alpha}{B_1}}{\mathcal{L}}{A}{B_2}{c}{\theta}}
+          {\algSubRight{\Delta}{\mathcal{L}}{A}{\Tabs{\alpha}{B_1}{B_2}}{\allrC{\alpha}{c}}{\theta}}
+      \and
+      \inferrule*[right=AR-base]
+          {\algSubLeft{\Delta}{\mathcal{L}}{\bullet}{A}{\abs{c}{c}}{A}{\xi}{\mathcal{C}}{\theta}}
+          {\algSubRight{\Delta}{\mathcal{L}}{A}{\xi}{\mathcal{C}[\idC{\toTarget{A}}]}{\theta}}
+    \end{mathpar}
+    \caption{Right focus}
+  \end{subfigure}
+
+  \begin{subfigure}{\textwidth}
+    \begin{mathpar}
+      \inferrule*[right=AL-Base]
+          {\unifyB{\Delta}{\xi_1}{\xi_2}{\theta}}
+          {\algSubLeft{\Delta}{\bullet}{\mathcal{M}}{A_0}{\mathcal{C}}{\xi_1}{\xi_2}{\mathcal{C}}{\theta}}
+          \and
+      \inferrule*[right=AL-VarArr]
+                 {\theta= [\unification{\alpha}{(\hat\alpha_1\to\hat\alpha_2)}] \\ \fresh{\hat\alpha_1, \hat\alpha_2}\\
+                   \algSubRight{\theta(\Delta)}{\bullet}{\theta'(B_1)}{\hat\alpha_1}{c_1}{\theta_1}\\
+                   \theta_1\circ\theta(\algSubLeft{\Delta}{\mathcal{L}}{\mathcal{M},B_1}{A_0}{\abs{c}{\mathcal{C}[\arrC{c_1}{c}]}}{\hat\alpha_2}{\xi}{\mathcal{C'}}{\theta_2})
+                 }
+          {\algSubLeft{\Delta}{B_1,\mathcal{L}}{\mathcal{M}}{A_0}{\mathcal{C}}{\hat\alpha}{\xi}{\mathcal{C'}}{\theta_2\circ\theta_1\circ\theta}}
+      \and
+      \inferrule*[right=AL-AndL]
+          {\algSubLeft{\Delta}{\mathcal{L}}{\mathcal{M}}{A_0}{\abs{c}{\mathcal{C}[\compC{c}{\projlC{\toTarget{A_1}}{\toTarget{A_2}}}]}}{A_1}{\xi}{\mathcal{C'}}{\theta}}
+          {\algSubLeft{\Delta}{\mathcal{L}}{\mathcal{M}}{A_0}{\mathcal{C}}{A_1\& A_2}{\xi}{\mathcal{C'}}{\theta}}
+      \and
+      \inferrule*[right=AL-AndR]
+          {\algSubLeft{\Delta}{\mathcal{L}}{\mathcal{M}}{A_0}{\abs{c}{\mathcal{C}[\compC{c}{\projrC{\toTarget{A_1}}{\toTarget{A_2}}}]}}{A_2}{\xi}{\mathcal{C'}}{\theta}}
+          {\algSubLeft{\Delta}{\mathcal{L}}{\mathcal{M}}{A_0}{\mathcal{C}}{A_1\& A_2}{\xi}{\mathcal{C'}}{\theta}}
+      \and
+      \inferrule*[right=AL-Arr]
+          {\algSubRight{\Delta}{\bullet}{B_1}{A_1}{c_1}{\theta_1}\\ \theta_1(\algSubLeft{\Delta}{\mathcal{L}}{\mathcal{M},B_1}{A_0}{\abs{c}{\mathcal{C}[\arrC{c_1}{c}]}}{A_2}{\xi}{\mathcal{C'}}{\theta})}
+          {\algSubLeft{\Delta}{B_1,\mathcal{L}}{\mathcal{M}}{A_0}{\mathcal{C}}{A_1\to A_2}{\xi}{\mathcal{C'}}{\theta_2\circ\theta_1}}
+      \and
+      \mprset{vskip=2pt}
+      \inferrule*[right=AL-MP]
+                 {\algSubRight{\Delta}{\bullet}{A_0}{\arrowqueue{\mathcal{M}}{A_1}}{c_1}{\theta_1}\\
+                  \theta_1(\algSubLeft{\Delta}{\mathcal{L}}{\mathcal{M}}{A_0}{\mathcal{C'}}{A_2}{\xi}{\mathcal{C''}}{\theta_2})\\
+                  \elab{\mathcal{C'} = \abs{c}{\compC{\distarrowqueueC{\mathcal{M}}{\left(\compC{c}{(\mpC{\projlC{\toTarget{A_1\to A_2}}{\toTarget{A_1}}}{\projrC{\toTarget{A_1\to A_2}}{\toTarget{A_1}}})}\right)}{(A_1\to A_2)}{A_1}}{\pairC{\mathcal{C}[\idC{\toTarget{A_1\to A_2}}]}{c_1}}}}
+                 }
+          {\algSubLeft{\Delta}{\mathcal{L}}{\mathcal{M}}{A_0}{\mathcal{C}}{A_1\to A_2}{\xi}{\mathcal{C''}}{\theta_2\circ\theta_1}}
+      \and
+      \mprset{vskip=}
+      \inferrule*[right=AL-Forall]
+                 {\algSubLeft{\Delta,\tentry{\hat{\alpha}}{A}}{\mathcal{L}}{\mathcal{M}}{A_0}{\abs{c}{\mathcal{C}[\alllC{c}{\hat\alpha}]}}{[\alpha\mapsto\hat{\alpha}]B}{\xi}{\mathcal{C'}}{\theta}\\
+                 \fresh{\hat\alpha}}
+                 {\algSubLeft{\Delta}{\mathcal{L}}{\mathcal{M}}{A_0}{\mathcal{C}}{\Tabs{\alpha}{A}{B}}{\xi}{\mathcal{C'}}{\theta}}
+    \end{mathpar}
+    \caption{Left focus}
+  \end{subfigure}
+\end{figure}
+
+\section{Guide}
+\begin{theorem}
+  \newcommand*{\dom}[1]{\mathsf{dom}(#1)}
+  If $\wfSubst{\Delta}{\theta}{\theta'}$, then $\dom{\theta}\cap\dom{\theta'}=\emptyset$.
+\end{theorem}
+\begin{proof}
+  \newcommand*{\dom}[1]{\mathsf{dom}(#1)}
+  Easy by induction on the well-formed-substitution judgment. The only interesting case is where
+  \begin{itemize}
+  \item \(\inferrule{\wfSubst{\Delta}{\theta}{\theta_1} \\ \theta_1\circ\theta(\algdisjoint{\Delta}{A}{B)}{\theta_2}}{\wfSubst{\Delta,\tentry{\hat{\alpha}}{B}}{\theta,\unification{\alpha}{A}}{\theta_1\circ\theta_2}}\)
+  \end{itemize}
+  From the fact that $\hat\alpha\not\in\Delta$ and the two premises of the rule, it follows that $\hat\alpha\not\in\dom{\theta_1}$ and $\hat\alpha\not\in\dom{\theta_2}$.
+  From the definition of substitution, we have $\forall\beta,\,\beta\in\dom{\theta_1\circ\theta}\implies\beta\not\in\dom{(\theta_1\circ\theta)(\Delta)}$.
+  Therefore, from the second premise it follows that $\beta\not\in\dom{\theta_2}$. Then, $\dom{\theta}\cap\dom{\theta_2}=\emptyset$.\\  
+  Also, from the induction hypothesis and the first premise of the rule, it follows that $\dom{\theta}\cap\dom{\theta_1}=\emptyset$.\\
+  Altogether, we get that $(\dom{\theta}\cup\{\hat\alpha\})\cap\dom{\theta_1\circ\theta_2}=\emptyset$.
+\end{proof}
+\subsection{Examples}
+With
+\begin{align*}
+  \mathcal{A} &:= \Tabs{\alpha}{\top}{\Tabs{\beta}{\alpha}{\Tabs{\gamma}{\alpha\&\beta}{\gamma\to\alpha\&\beta}}}\\
+  \Delta_1    &:= \tentry{\alpha}{\top},\tentry{\beta}{\alpha\&\nat}\\
+  \Delta_2    &:= \tentry{\hat\alpha}{\top},\tentry{\hat\beta}{\hat\alpha},\tentry{\hat\gamma}{\hat{\alpha}\&\hat\beta}\\
+\end{align*}
+we have
+\[
+\mprset{vskip=0ex}
+\inferrule*[right=AR-all*]
+ {
+   \inferrule*[Right=AR-arr]
+    {
+      \inferrule*[Right=AR-and]
+       {
+         \inferrule*
+          {\vdots}
+         {\algSubRight{\Delta_1}{\beta}{\mathcal{A}}{\alpha}{?_1}{?}}
+         \\
+         \inferrule*[Right=AR-base]
+          {
+            \inferrule*[Right=AL-all*]
+             {
+               \inferrule*[Right=AL-arr]
+                {
+                  \inferrule*[right=AR-base,leftskip=2cm]
+                   {
+                     \inferrule*[Right=AL-base]
+                      {
+                        \inferrule*
+                         {
+                           \inferrule*
+                            {
+                              \inferrule*[Right=AD-andR]
+                               {
+                                 \inferrule*[right=AD-varL,leftskip=2cm]
+                                  {
+                                    \inferrule*[]
+                                     { }
+                                     {\algSubRight{\Delta_1,\Delta_2}{}{}{}{}{}}
+                                  }
+                                  {\algdisjoint{\Delta_1,\Delta_2}{\beta}{\hat\alpha}{?}}
+                                 \\
+                                 \inferrule*[right=AD-varL,rightskip=3cm]
+                                  {\vdots}
+                                  {\algdisjoint{\Delta_1,\Delta_2}{\beta}{\hat{\beta}}{?}}
+                                 %% \vdots
+                               }
+                               {\algdisjoint{\Delta_1,\Delta_2}{\beta}{\hat{\alpha}\&\hat\beta}{?}}
+                            }
+                            {\wfSubst{\Delta_1,\Delta_2}{\unification{\gamma}{\beta}}}
+                         }
+                         {\unifyB{\Delta_1,\Delta_2}{\beta}{\hat\gamma}{?}}
+                      }
+                      {\algSubLeft{\Delta_1,\Delta_2}{\bullet}{\bullet}{\beta}{\abs{c}{c}}{\beta}{\hat\gamma}{?}{?}}
+                   }
+                   {\algSubRight{\Delta_1,\Delta_2}{\bullet}{\beta}{\hat\gamma}{?}{?}}
+                  \\
+                  \inferrule*[rightskip=2cm]
+                   { }
+                   {\algSubLeft{}{}{\beta}{\mathcal{A}}{}{}{\nat}{?}{?}}
+                }
+                {\algSubLeft{\Delta_1,\Delta_2}{\beta}{\bullet}{\mathcal{A}}{\abs{c}{c}}{\hat\gamma\to\hat{\alpha}\&\hat\beta}{\nat}{?}{?}}
+             }
+             {\algSubLeft{\Delta_1}{\beta}{\bullet}{\mathcal{A}}{\abs{c}{c}}{\mathcal{A}}{\nat}{?}{?}}
+          }
+          {\algSubRight{\Delta_1}{\beta}{\mathcal{A}}{\nat}{?_2}{?}}
+       }
+       {\algSubRight{\Delta_1}{\beta}{\Tabs{\alpha}{\top}{\Tabs{\beta}{\alpha}{\Tabs{\gamma}{\alpha\&\beta}{\gamma\to\alpha\&\beta}}}}{\alpha\&\nat}{\pairC{?_1}{?_2}}{?}}
+    }
+    {\algSubRight{\Delta_1}{\bullet}{\Tabs{\alpha}{\top}{\Tabs{\beta}{\alpha}{\Tabs{\gamma}{\alpha\&\beta}{\gamma\to\alpha\&\beta}}}}{\beta\to\alpha\&\nat}{?}{?}}
+ }
+ {\algSubRight{\bullet}{\bullet}{\Tabs{\alpha}{\top}{\Tabs{\beta}{\alpha}{\Tabs{\gamma}{\alpha\&\beta}{\gamma\to\alpha\&\beta}}}}{\Tabs{\alpha}{\top}{\Tabs{\beta}{\alpha\&\nat}{\beta\to\alpha\&\nat}}}{?}{?}}
+\]
+\end{document}
