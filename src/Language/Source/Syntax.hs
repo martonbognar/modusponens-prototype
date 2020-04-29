@@ -1,6 +1,6 @@
 {-# OPTIONS_GHC -Wall #-}
 
-module Language.NeColus.Syntax where
+module Language.Source.Syntax where
 
 import Prelude hiding ((<>))
 
@@ -10,7 +10,7 @@ import Text.PrettyPrint
 
 import PrettyPrinter
 
--- * Main NeColus types
+-- * Main Source types
 -- ----------------------------------------------------------------------------
 
 data Monotype

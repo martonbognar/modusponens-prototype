@@ -1,14 +1,14 @@
 {-# OPTIONS_GHC -Wall #-}
 
-module Language.NeColus.Renamer where
+module Language.Source.Renamer where
 
 import Control.Monad.Renamer
 import Data.Variable
 
-import qualified Language.NeColus.RawSyntax as Raw
-import Language.NeColus.Syntax
+import qualified Language.Source.RawSyntax as Raw
+import Language.Source.Syntax
 
--- | Convert a raw syntax type to a NeColus type.
+-- | Convert a raw syntax type to a Source type.
 rnType :: Raw.Type -> Type
 rnType Raw.TyNat         = TyMono TyNat
 rnType Raw.TyTop         = TyMono TyTop
@@ -16,23 +16,23 @@ rnType (Raw.TyArr t1 t2) = TyArr (rnType t1) (rnType t2)
 rnType (Raw.TyIs t1 t2)  = TyIs (rnType t1) (rnType t2)
 -- rnType (Raw.TyRec l t)   = TyRec l (rnType t)
 
--- | A stack for storing raw - NeColus variable assignments.
+-- | A stack for storing raw - Source variable assignments.
 data RnEnv = EmptyRnEnv
            | SnocRnEnv RnEnv Raw.RawVariable Variable
 
--- | Get the NeColus variable for a raw variable in a stack.
+-- | Get the Source variable for a raw variable in a stack.
 rnLookup :: Raw.RawVariable -> RnEnv -> Maybe Variable
 rnLookup _ EmptyRnEnv = Nothing
 rnLookup v (SnocRnEnv env v' x)
   | Raw.eqRawVariable v v' = Just x
   | otherwise              = rnLookup v env
 
--- | Covert a full expression from raw syntax to NeColus syntax
+-- | Covert a full expression from raw syntax to Source syntax
 -- given an initial stack and state.
 rnExpr :: Raw.Expression -> (Expression, Integer)
 rnExpr ex = runState (rnExprM EmptyRnEnv ex) 0
 
--- | Convert a raw expression to NeColus syntax.
+-- | Convert a raw expression to Source syntax.
 rnExprM :: RnEnv -> Raw.Expression -> RnM Expression
 rnExprM _ (Raw.ExLit i)  = return (ExLit i)
 rnExprM _ Raw.ExTop      = return ExTop

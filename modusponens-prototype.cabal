@@ -52,12 +52,12 @@ library
     Control.Monad.Renamer,
     Data.Label,
     Data.Variable,
-    Language.LambdaC,
-    Language.NeColus.Parser,
-    Language.NeColus.RawSyntax,
-    Language.NeColus.Renamer,
-    Language.NeColus.Syntax,
-    Language.NeColus.TypeCheck,
+    Language.Target,
+    Language.Source.Parser,
+    Language.Source.RawSyntax,
+    Language.Source.Renamer,
+    Language.Source.Syntax,
+    Language.Source.TypeCheck,
     Main
 
   -- Modules included in this library but not exported.

@@ -1,6 +1,6 @@
 {-# OPTIONS_GHC -Wall #-}
 
-module Language.NeColus.Parser where
+module Language.Source.Parser where
 
 import Data.Label
 import Text.Parsec.Prim (Stream, ParsecT)
@@ -8,7 +8,7 @@ import Text.ParserCombinators.Parsec
 import Text.ParserCombinators.Parsec.Language
 import qualified Text.ParserCombinators.Parsec.Token as Token
 
-import qualified Language.NeColus.RawSyntax as NC
+import qualified Language.Source.RawSyntax as NC
 
 -- | Return the language definition of the raw syntax.
 languageDef :: LanguageDef st

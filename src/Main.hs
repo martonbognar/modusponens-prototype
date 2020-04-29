@@ -2,10 +2,10 @@
 
 module Main (main) where
 
-import Language.LambdaC
-import Language.NeColus.Parser
-import Language.NeColus.Renamer
-import Language.NeColus.TypeCheck
+import Language.Target
+import Language.Source.Parser
+import Language.Source.Renamer
+import Language.Source.TypeCheck
 
 main :: IO ()
 main = do

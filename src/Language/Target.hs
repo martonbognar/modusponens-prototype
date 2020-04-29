@@ -1,7 +1,7 @@
 {-# OPTIONS_GHC -Wall #-}
 {-# LANGUAGE LambdaCase #-}
 
-module Language.LambdaC where
+module Language.Target where
 
 import Prelude hiding ((<>))
 
@@ -13,7 +13,7 @@ import Text.PrettyPrint
 
 import PrettyPrinter
 
--- * Main LambdaC types
+-- * Main Target types
 -- ----------------------------------------------------------------------------
 
 -- | Target types
@@ -145,7 +145,7 @@ instance Show Expression where
 instance Show Coercion where
   show = render . ppr
 
--- * LambdaC Operational Semantics
+-- * Target Operational Semantics
 -- ----------------------------------------------------------------------------
 
 -- | Determine whether a term is a target value.
@@ -346,7 +346,7 @@ step (ExCoApp c e) =
 
 step _ = return Nothing
 
--- * LambdaC Typing
+-- * Target Typing
 -- ----------------------------------------------------------------------------
 
 -- | Get the type of a variable from a context.

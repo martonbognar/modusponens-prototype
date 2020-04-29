@@ -1,6 +1,6 @@
 {-# OPTIONS_GHC -Wall #-}
 
-module Language.NeColus.RawSyntax where
+module Language.Source.RawSyntax where
 
 import Prelude hiding ((<>))
 
@@ -15,7 +15,7 @@ newtype RawVariable = MkRawVar { unRawVar :: String }
 eqRawVariable :: RawVariable -> RawVariable -> Bool
 eqRawVariable = (==) `on` unRawVar
 
--- * Main NeColus types
+-- * Main Source types
 -- ----------------------------------------------------------------------------
 
 data Type

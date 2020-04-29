@@ -1,8 +1,8 @@
 {-# OPTIONS_GHC -Wall #-}
 
-module Language.NeColus.TypeCheck (inference, checking) where
+module Language.Source.TypeCheck (inference, checking) where
 
-import qualified Language.LambdaC as Target
+import qualified Language.Target as Target
 
 import Control.Applicative ((<|>))
 import Control.Monad (guard)
@@ -10,7 +10,7 @@ import Data.Variable
 import Data.Label
 import Data.Maybe
 
-import Language.NeColus.Syntax
+import Language.Source.Syntax
 
 type TcM a = Either String a
 
@@ -49,7 +49,7 @@ baseToType (BaseVar v) = TyMono (TyVar v)
 baseToType (BaseSubstVar v) = TySubstVar v
 
 
--- | For a NeColus type, get the corresponding LambdaC type.
+-- | For a Source type, get the corresponding Target type.
 elabType :: Type -> Target.Type
 elabType (TyMono m) = elabMono m
 elabType (TyArr a b) = Target.TyArr (elabType a) (elabType b)
