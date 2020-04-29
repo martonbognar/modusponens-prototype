@@ -381,7 +381,7 @@ Formula $\notarrow{A}$, in the rules below, means that $A$ is not a function typ
           {\algSubRight{\Delta}{\mathcal{L}}{A}{\Tabs{\alpha}{B_1}{B_2}}{\allrC{\alpha}{c}}{\theta}}
       \and
       \inferrule*[right=AR-base]
-          {\algSubLeft{\Delta}{\mathcal{L}}{\bullet}{A}{\abs{c}{c}}{A}{\xi}{\mathcal{C}}{\theta}}
+          {\algSubLeft{\Delta}{\mathcal{L}}{\bullet}{A}{\bullet}{A}{\xi}{\mathcal{C}}{\theta}}
           {\algSubRight{\Delta}{\mathcal{L}}{A}{\xi}{\mathcal{C}[\idC{\toTarget{A}}]}{\theta}}
     \end{mathpar}
     \caption{Right focus}
@@ -401,28 +401,28 @@ Formula $\notarrow{A}$, in the rules below, means that $A$ is not a function typ
           {\algSubLeft{\Delta}{B_1,\mathcal{L}}{\mathcal{M}}{A_0}{\mathcal{C}}{\hat\alpha}{\xi}{\mathcal{C'}}{\theta_2\circ\theta_1\circ\theta}}
       \and
       \inferrule*[right=AL-AndL]
-          {\algSubLeft{\Delta}{\mathcal{L}}{\mathcal{M}}{A_0}{\abs{c}{\mathcal{C}[\compC{c}{\projlC{\toTarget{A_1}}{\toTarget{A_2}}}]}}{A_1}{\xi}{\mathcal{C'}}{\theta}}
+          {\algSubLeft{\Delta}{\mathcal{L}}{\mathcal{M}}{A_0}{\projlCC{\mathcal{C}}{\toTarget{A_1}}{\toTarget{A_2}}}{A_1}{\xi}{\mathcal{C'}}{\theta}}
           {\algSubLeft{\Delta}{\mathcal{L}}{\mathcal{M}}{A_0}{\mathcal{C}}{A_1\& A_2}{\xi}{\mathcal{C'}}{\theta}}
       \and
       \inferrule*[right=AL-AndR]
-          {\algSubLeft{\Delta}{\mathcal{L}}{\mathcal{M}}{A_0}{\abs{c}{\mathcal{C}[\compC{c}{\projrC{\toTarget{A_1}}{\toTarget{A_2}}}]}}{A_2}{\xi}{\mathcal{C'}}{\theta}}
+          {\algSubLeft{\Delta}{\mathcal{L}}{\mathcal{M}}{A_0}{\projrCC{\mathcal{C}}{\toTarget{A_1}}{\toTarget{A_2}}}{A_2}{\xi}{\mathcal{C'}}{\theta}}
           {\algSubLeft{\Delta}{\mathcal{L}}{\mathcal{M}}{A_0}{\mathcal{C}}{A_1\& A_2}{\xi}{\mathcal{C'}}{\theta}}
       \and
       \inferrule*[right=AL-Arr]
-          {\algSubRight{\Delta}{\bullet}{B_1}{A_1}{c_1}{\theta_1}\\ \theta_1(\algSubLeft{\Delta}{\mathcal{L}}{\mathcal{M},B_1}{A_0}{\abs{c}{\mathcal{C}[\arrC{c_1}{c}]}}{A_2}{\xi)}{\mathcal{C'}}{\theta}}
+          {\algSubRight{\Delta}{\bullet}{B_1}{A_1}{c_1}{\theta_1}\\ \theta_1(\algSubLeft{\Delta}{\mathcal{L}}{\mathcal{M},B_1}{A_0}{\arrCC{\mathcal{C}}{c_1}}{A_2}{\xi)}{\mathcal{C'}}{\theta}}
           {\algSubLeft{\Delta}{B_1,\mathcal{L}}{\mathcal{M}}{A_0}{\mathcal{C}}{A_1\to A_2}{\xi}{\mathcal{C'}}{\theta_2\circ\theta_1}}
       \and
       \mprset{vskip=2pt}
       \inferrule*[right=AL-MP]
                  {\algSubRight{\Delta}{\bullet}{A_0}{\arrowqueue{\mathcal{M}}{A_1}}{c_1}{\theta_1}\\
-                  \theta_1(\algSubLeft{\Delta}{\mathcal{L}}{\mathcal{M}}{A_0}{\mathcal{C'}}{A_2}{\xi)}{\mathcal{C''}}{\theta_2}\\
-                  \elab{\mathcal{C'} = \abs{c}{\compC{\distarrowqueueC{\mathcal{M}}{\left(\compC{c}{(\mpC{\projlC{\toTarget{A_1\to A_2}}{\toTarget{A_1}}}{\projrC{\toTarget{A_1\to A_2}}{\toTarget{A_1}}})}\right)}{(A_1\to A_2)}{A_1}}{\pairC{\mathcal{C}[\idC{\toTarget{A_1\to A_2}}]}{c_1}}}}
+                  \theta_1(\algSubLeft{\Delta}{\mathcal{L}}{\mathcal{M}}{A_0}{\mpCC{\mathcal{C}}{\mathcal{M}}{c_1}{\toTarget{A_1}}{\toTarget{A_2}}}{A_2}{\xi)}{\mathcal{C'}}{\theta_2}
+                  %% \elab{\mathcal{C'} = \abs{c}{\compC{\distarrowqueueC{\mathcal{M}}{\left(\compC{c}{(\mpC{\projlC{\toTarget{A_1\to A_2}}{\toTarget{A_1}}}{\projrC{\toTarget{A_1\to A_2}}{\toTarget{A_1}}})}\right)}{(A_1\to A_2)}{A_1}}{\pairC{\mathcal{C}[\idC{\toTarget{A_1\to A_2}}]}{c_1}}}}
                  }
-          {\algSubLeft{\Delta}{\mathcal{L}}{\mathcal{M}}{A_0}{\mathcal{C}}{A_1\to A_2}{\xi}{\mathcal{C''}}{\theta_2\circ\theta_1}}
+          {\algSubLeft{\Delta}{\mathcal{L}}{\mathcal{M}}{A_0}{\mathcal{C}}{A_1\to A_2}{\xi}{\mathcal{C'}}{\theta_2\circ\theta_1}}
       \and
       \mprset{vskip=}
       \inferrule*[right=AL-Forall]
-                 {\algSubLeft{\Delta,\tentry{\hat{\alpha}}{A}}{\mathcal{L}}{\mathcal{M}}{A_0}{\abs{c}{\mathcal{C}[\alllC{c}{\hat\alpha}]}}{[\alpha\mapsto\hat{\alpha}]B}{\xi}{\mathcal{C'}}{\theta}\\
+                 {\algSubLeft{\Delta,\tentry{\hat{\alpha}}{A}}{\mathcal{L}}{\mathcal{M}}{A_0}{\alllCC{\mathcal{C}}{\hat\alpha}}{[\alpha\mapsto\hat{\alpha}]B}{\xi}{\mathcal{C'}}{\theta}\\
                  \fresh{\hat\alpha}}
                  {\algSubLeft{\Delta}{\mathcal{L}}{\mathcal{M}}{A_0}{\mathcal{C}}{\Tabs{\alpha}{A}{B}}{\xi}{\mathcal{C'}}{\theta}}
     \end{mathpar}
