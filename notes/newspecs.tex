@@ -179,7 +179,7 @@ Rule \textsc{S-DistAll} of $F_{i}^{+}$ is subsumed by our rules:
                   &          &       & $E : A~\mid~\textcolor{magenta}{\tabs{\alpha}{A}{E}}~\mid~\textcolor{magenta}{E\,A}$\vspace{0.3cm}\\
     Type context  & $\Delta$ & $::=$ & $\bullet~\mid~\Delta,\tentry{\alpha}{A}~\mid~\Delta,\tentry{\hat{\alpha}}{A}$\vspace{0.3cm}\\
     Type queue    & $\mathcal{L},\mathcal{M}$ & $::=$ & $\bullet~\mid~\mathcal{L},A$\vspace{0.3cm}\\
-    Coercion context & $\mathcal{C}$ & $::=$ & $\bullet~\mid~\arrCC{\mathcal{C}}{c}$\vspace{0.3cm}\\%\abs{c}{\mathcal{C}}~\mid~\mid~\pair{\mathcal{C}}{e}~\mid~\pair{e}{\mathcal{C}}~\mid~\record{l}{\mathcal{C}}~\mid~$\vspace{0.1cm}\\
+    Coercion context & $\mathcal{C}$ & $::=$ & $\bullet~\mid~\arrCC{\mathcal{C}}{c}~\mid~\projlCC{\mathcal{C}}{A}{B}~\mid~\projrCC{\mathcal{C}}{A}{B}~\mid~\mpCC{\mathcal{C}}{\mathcal{M}}{c_1}{A}{B}~\mid~\alllCC{\mathcal{C}}{\tau}$\vspace{0.3cm}\\
     Type variable substitutions & $\theta$ & $::=$ & $\bullet~\mid~\unification{\alpha}{A},\theta~\mid~\substitution{\alpha}{A},\theta$\vspace{0.3cm}
   \end{tabular}
   \caption{The language of the algorithm}
