@@ -259,8 +259,8 @@ Rule \textsc{S-DistAll} of $F_{i}^{+}$ is subsumed by our rules:
     [{\alpha}\mapsto{\tau}]\alpha                &= \tau\\
     [{\alpha}\mapsto{\tau}]\beta                 &= \beta\\
     [{\alpha}\mapsto{\tau}]\hat\alpha            &= \hat\alpha\\
-    [{\alpha}\mapsto{\tau}](A\to B)              &= ([\substitution{\alpha}{\tau}]A)\to([\unification{\alpha}{\tau}]B)\\
-    [{\alpha}\mapsto{\tau}](A\& B)               &= ([\substitution{\alpha}{\tau}]A)\&([\unification{\alpha}{\tau}]B)\\
+    [{\alpha}\mapsto{\tau}](A\to B)              &= ([\substitution{\alpha}{\tau}]A)\to([\substitution{\alpha}{\tau}]B)\\
+    [{\alpha}\mapsto{\tau}](A\& B)               &= ([\substitution{\alpha}{\tau}]A)\&([\substitution{\alpha}{\tau}]B)\\
     [{\alpha}\mapsto{\tau}](\Tabs{\alpha}{A}{B}) &= \Tabs{\alpha}{[\substitution{\alpha}{\tau}]A}{[\substitution{\alpha}{\tau}]B}\\
     %% [{\alpha}\mapsto{\tau}](\Tabs{\hat\beta}{A}{B}) &= \Tabs{\hat\beta}{[\substitution{\alpha}{\tau}]A}{[\substitution{\alpha}{\tau}]B}\\
     [{\alpha}\mapsto{\tau}]\trecord{l}{A}        &= \trecord{l}{[\substitution{\alpha}{\tau}]A}
@@ -297,28 +297,15 @@ Rule \textsc{S-DistAll} of $F_{i}^{+}$ is subsumed by our rules:
     [\substitution{\alpha}{\tau}]\bullet &= \bullet\\
     [\substitution{\alpha}{\tau}](\mathcal{M},A) &= [\substitution{\alpha}{\tau}]\mathcal{M},([\substitution{\alpha}{\tau}]A)\\
   \end{align*}
-  %% \mypar{\large{...on coercion contexts}}
-  %% \begin{align*}
-  %%   [\unification{\alpha}{\tau}]\bullet &= \bullet\\
-  %%   [\unification{\alpha}{\tau}]\abs{c}{\mathcal{C}} &= \abs{c}{[\unification{\alpha}{\tau}]\mathcal{C}}\\
-  %%   [\unification{\alpha}{\tau}](\mathcal{C}\,e) &= ([\unification{\alpha}{\tau}]\mathcal{C})\, ([\unification{\alpha}{\tau}]e)\\
-  %%   [\unification{\alpha}{\tau}](e\,\mathcal{C}) &= ([\unification{\alpha}{\tau}]e)\, ([\unification{\alpha}{\tau}]\mathcal{C})\\
-  %%   [\unification{\alpha}{\tau}]\pair{\mathcal{C}}{e} &= \pair{[\unification{\alpha}{\tau}]\mathcal{C}}{[\unification{\alpha}{\tau}]e}\\
-  %%   [\unification{\alpha}{\tau}]\pair{e}{\mathcal{C}} &= \pair{[\unification{\alpha}{\tau}]e}{[\unification{\alpha}{\tau}]\mathcal{C}}\\
-  %%   [\unification{\alpha}{\tau}]\record{l}{\mathcal{C}} &= \record{l}{[\unification{\alpha}{\tau}]\mathcal{C}}\\
-  %%   [\unification{\alpha}{\tau}]\tabs{\alpha}{A}{\mathcal{C}} &= \tabs{\alpha}{[\unification{\alpha}{\tau}]A}{[\unification{\alpha}{\tau}]\mathcal{C}}\\
-  %%   [\unification{\alpha}{\tau}]\tabs{\hat\beta}{A}{\mathcal{C}} &= \tabs{\hat\beta}{[\unification{\alpha}{\tau}]A}{[\unification{\alpha}{\tau}]\mathcal{C}}\\
-  %%   [\unification{\alpha}{\tau}](\mathcal{C}\,A) &= ([\unification{\alpha}{\tau}]\mathcal{C})\, ([\unification{\alpha}{\tau}]A)
-  %% \end{align*}
 \end{minipage}\vspace{3pt}
 \subsubsection{Completing coercion contexts}
 \begin{minipage}[t]{0.47\textwidth}
 \begin{align*}
   \bullet [c] &= c\\
   (\arrCC{\mathcal{C}}{c'})[c] &= \mathcal{C}[c'\to c]\\
-  (\projlCC{\mathcal{C}}{A}{B})[c] &= \mathcal{C}[\compC{c}{\projlC{A}{B}}]\\
-  (\projrCC{\mathcal{C}}{A}{B})[c] &= \mathcal{C}[\compC{c}{\projrC{A}{B}}]\\
-  (\mpCC{\mathcal{C}}{\mathcal{M}}{c_1}{c_2}{A}{B})[c] &= \ldots
+  \projlCC{\mathcal{C}}{A}{B}[c] &= \mathcal{C}[\compC{c}{\projlC{A}{B}}]\\
+  \projrCC{\mathcal{C}}{A}{B}[c] &= \mathcal{C}[\compC{c}{\projrC{A}{B}}]\\
+  \mpCC{\mathcal{C}}{\mathcal{M}}{c_1}{A}{B}[c] &= \ldots
 \end{align*}
 \end{minipage}
 
@@ -418,9 +405,9 @@ Formula $\notarrow{A}$, in the rules below, means that $A$ is not a function typ
           {\algSubLeft{\Delta}{\bullet}{\mathcal{M}}{A_0}{\mathcal{C}}{\xi_1}{\xi_2}{\mathcal{C}}{\theta}}
           \and
       \inferrule*[right=AL-VarArr]
-                 {\theta= [\unification{\alpha}{(\hat\alpha_1\to\hat\alpha_2)}] \\ \fresh{\hat\alpha_1, \hat\alpha_2}\\
-                   \algSubRight{\theta(\Delta)}{\bullet}{\theta'(B_1)}{\hat\alpha_1}{c_1}{\theta_1}\\
-                   \theta_1\circ\theta(\algSubLeft{\Delta}{\mathcal{L}}{\mathcal{M},B_1}{A_0}{\abs{c}{\mathcal{C}[\arrC{c_1}{c}]}}{\hat\alpha_2}{\xi}{\mathcal{C'}}{\theta_2})
+                 {\theta= [\unification{\alpha}{(\hat\alpha_1\to\hat\alpha_2)}] \\ \fresh{\hat\alpha_1, \hat\alpha_2}\\ (\tentry{\hat\alpha}{A})\in\Delta\\\\
+                   \algSubRight{\theta(\Delta,\tentry{\hat\alpha_1}{\top},\tentry{\hat\alpha_2}{A})}{\bullet}{\theta'(B_1)}{\hat\alpha_1}{c_1}{\theta_1}\\
+                   \theta_1\circ\theta(\algSubLeft{\Delta}{\mathcal{L}}{\mathcal{M},B_1}{A_0}{\abs{c}{\mathcal{C}[\arrC{c_1}{c}]}}{\hat\alpha_2}{\xi)}{\mathcal{C'}}{\theta_2}
                  }
           {\algSubLeft{\Delta}{B_1,\mathcal{L}}{\mathcal{M}}{A_0}{\mathcal{C}}{\hat\alpha}{\xi}{\mathcal{C'}}{\theta_2\circ\theta_1\circ\theta}}
       \and
