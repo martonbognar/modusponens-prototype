@@ -1,0 +1,105 @@
+%%%%%%%%%%%% Custom symbols %%%%%%%%%%%%%
+
+\newsavebox{\circlehorlinebox}
+\newcommand{\circlehorline}[0]{%
+\begin{tikzpicture}[scale=0.20]%
+\draw (0,0.5cm) -- (1.6cm,0.5cm);%
+\draw (0.8cm,0.5cm) circle(0.4cm);
+\end{tikzpicture}%
+}
+\savebox{\circlehorlinebox}{\circlehorline}
+\newcommand*\modusponens{\,\vcenter{\hbox{\usebox{\circlehorlinebox}}}\,}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%% Well-formedness
+\newcommand*{\wfT}[2]{#1\vdash #2}
+\newcommand*{\wfC}[4]{#1\vdash #2 : #3 \triangleright #4}
+
+%% Evaluation
+
+%% Disjointness
+\newcommand*{\starr}[2]{#1\ast #2}
+\newcommand*{\starax}[2]{#1\ast_{ax} #2}
+\newcommand*{\disjoint}[3]{#1 \vdash \starr{#2}{#3}}
+\newcommand*{\algdisjoint}[4]{#1 \vdash \starr{#2}{#3}\,\leadsto #4}
+
+%% Subtyping
+\newcommand*{\subtypeof}{\prec :}
+\newcommand*{\tentry}[2]{\starr{#1}{#2}}
+\newcommand*{\subt}[2]{#1\subtypeof #2}
+\newcommand*{\subtype}[3]{\subt{#1}{#2}\,\elab{\leadsto #3}}
+\newcommand*{\Subtype}[4]{#1\vdash\subtype{#2}{#3}{#4}}
+
+%% Algorithmic subtyping
+\newcommand*{\algsubtypeof}{<:}
+\newcommand*{\algsubt}[2]{#1\algsubtypeof #2}
+\newcommand*{\algsubtype}[3]{\algsubt{#1}{#2}\leadsto\elab{#3}}
+\newcommand*{\algSubMain}[4]{\algsubtype{#1}{#2}{#3};#4}
+\newcommand*{\algSubRight}[6]{#1;#2\vdash_R\algSubMain{#3}{#4}{#5}{#6}}
+\newcommand*{\algSubLeft}[9]{#1;#2;#3;#4;\elab{#5}\vdash_L\algSubMain{#6}{#7}{#8}{#9}}
+
+%% Unification
+\newcommand*{\unify}[4]{\mathsf{unify}(#1;\,#2;\,#3)\,\leadsto #4}
+\newcommand*{\unifyB}[4]{\mathsf{unify_B}(#1;\,#2;\,#3)\,\leadsto #4}
+\newcommand*{\unifyM}[4]{\mathsf{unify_M}(#1;\,#2;\,#3)\,\leadsto #4}
+
+%% %% Auxiliary functions
+\newcommand*{\distarrowqueue}[3]{\llbracket #1 \rrbracket_{\&}^{#2,#3}}
+\newcommand*{\distarrowqueueC}[4]{\llbracket #1 \rrbracket_{\&}^{#2;#3,#4}}
+\newcommand*{\toparrowqueue}[1]{\llbracket #1 \rrbracket_{\top}}
+\newcommand*{\arrowqueue}[2]{#1 \twoheadrightarrow #2}
+
+%% Expressions
+\newcommand*{\True}{\mathsf{true}}
+\newcommand*{\False}{\mathsf{false}}
+\newcommand*{\tabs}[3]{\Lambda(\tentry{#1}{#2}).#3}
+\newcommand*{\tabst}[2]{\Lambda #1.#2}
+\newcommand*{\abs}[2]{\lambda #1.#2}
+\newcommand*{\record}[2]{\{#1\,=\,#2\}}
+
+%% Types
+\newcommand*{\nat}{\mathsf{Nat}}
+\newcommand*{\bool}{\mathsf{Bool}}
+\newcommand*{\Tabs}[3]{\forall(\tentry{#1}{#2}).#3}
+\newcommand*{\Tabst}[2]{\forall #1.#2}
+\newcommand*{\trecord}[2]{\{#1\,:\,#2\}}
+
+%% Typing environments
+\newcommand*{\eentry}[2]{{#1}:{#2}}
+
+%% Substitution
+\newcommand*{\substitution}[2]{#1\mapsto #2}
+\newcommand*{\unification}[2]{\substitution{\hat{#1}}{#2}}
+\newcommand*{\wfSubst}[3]{#1\vdash #2\,\leadsto #3}
+
+%% Translation
+\newcommand*{\toTarget}[1]{|#1|}
+\newcommand*{\elab}[1]{\colorbox{lightgray}{$#1$}}
+
+%% Coercions
+\newcommand*{\idC}[1]{\mathsf{id}_{#1}}
+\newcommand*{\compC}[2]{#1\,\circ\, #2}
+\newcommand*{\topC}[1]{\mathsf{top}_{#1}}
+\newcommand*{\topArrC}{\mathsf{top}_{\mathsf\to}}
+\newcommand*{\topAllC}{\mathsf{top}_{\mathsf\forall}}
+\newcommand*{\pair}[2]{\langle #1, #2\rangle}
+\newcommand*{\pairC}[2]{\pair{#1}{#2}}
+\newcommand*{\projlC}[2]{\mathsf{pr}_{\mathsf{1}}^{#1,#2}}
+\newcommand*{\projrC}[2]{\mathsf{pr}_{\mathsf{2}}^{#1,#2}}
+\newcommand*{\arrC}[2]{#1\to #2}
+\newcommand*{\distArrC}[3]{\mathsf{dist}_{\to}^{#1,#2,#3}}
+\newcommand*{\distAllC}[3]{\mathsf{dist}_{\forall}^{#1,#2,#3}}
+\newcommand*{\alllC}[2]{#1 @ #2}
+\newcommand*{\allrC}[2]{\Lambda #1.#2}
+\newcommand*{\mpC}[2]{#1\modusponens #2}
+
+%% Coercion contexts
+\newcommand*{\arrCC}[2]{{}^{#2\to}#1}
+\newcommand*{\projlCC}[3]{{#1}^{#2,#3}_{\circ\mathsf{pr_1}}}
+\newcommand*{\projrCC}[3]{{#1}^{#2,#3}_{\circ\mathsf{pr_2}}}
+\newcommand*{\mpCC}[6]{{#1}_{#2;#3}^{#4;#5,#6}}
+
+%% Auxialiary premises / Phrases
+\newcommand*{\fresh}[1]{#1~\text{fresh}}
+\newcommand*{\notarrow}[1]{#1\not\to} %~\text{not arrow}}
