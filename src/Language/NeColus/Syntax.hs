@@ -16,6 +16,7 @@ import PrettyPrinter
 data Monotype
   = TyNat
   | TyTop
+  | TyBool
   | TyVar Variable
   | TyMonoArr Monotype Monotype
   | TyMonoIs Monotype Monotype
@@ -41,6 +42,8 @@ instance Eq Type where
 data Expression
   = ExLit Integer
   | ExTop
+  | ExTrue
+  | ExFalse
   | ExVar Variable
   | ExAbs Variable Expression
   | ExApp Expression Expression
@@ -68,7 +71,8 @@ data Queue
 
 data Substitution
   = EmptySubst
-  | Cons Variable Type Substitution
+  | SVar Variable Type Substitution
+  | SSub Variable Type Substitution
   deriving (Eq)
 
 

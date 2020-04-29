@@ -58,36 +58,105 @@ appendSubst :: Substitution -> Substitution -> Substitution
 appendSubst s1 s2 = undefined
 
 
+-- TODO: apply substitutions recursively
 substType :: Substitution -> Type -> Type
-substType = undefined
+substType EmptySubst t                       = t
+
+substType sub@(SVar ap t s) (TyMono TyNat)   = TyMono TyNat
+substType sub@(SVar ap t s) (TyMono TyTop)   = TyMono TyTop
+substType sub@(SVar ap t s) (TyMono (TyVar v))
+  | ap == v = t
+  | otherwise = (TyMono (TyVar v))
+substType sub@(SVar ap t s) (TySubstVar ap') = TySubstVar ap'
+substType sub@(SVar ap t s) (TyArr a b)      = TyArr (substType sub a) (substType sub b)
+substType sub@(SVar ap t s) (TyIs a b)       = TyIs (substType sub a) (substType sub b)
+substType sub@(SVar ap t s) (TyAbs ap' a b)  = TyAbs ap' (substType sub a) (substType sub b)
+substType sub@(SVar ap t s) (TyRec l a)      = TyRec l (substType sub a)
+
+substType sub@(SSub ap t s) (TyMono TyNat)   = TyMono TyNat
+substType sub@(SSub ap t s) (TyMono TyTop)   = TyMono TyTop
+substType sub@(SSub ap t s) (TyMono (TyVar v)) = TyMono (TyVar v)
+substType sub@(SSub ap t s) (TySubstVar ap')
+  | ap == ap' = t
+  | otherwise = TySubstVar ap'
+substType sub@(SSub ap t s) (TyArr a b)      = TyArr (substType sub a) (substType sub b)
+substType sub@(SSub ap t s) (TyIs a b)       = TyIs (substType sub a) (substType sub b)
+substType sub@(SSub ap t s) (TyAbs ap' a b)  = TyAbs ap' (substType sub a) (substType sub b)
+substType sub@(SSub ap t s) (TyRec l a)      = TyRec l (substType sub a)
 
 
 substExpr :: Substitution -> Expression -> Expression
-substExpr = undefined
+substExpr EmptySubst e = e
+
+substExpr sub@(SVar ap t s) (ExLit i)         = ExLit i
+substExpr sub@(SVar ap t s) (ExTop)           = ExTop
+substExpr sub@(SVar ap t s) (ExTrue)          = ExTrue
+substExpr sub@(SVar ap t s) (ExFalse)         = ExFalse
+substExpr sub@(SVar ap t s) (ExVar x)         = ExVar x
+substExpr sub@(SVar ap t s) (ExAbs x e)       = ExAbs x (substExpr sub e)
+substExpr sub@(SVar ap t s) (ExApp e1 e2)     = ExApp (substExpr sub e1) (substExpr sub e2)
+substExpr sub@(SVar ap t s) (ExMerge e1 e2)   = ExMerge (substExpr sub e1) (substExpr sub e2)
+substExpr sub@(SVar ap t s) (ExAnn e a)       = ExAnn (substExpr sub e) (substType sub a)
+substExpr sub@(SVar ap t s) (ExTyAbs ap' a e) = ExTyAbs ap' (substType sub a) (substExpr sub e)
+substExpr sub@(SVar ap t s) (ExTyApp e a)     = ExTyApp (substExpr sub e) (substType sub a)
+substExpr sub@(SVar ap t s) (ExRec l e)       = ExRec l (substExpr sub e)
+substExpr sub@(SVar ap t s) (ExRecFld e l)    = ExRecFld (substExpr sub e) l
+
+substExpr sub@(SSub ap t s) (ExLit i)         = ExLit i
+substExpr sub@(SSub ap t s) (ExTop)           = ExTop
+substExpr sub@(SSub ap t s) (ExTrue)          = ExTrue
+substExpr sub@(SSub ap t s) (ExFalse)         = ExFalse
+substExpr sub@(SSub ap t s) (ExVar x)         = ExVar x
+substExpr sub@(SSub ap t s) (ExAbs x e)       = ExAbs x (substExpr sub e)
+substExpr sub@(SSub ap t s) (ExApp e1 e2)     = ExApp (substExpr sub e1) (substExpr sub e2)
+substExpr sub@(SSub ap t s) (ExMerge e1 e2)   = ExMerge (substExpr sub e1) (substExpr sub e2)
+substExpr sub@(SSub ap t s) (ExAnn e a)       = ExAnn (substExpr sub e) (substType sub a)
+substExpr sub@(SSub ap t s) (ExTyAbs ap' a e) = ExTyAbs ap' (substType sub a) (substExpr sub e)
+substExpr sub@(SSub ap t s) (ExTyApp e a)     = ExTyApp (substExpr sub e) (substType sub a)
+substExpr sub@(SSub ap t s) (ExRec l e)       = ExRec l (substExpr sub e)
+substExpr sub@(SSub ap t s) (ExRecFld e l)    = ExRecFld (substExpr sub e) l
 
 
 substContext :: Substitution -> TypeContext -> TypeContext
-substContext = undefined
+substContext EmptySubst c = c
+
+substContext sub@(SVar ap t s) Empty                 = Empty
+substContext sub@(SVar ap t s) (VarSnoc ctx ap' a)
+  | ap == ap' = substContext sub ctx
+  | otherwise = (VarSnoc (substContext sub ctx) ap' (substType sub a))
+substContext sub@(SVar ap t s) (SubstSnoc ctx ap' a) = (VarSnoc (substContext sub ctx) ap' (substType sub a))
+
+substContext sub@(SSub ap t s) Empty                 = Empty
+substContext sub@(SSub ap t s) (VarSnoc ctx ap' a)   = (VarSnoc (substContext sub ctx) ap' (substType sub a))
+substContext sub@(SSub ap t s) (SubstSnoc ctx ap' a)
+  | ap == ap' = substContext sub ctx
+  | otherwise = (VarSnoc (substContext sub ctx) ap' (substType sub a))
 
 
 substQueue :: Substitution -> Queue -> Queue
-substQueue = undefined
+substQueue EmptySubst q = q
+
+substQueue sub@(SVar ap t s) Null = Null
+substQueue sub@(SVar ap t s) (ExtraType m a) = ExtraType (substQueue sub m) (substType sub a)
+
+substQueue sub@(SSub ap t s) Null = Null
+substQueue sub@(SSub ap t s) (ExtraType m a) = ExtraType (substQueue sub m) (substType sub a)
 
 
 wellFormedSubst :: TypeContext -> Substitution -> Maybe Substitution
 -- WFS-nil
 wellFormedSubst _ EmptySubst = Just EmptySubst
 -- ?
-wellFormedSubst (VarSnoc ctx ap b) (Cons ap' a sub)
-  | ap == ap'  = wellFormedSubst ctx (Cons ap' a sub)
-wellFormedSubst (SubstSnoc ctx ap b) (Cons ap' a sub)
+wellFormedSubst (VarSnoc ctx ap b) (SVar ap' a sub)
+  | ap == ap'  = wellFormedSubst ctx (SVar ap' a sub)
+wellFormedSubst (SubstSnoc ctx ap b) (SVar ap' a sub)
 -- WFS-next
   | ap == ap' = do
     s1 <- wellFormedSubst ctx sub
     ds <- disjoint ctx a b
     let s2 = appendSubst s1 (appendSubst sub ds)
       in return $ appendSubst s1 s2
-  | otherwise = wellFormedSubst ctx (Cons ap' a sub)
+  | otherwise = wellFormedSubst ctx (SVar ap' a sub)
 
 
 unify :: TypeContext -> BaseType -> BaseType -> Maybe Substitution
@@ -100,22 +169,22 @@ unify ctx (BaseSubstVar a) (BaseSubstVar b)
   | a == b = Just EmptySubst
 -- U-NatV
 unify ctx BaseNat (BaseSubstVar ap) = let nat = baseToType BaseNat in do
-  sub <- wellFormedSubst ctx (Cons ap nat EmptySubst)
-  return $ (Cons ap nat sub)
+  sub <- wellFormedSubst ctx (SVar ap nat EmptySubst)
+  return $ (SVar ap nat sub)
 -- U-VNat
 unify ctx (BaseSubstVar ap) BaseNat = let nat = baseToType BaseNat in do
-  sub <- wellFormedSubst ctx (Cons ap nat EmptySubst)
-  return $ (Cons ap nat sub)
+  sub <- wellFormedSubst ctx (SVar ap nat EmptySubst)
+  return $ (SVar ap nat sub)
 -- U-VC
 unify ctx (BaseSubstVar ap) (BaseVar ap')
   | ap == ap' = let var = baseToType (BaseVar ap') in do
-    sub <- wellFormedSubst ctx (Cons ap var EmptySubst)
-    return $ (Cons ap var sub)
+    sub <- wellFormedSubst ctx (SVar ap var EmptySubst)
+    return $ (SVar ap var sub)
 -- U-CV
 unify ctx (BaseVar ap) (BaseSubstVar ap')
   | ap == ap' = let var = baseToType (BaseVar ap) in do
-    sub <- wellFormedSubst ctx (Cons ap var EmptySubst)
-    return $ (Cons ap var sub)
+    sub <- wellFormedSubst ctx (SVar ap var EmptySubst)
+    return $ (SVar ap var sub)
 
 
 disjoint :: TypeContext -> Type -> Type -> Maybe Substitution
@@ -166,21 +235,22 @@ disjoint ctx a                      (TyIs b1 b2)
     if s1 == s2 then return s2 else Nothing
 -- AD-All
 disjoint ctx (TyAbs ap a1 a2)        (TyAbs ap' b1 b2)
-  | ap == ap' = disjoint (SubstSnoc ctx ap (TyIs a1 b1)) (substType (Cons ap (TySubstVar ap) EmptySubst) a2) (substType (Cons ap (TySubstVar ap) EmptySubst) b2)
+  | ap == ap' = disjoint (SubstSnoc ctx ap (TyIs a1 b1)) (substType (SVar ap (TySubstVar ap) EmptySubst) a2) (substType (SVar ap (TySubstVar ap) EmptySubst) b2)
 -- AD-AllL
 disjoint ctx (TyAbs ap a b1)        b2
-  = disjoint (SubstSnoc ctx ap a) (substType (Cons ap (TySubstVar ap) EmptySubst) b1) b2
+  = disjoint (SubstSnoc ctx ap a) (substType (SVar ap (TySubstVar ap) EmptySubst) b1) b2
 -- AD-AllR
 disjoint ctx b1        (TyAbs ap a b2)
-  = disjoint (SubstSnoc ctx ap a) b1 (substType (Cons ap (TySubstVar ap) EmptySubst) b2)
+  = disjoint (SubstSnoc ctx ap a) b1 (substType (SVar ap (TySubstVar ap) EmptySubst) b2)
 -- AD-Ax
 disjoint ctx a                      b
-  = if disjointAx a b then EmptySubst else Nothing
+  = if disjointAx a b then return EmptySubst else Nothing
 
 
-disjointAx :: Type -> Type -> Maybe Substitution
-disjointAx = undefined
--- disjointAx (TyMono TyNat) (TyMono TyBool) =  -- TODO: what?
+disjointAx :: Type -> Type -> Bool
+disjointAx (TyMono TyNat) (TyMono TyBool) = True
+disjointAx (TyMono TyBool) (TyMono TyNat) = True
+disjointAx _ _ = False
 
 
 subtyping :: Type -> Type -> Maybe (Target.Coercion, Substitution)
@@ -240,7 +310,7 @@ subLeft ctx Null m a0 c e1 e2 = case typeToBase e1 of  -- TODO: switch case to p
 subLeft ctx (ExtraType l b1) m a0 c (TySubstVar ap) e = do
   ap1 <- freshVar
   ap2 <- freshVar
-  let sub' = (Cons ap (TyArr (TySubstVar ap1) (TySubstVar ap2)) EmptySubst) in do
+  let sub' = (SVar ap (TyArr (TySubstVar ap1) (TySubstVar ap2)) EmptySubst) in do
     (c1, sub1) <- subRight (substContext sub' ctx) Null (substType sub' b1) (TySubstVar ap1)
     (c', sub) <- subLeft ctx l (ExtraType m b1) a0 (ContextAbs _ _) (TySubstVar ap2) e
     return (c', appendSubst sub' (appendSubst sub1 sub))
@@ -264,7 +334,7 @@ subLeft ctx l m a0 c (TyArr a1 a2) e = arr ctx l m a0 c (TyArr a1 a2) e <|> mp c
 -- AL-Forall
 subLeft ctx l m a0 c (TyAbs ap a b) e = do
   ap <- freshVar
-  subLeft (SubstSnoc ctx ap a) l m a0 (ContextAbs _ _) (substType (Cons ap (TySubstVar ap) EmptySubst) b) e
+  subLeft (SubstSnoc ctx ap a) l m a0 (ContextAbs _ _) (substType (SVar ap (TySubstVar ap) EmptySubst) b) e
 
 
 
