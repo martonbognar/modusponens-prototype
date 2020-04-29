@@ -409,13 +409,13 @@ Formula $\notarrow{A}$, in the rules below, means that $A$ is not a function typ
           {\algSubLeft{\Delta}{\mathcal{L}}{\mathcal{M}}{A_0}{\mathcal{C}}{A_1\& A_2}{\xi}{\mathcal{C'}}{\theta}}
       \and
       \inferrule*[right=AL-Arr]
-          {\algSubRight{\Delta}{\bullet}{B_1}{A_1}{c_1}{\theta_1}\\ \theta_1(\algSubLeft{\Delta}{\mathcal{L}}{\mathcal{M},B_1}{A_0}{\abs{c}{\mathcal{C}[\arrC{c_1}{c}]}}{A_2}{\xi}{\mathcal{C'}}{\theta})}
+          {\algSubRight{\Delta}{\bullet}{B_1}{A_1}{c_1}{\theta_1}\\ \theta_1(\algSubLeft{\Delta}{\mathcal{L}}{\mathcal{M},B_1}{A_0}{\abs{c}{\mathcal{C}[\arrC{c_1}{c}]}}{A_2}{\xi)}{\mathcal{C'}}{\theta}}
           {\algSubLeft{\Delta}{B_1,\mathcal{L}}{\mathcal{M}}{A_0}{\mathcal{C}}{A_1\to A_2}{\xi}{\mathcal{C'}}{\theta_2\circ\theta_1}}
       \and
       \mprset{vskip=2pt}
       \inferrule*[right=AL-MP]
                  {\algSubRight{\Delta}{\bullet}{A_0}{\arrowqueue{\mathcal{M}}{A_1}}{c_1}{\theta_1}\\
-                  \theta_1(\algSubLeft{\Delta}{\mathcal{L}}{\mathcal{M}}{A_0}{\mathcal{C'}}{A_2}{\xi}{\mathcal{C''}}{\theta_2})\\
+                  \theta_1(\algSubLeft{\Delta}{\mathcal{L}}{\mathcal{M}}{A_0}{\mathcal{C'}}{A_2}{\xi)}{\mathcal{C''}}{\theta_2}\\
                   \elab{\mathcal{C'} = \abs{c}{\compC{\distarrowqueueC{\mathcal{M}}{\left(\compC{c}{(\mpC{\projlC{\toTarget{A_1\to A_2}}{\toTarget{A_1}}}{\projrC{\toTarget{A_1\to A_2}}{\toTarget{A_1}}})}\right)}{(A_1\to A_2)}{A_1}}{\pairC{\mathcal{C}[\idC{\toTarget{A_1\to A_2}}]}{c_1}}}}
                  }
           {\algSubLeft{\Delta}{\mathcal{L}}{\mathcal{M}}{A_0}{\mathcal{C}}{A_1\to A_2}{\xi}{\mathcal{C''}}{\theta_2\circ\theta_1}}
