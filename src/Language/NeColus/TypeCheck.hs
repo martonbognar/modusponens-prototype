@@ -58,42 +58,64 @@ appendSubst :: Substitution -> Substitution -> Substitution
 appendSubst s1 s2 = undefined
 
 
+substType :: Substitution -> Type -> Type
+substType = undefined
+
+
+substExpr :: Substitution -> Expression -> Expression
+substExpr = undefined
+
+
+substContext :: Substitution -> TypeContext -> TypeContext
+substContext = undefined
+
+
+substQueue :: Substitution -> Queue -> Queue
+substQueue = undefined
+
+
 wellFormedSubst :: TypeContext -> Substitution -> Maybe Substitution
+-- WFS-nil
 wellFormedSubst _ EmptySubst = Just EmptySubst
+-- ?
 wellFormedSubst (VarSnoc ctx ap b) (Cons ap' a sub)
   | ap == ap'  = wellFormedSubst ctx (Cons ap' a sub)
 wellFormedSubst (SubstSnoc ctx ap b) (Cons ap' a sub)
+-- WFS-next
   | ap == ap' = do
     s1 <- wellFormedSubst ctx sub
     ds <- disjoint ctx a b
     let s2 = appendSubst s1 (appendSubst sub ds)
       in return $ appendSubst s1 s2
+  | otherwise = wellFormedSubst ctx (Cons ap' a sub)
 
 
-unifyB :: TypeContext -> BaseType -> BaseType -> Maybe Substitution
-unifyB ctx e e' = Just EmptySubst
-unifyB ctx BaseNat (BaseSubstVar ap) = let nat = baseToType BaseNat in do
+unify :: TypeContext -> BaseType -> BaseType -> Maybe Substitution
+-- U-refl
+unify ctx BaseNat BaseNat = Just EmptySubst
+unify ctx BaseTop BaseTop = Just EmptySubst
+unify ctx (BaseVar a) (BaseVar b)
+  | a == b = Just EmptySubst
+unify ctx (BaseSubstVar a) (BaseSubstVar b)
+  | a == b = Just EmptySubst
+-- U-NatV
+unify ctx BaseNat (BaseSubstVar ap) = let nat = baseToType BaseNat in do
   sub <- wellFormedSubst ctx (Cons ap nat EmptySubst)
   return $ (Cons ap nat sub)
-unifyB ctx (BaseSubstVar ap) BaseNat = let nat = baseToType BaseNat in do
+-- U-VNat
+unify ctx (BaseSubstVar ap) BaseNat = let nat = baseToType BaseNat in do
   sub <- wellFormedSubst ctx (Cons ap nat EmptySubst)
   return $ (Cons ap nat sub)
-unifyB ctx (BaseSubstVar ap) (BaseVar ap')
+-- U-VC
+unify ctx (BaseSubstVar ap) (BaseVar ap')
   | ap == ap' = let var = baseToType (BaseVar ap') in do
     sub <- wellFormedSubst ctx (Cons ap var EmptySubst)
     return $ (Cons ap var sub)
-unifyB ctx (BaseVar ap) (BaseSubstVar ap')
+-- U-CV
+unify ctx (BaseVar ap) (BaseSubstVar ap')
   | ap == ap' = let var = baseToType (BaseVar ap) in do
     sub <- wellFormedSubst ctx (Cons ap var EmptySubst)
     return $ (Cons ap var sub)
-
-
-unifyM :: TypeContext -> BaseType -> BaseType -> Maybe Substitution
-unifyM = unifyB
-
-
-substitute :: Substitution -> Type -> Type
-substitute = undefined
 
 
 disjoint :: TypeContext -> Type -> Type -> Maybe Substitution
@@ -144,20 +166,21 @@ disjoint ctx a                      (TyIs b1 b2)
     if s1 == s2 then return s2 else Nothing
 -- AD-All
 disjoint ctx (TyAbs ap a1 a2)        (TyAbs ap' b1 b2)
-  | ap == ap' = disjoint (SubstSnoc ctx ap (TyIs a1 b1)) (substitute (Cons ap (TySubstVar ap) EmptySubst) a2) (substitute (Cons ap (TySubstVar ap) EmptySubst) b2)
+  | ap == ap' = disjoint (SubstSnoc ctx ap (TyIs a1 b1)) (substType (Cons ap (TySubstVar ap) EmptySubst) a2) (substType (Cons ap (TySubstVar ap) EmptySubst) b2)
 -- AD-AllL
 disjoint ctx (TyAbs ap a b1)        b2
-  = disjoint (SubstSnoc ctx ap a) (substitute (Cons ap (TySubstVar ap) EmptySubst) b1) b2
+  = disjoint (SubstSnoc ctx ap a) (substType (Cons ap (TySubstVar ap) EmptySubst) b1) b2
 -- AD-AllR
 disjoint ctx b1        (TyAbs ap a b2)
-  = disjoint (SubstSnoc ctx ap a) b1 (substitute (Cons ap (TySubstVar ap) EmptySubst) b2)
+  = disjoint (SubstSnoc ctx ap a) b1 (substType (Cons ap (TySubstVar ap) EmptySubst) b2)
 -- AD-Ax
 disjoint ctx a                      b
-  = disjointAx a b
+  = if disjointAx a b then EmptySubst else Nothing
 
 
 disjointAx :: Type -> Type -> Maybe Substitution
 disjointAx = undefined
+-- disjointAx (TyMono TyNat) (TyMono TyBool) =  -- TODO: what?
 
 
 subtyping :: Type -> Type -> Maybe (Target.Coercion, Substitution)
@@ -170,13 +193,24 @@ queueToCoercion = undefined
 
 subRight :: TypeContext -> Queue -> Type -> Type -> Maybe (Target.Coercion, Substitution)
 -- ?
-subRight ctx l a (TyMono TyTop) = return (Target.CoComp (queueToCoercion l (TyMono TyTop)) (Target.CoTop (elabType a)), EmptySubst)
+subRight ctx l a (TyMono TyTop) =
+  return (
+    Target.CoComp
+      (queueToCoercion l (TyMono TyTop))
+      (Target.CoTop (elabType a)),
+    EmptySubst
+    )
 -- AR-and
 subRight ctx l a (TyIs b1 b2) = do
   (c1, s1) <- subRight ctx l a b1
   (c2, s2) <- subRight ctx l a b2
   guard (s1 == s2)
-  return (Target.CoComp (queueToCoercion l (TyIs b1 b2)) (Target.CoPair c1 c2), s1)
+  return (
+    Target.CoComp
+      (queueToCoercion l (TyIs b1 b2))
+      (Target.CoPair c1 c2),
+    s1
+    )
 -- ?
 subRight ctx l a (TyArr b1 b2) = subRight ctx (ExtraType l b1) a b2
 -- AR-all
@@ -187,25 +221,54 @@ subRight ctx l a (TyAbs ap b1 b2) = do
 subRight ctx l a b = case typeToBase b of
   Nothing -> Nothing
   Just bb -> do
-    (s, ac) <- subLeft ctx l Null a (ContextAbs _ _) a bb
-    return (_, s)
+    (ac, s) <- subLeft ctx l Null a (ContextAbs _ _) a bb  -- TODO: where are the coercion contexts? how do we represent the id context?
+    return (_, s)  -- TODO: what are the rules for algorithmic context application?
 
 
-subLeft :: TypeContext -> Queue -> Queue -> Type -> AlgContext -> Type -> BaseType -> Maybe (Substitution, AlgContext)
+freshVar :: Maybe Variable
+freshVar = undefined
+
+
+subLeft :: TypeContext -> Queue -> Queue -> Type -> AlgContext -> Type -> BaseType -> Maybe (AlgContext, Substitution)
 -- AL-Base
-subLeft ctx Null m a0 c e1 e2 = undefined
+subLeft ctx Null m a0 c e1 e2 = case typeToBase e1 of  -- TODO: switch case to pattern matching to avoid false enters
+  Nothing -> Nothing
+  Just bb ->  do
+    sub <- unify ctx bb e2
+    return (c, sub)
 -- AL-VarArr
-subLeft ctx (ExtraType l b1) m a0 c (TySubstVar ap) e = undefined
--- AL-AndL
-subLeft ctx l m a0 c (TyIs a1 a2) e = undefined
--- AL-AndR
-subLeft ctx l m a0 c (TyIs a1 a2) e = undefined  -- TODO: when does this apply?
--- AL-Arr
-subLeft ctx (ExtraType l b1) m a0 c (TyArr a1 a2) e = undefined
--- AL-MP
-subLeft ctx l m a0 c (TyArr a1 a2) e = undefined  -- TODO: same question
+subLeft ctx (ExtraType l b1) m a0 c (TySubstVar ap) e = do
+  ap1 <- freshVar
+  ap2 <- freshVar
+  let sub' = (Cons ap (TyArr (TySubstVar ap1) (TySubstVar ap2)) EmptySubst) in do
+    (c1, sub1) <- subRight (substContext sub' ctx) Null (substType sub' b1) (TySubstVar ap1)
+    (c', sub) <- subLeft ctx l (ExtraType m b1) a0 (ContextAbs _ _) (TySubstVar ap2) e
+    return (c', appendSubst sub' (appendSubst sub1 sub))
+-- AL-AndL & AL-AndR
+subLeft ctx l m a0 c (TyIs a1 a2) e = andL ctx l m a0 c (TyIs a1 a2) e <|> andR ctx l m a0 c (TyIs a1 a2) e
+  where
+    andL ctx l m a0 c (TyIs a1 a2) e = subLeft ctx l m a0 (ContextAbs _ _) a1 e
+    andR ctx l m a0 c (TyIs a1 a2) e = subLeft ctx l m a0 (ContextAbs _ _) a1 e
+-- AL-Arr & AL-MP
+subLeft ctx l m a0 c (TyArr a1 a2) e = arr ctx l m a0 c (TyArr a1 a2) e <|> mp ctx l m a0 c (TyArr a1 a2) e
+  where
+    arr ctx (ExtraType l b1) m a0 c (TyArr a1 a2) e = do
+      (c1, sub1) <- subRight ctx Null b1 a1
+      (c', sub) <- subLeft ctx l (ExtraType m b1) a0 (ContextAbs _ _) a2 e
+      return (c', appendSubst _ sub1)
+    mp ctx l m a0 c (TyArr a1 a2) e = do
+      (c1, sub1) <- subRight ctx Null a0 (queueToType m a1)
+      (c'', sub2) <- subLeft ctx l m a0 c' a2 e
+      let c' = ContextAbs _ _ in
+        return (c', appendSubst sub2 sub1)
 -- AL-Forall
-subLeft ctx l m a0 c (TyAbs ap a b) e = undefined
+subLeft ctx l m a0 c (TyAbs ap a b) e = do
+  ap <- freshVar
+  subLeft (SubstSnoc ctx ap a) l m a0 (ContextAbs _ _) (substType (Cons ap (TySubstVar ap) EmptySubst) b) e
+
+
+
+
 
 -- * Old code from here
 -- ----------------------------------------------------------------------------
