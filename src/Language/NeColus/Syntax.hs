@@ -20,12 +20,23 @@ data Monotype
   | TyMonoArr Monotype Monotype
   | TyMonoIs Monotype Monotype
 
+instance Eq Monotype where
+  TyNat == TyNat  = True
+  TyTop == TyTop  = True
+
 data Type
   = TyMono Monotype
   | TyArr Type Type
   | TyIs Type Type
   | TyAbs Variable Type Type
   | TyRec Label Type
+  | TySubstVar Variable -- should only be used during typechecking
+
+instance Eq Type where
+  (TyMono m1)   == (TyMono m2) = m1 == m2
+  (TyArr t1 t2) == (TyArr t1' t2') = t1 == t1' && t2 == t2'
+  (TyIs t1 t2)  == (TyIs t1' t2') = t1 == t1' && t2 == t2'
+  _             == _ = False
 
 data Expression
   = ExLit Integer
@@ -40,9 +51,12 @@ data Expression
   | ExRec Label Expression
   | ExRecFld Expression Label
 
+-- data SubstitutionVariable = SubstVar Variable
+
 data TypeContext
   = Empty
-  | Snoc TypeContext Variable Type
+  | VarSnoc TypeContext Variable Type
+  | SubstSnoc TypeContext Variable Type
 
 
 -- | The queue for implementing algorithmic subtyping rules.
@@ -50,6 +64,13 @@ data Queue
   = Null
   -- | ExtraLabel Queue Label
   | ExtraType Queue Type
+
+
+data Substitution
+  = EmptySubst
+  | Cons Variable Type Substitution
+  deriving (Eq)
+
 
 -- | Check whether a queue is empty.
 isNullQueue :: Queue -> Bool
@@ -111,7 +132,7 @@ instance PrettyPrint Expression where
 
 instance PrettyPrint TypeContext where
   ppr Empty        = ppr "•"
-  ppr (Snoc c v t) = hcat [ppr c, comma, ppr v, colon, ppr t]
+  ppr (VarSnoc c v t) = hcat [ppr c, comma, ppr v, colon, ppr t]
 
 instance Show Type where
   show = render . ppr
