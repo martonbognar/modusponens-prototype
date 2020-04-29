@@ -49,6 +49,13 @@ baseToType (BaseVar v) = TyMono (TyVar v)
 baseToType (BaseSubstVar v) = TySubstVar v
 
 
+-- | For a NeColus type, get the corresponding LambdaC type.
+elabType :: Type -> Target.Type
+elabType (TyMono m) = elabMono m
+elabType (TyArr a b) = Target.TyArr (elabType a) (elabType b)
+elabType (TyIs a b)  = Target.TyTup (elabType a) (elabType b)
+-- elabType (TyRec l a) = Target.TyRec l (elabType a)
+
 elabMono :: Monotype -> Target.Type
 elabMono TyNat = Target.TyNat
 elabMono TyTop = Target.TyTop
@@ -196,18 +203,14 @@ disjoint ctx a                      (TyMono TyTop)
   = Just EmptySubst
 -- AD-VarL
 disjoint ctx (TyMono (TyVar ap))     b
-  = case (typeFromContext ctx ap) of
-      Left _ -> Nothing
-      Right a -> do
-        (c, s) <- subRight ctx Null a b
-        return s
+  = do a <- typeFromContext ctx ap
+       (c, s) <- subRight ctx Null a b
+       return s
 -- AD-VarR
 disjoint ctx a                      (TyMono (TyVar bt))
-  = case (typeFromContext ctx bt) of
-      Left _ -> Nothing
-      Right b -> do
-        (c, s) <- subRight ctx Null b a
-        return s
+  = do b <- typeFromContext ctx bt
+       (c, s) <- subRight ctx Null b a
+       return s
 -- AD-Arr
 disjoint ctx (TyArr a1 a2) (TyArr b1 b2)
   = disjoint ctx a2 b2
@@ -343,63 +346,12 @@ subLeft ctx l m a0 c (TyAbs ap a b) e = do
 -- * Old code from here
 -- ----------------------------------------------------------------------------
 
-guardWithMsg :: Bool -> String -> TcM ()
-guardWithMsg True  _ = return ()
-guardWithMsg False s = Left s
-
--- * NeColus Typing
--- ----------------------------------------------------------------------------
-
-
-
-
--- | For a NeColus type, get the corresponding LambdaC type.
-elabType :: Type -> Target.Type
-elabType (TyMono m) = elabMono m
-elabType (TyArr a b) = Target.TyArr (elabType a) (elabType b)
-elabType (TyIs a b)  = Target.TyTup (elabType a) (elabType b)
--- elabType (TyRec l a) = Target.TyRec l (elabType a)
-
-
--- | Get the type of a variable from a context.
-typeFromContext :: TypeContext -> Variable -> TcM Type
-typeFromContext Empty _ = Left "Variable not in context"
-typeFromContext (VarSnoc c v vt) x
-  | v == x    = return vt
-  | otherwise = typeFromContext c x
-
--- | Check whether two types are disjoint.
--- disjoint :: Type -> Type -> Bool
--- disjoint (TyMono TyTop)        _            = True
--- disjoint _            (TyMono TyTop)        = True
--- disjoint (TyArr _ a2) (TyArr _ b2) = disjoint a2 b2
--- disjoint (TyIs a1 a2) b            = disjoint a1 b && disjoint a2 b
--- disjoint a            (TyIs b1 b2) = disjoint a b1 && disjoint a b2
--- -- disjoint (TyRec l1 a) (TyRec l2 b) = (l1 /= l2) || disjoint a b
--- disjoint (TyMono TyNat)        (TyArr _ b2) = disjoint (TyMono TyNat) b2 -- was buggy before
--- disjoint (TyArr _ b2) (TyMono TyNat)        = disjoint b2 (TyMono TyNat) -- was buggy before
--- -- disjoint (TyMono TyNat)        TyRec{}      = True
--- -- disjoint TyRec{}      (TyMono TyNat)        = True
--- -- disjoint TyArr{}      TyRec{}      = True
--- -- disjoint TyRec{}      TyArr{}      = True
--- disjoint (TyMono TyNat)        (TyMono TyNat)        = False
-
-
--- | Experimental unary disjoint.
--- uDisjoint :: Type -> Bool
--- uDisjoint (TyMono TyTop)       = True
--- uDisjoint (TyMono TyNat)       = True
--- uDisjoint (TyIs a b ) = disjoint a b && uDisjoint a && uDisjoint b
--- uDisjoint (TyArr _ b) = uDisjoint b
--- -- uDisjoint (TyRec _ t) = uDisjoint t
-
-
-inference :: Expression -> TcM (Type, Target.Expression)
+inference :: Expression -> Maybe (Type, Target.Expression)
 inference = inferenceWithContext Empty
 
 
 -- | inferenceWithContext
-inferenceWithContext :: TypeContext -> Expression -> TcM (Type, Target.Expression)
+inferenceWithContext :: TypeContext -> Expression -> Maybe (Type, Target.Expression)
 -- T-TOP
 inferenceWithContext _ ExTop = return ((TyMono TyTop), Target.ExTop)
 -- T-LIT
@@ -436,11 +388,11 @@ inferenceWithContext c (ExMerge e1 e2)
 --   = do (a, v) <- inferenceWithContext c e
 --        return (TyRec l a, Target.TmRecCon l v)
 -- failing case
-inferenceWithContext _ ExAbs {} = Left "inferenceWithContext: ExAbs"
+inferenceWithContext _ ExAbs {} = Nothing
 
 
 -- | Checking
-checking :: TypeContext -> Expression -> Type -> TcM Target.Expression
+checking :: TypeContext -> Expression -> Type -> Maybe Target.Expression
 -- T-ABS
 checking c (ExAbs x e) (TyArr a b)
   = do v <- checking (VarSnoc c x a) e b
@@ -448,7 +400,7 @@ checking c (ExAbs x e) (TyArr a b)
 -- T-SUB
 checking c e a
   = do (b, v) <- inferenceWithContext c e
-       co <- subtype b a
+       (co, _) <- subtyping b a
        return (Target.ExCoApp co v)
 
 topArrows :: Queue -> Target.Coercion
@@ -480,91 +432,30 @@ distArrows (ExtraType q t) t1 t2 = Target.CoComp (Target.CoArr (Target.CoId t') 
         t2' = elabType $ queueToType q t2
 
 
-data CallStack
-  = EmptyStack
-  | Add Type Type CallStack
+-- data CallStack
+--   = EmptyStack
+--   | Add Type Type CallStack
 
 
-stackContains :: CallStack -> Type -> Type -> Bool
-stackContains EmptyStack _ _ = False
-stackContains (Add a' t' s) a t = (t == t' && a == a') || stackContains s a t
+-- stackContains :: CallStack -> Type -> Type -> Bool
+-- stackContains EmptyStack _ _ = False
+-- stackContains (Add a' t' s) a t = (t == t' && a == a') || stackContains s a t
 
 
-data XEnv
-  = XHole
-  | XCoArr XEnv Type Type Target.Coercion
-  | XProjLeft XEnv Type Type
-  | XProjRight XEnv Type Type
-  | XModPon Queue Target.Coercion Target.Coercion Type Type
+-- data XEnv
+--   = XHole
+--   | XCoArr XEnv Type Type Target.Coercion
+--   | XProjLeft XEnv Type Type
+--   | XProjRight XEnv Type Type
+--   | XModPon Queue Target.Coercion Target.Coercion Type Type
 
 
-xSem :: XEnv -> Target.Coercion -> Target.Coercion
-xSem XHole k                 = k
-xSem (XCoArr x _ _ k1) k     = xSem x (Target.CoArr k1 k)
-xSem (XProjLeft x a b) k     = xSem x (Target.CoComp k (Target.CoPr1 a' b'))
-  where a' = elabType a
-        b' = elabType b
-xSem (XProjRight x a b) k    = xSem x (Target.CoComp k (Target.CoPr2 a' b'))
-  where a' = elabType a
-        b' = elabType b
-
-
-subtype :: Type -> Type -> TcM Target.Coercion
-subtype a b = sub1 EmptyStack Null a b
-
-
-sub1 :: CallStack -> Queue -> Type -> Type -> TcM Target.Coercion
-sub1 s l a (TyMono TyNat) = do
-  x <- sub2 s l Null a XHole a (TyMono TyNat)
-  return (xSem x (Target.CoId (elabType (TyMono TyNat))))
-sub1 s l a (TyArr b1 b2) = sub1 s (appendType l b1) a b2
-sub1 s l a (TyIs b1 b2) = do
-  k1 <- sub1 s l a b1
-  k2 <- sub1 s l a b2
-  return (Target.CoComp (distArrows l b1 b2) (Target.CoPair k1 k2))
-sub1 _ l a (TyMono TyTop) = let a' = elabType a in do
-  return (Target.CoComp (topArrows l) (Target.CoTop a'))
-
-
-sub2 :: CallStack -> Queue -> Queue -> Type -> XEnv -> Type -> Type -> TcM XEnv
-sub2 _ Null _ _ x (TyMono TyNat)  (TyMono TyNat)  = return x
-sub2 s l m a0 x (TyArr a1 a2) (TyMono TyNat) = case l of
-    Null -> sub2ModPon
-    (ExtraType l' b1) -> sub2Arr l' b1 <|> sub2ModPon
-  where
-    sub2Arr l' b1 = do
-      k <- sub1 s Null b1 a1
-      sub2 s l' (appendType m b1) a0 (XCoArr x b1 a1 k) a2 (TyMono TyNat)
-
-    sub2ModPon = do
-      let arr = elabType (TyArr a1 a2)
-          t   = (queueToType m a1)
-          s'  = Add a0 t s
-      guardWithMsg
-        (not (stackContains s a0 t))
-        ("loop detected: " ++ show a0 ++ " < " ++ show t)
-      k1 <- sub1 s' Null a0 t
-      sub2 s l m a0 (XModPon m (xSem x (Target.CoId arr)) k1 a1 a2) a2 (TyMono TyNat)
-
-sub2 _ Null             _ _ _ (TyMono TyNat)       (TyMono TyTop)       = Left "sub2 ... Null ... (TyMono TyNat)       TyTop      "
-sub2 _ Null             _ _ _ (TyMono TyNat)       (TyArr _ _) = Left "sub2 ... Null ... (TyMono TyNat)       (TyArr _ _)"
-sub2 _ Null             _ _ _ (TyMono TyNat)       (TyIs _ _)  = Left "sub2 ... Null ... (TyMono TyNat)       (TyIs _ _) "
-sub2 _ (ExtraType _ _)  _ _ _ (TyMono TyNat)       _           = Left "sub2 ... (ExtraType _ _) ... (TyMono TyNat) "
-
-sub2 _ Null             _ _ _ (TyMono TyTop)       _           = Left "sub2 ... Null            ... TyTop"
-sub2 _ (ExtraType _ _)  _ _ _ (TyMono TyTop)       _           = Left "sub2 ... (ExtraType _ _) ... TyTop"
-
-sub2 _ Null             _ _ _ (TyArr _ _) (TyMono TyTop)       = Left "sub2 ... (TyArr _ _) TyTop      "
-sub2 _ (ExtraType _ _)  _ _ _ (TyArr _ _) (TyMono TyTop)       = Left "sub2 ... (TyArr _ _) TyTop      "
-sub2 _ Null             _ _ _ (TyArr _ _) (TyArr _ _) = Left "sub2 ... (TyArr _ _) (TyArr _ _)"
-sub2 _ (ExtraType _ _)  _ _ _ (TyArr _ _) (TyArr _ _) = Left "sub2 ... (TyArr _ _) (TyArr _ _)"
-sub2 _ Null             _ _ _ (TyArr _ _) (TyIs _ _)  = Left "sub2 ... (TyArr _ _) (TyIs _ _) "
-sub2 _ (ExtraType _ _)  _ _ _ (TyArr _ _) (TyIs _ _)  = Left "sub2 ... (TyArr _ _) (TyIs _ _) "
-
-sub2 _ Null             _ _ _ (TyIs _ _)  (TyMono TyTop)       = Left "sub2 ... (TyIs _ _)  TyTop      "
-sub2 _ (ExtraType _ _)  _ _ _ (TyIs _ _)  (TyMono TyTop)       = Left "sub2 ... (TyIs _ _)  TyTop      "
-sub2 _ Null             _ _ _ (TyIs _ _)  (TyArr _ _) = Left "sub2 ... (TyIs _ _)  (TyArr _ _)"
-sub2 _ (ExtraType _ _)  _ _ _ (TyIs _ _)  (TyArr _ _) = Left "sub2 ... (TyIs _ _)  (TyArr _ _)"
-sub2 _ Null             _ _ _ (TyIs _ _)  (TyIs _ _)  = Left "sub2 ... (TyIs _ _)  (TyIs _ _) "
-sub2 _ (ExtraType _ _)  _ _ _ (TyIs _ _)  (TyIs _ _)  = Left "sub2 ... (TyIs _ _)  (TyIs _ _) "
-
+-- xSem :: XEnv -> Target.Coercion -> Target.Coercion
+-- xSem XHole k                 = k
+-- xSem (XCoArr x _ _ k1) k     = xSem x (Target.CoArr k1 k)
+-- xSem (XProjLeft x a b) k     = xSem x (Target.CoComp k (Target.CoPr1 a' b'))
+--   where a' = elabType a
+--         b' = elabType b
+-- xSem (XProjRight x a b) k    = xSem x (Target.CoComp k (Target.CoPr2 a' b'))
+--   where a' = elabType a
+--         b' = elabType b

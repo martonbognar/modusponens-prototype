@@ -62,6 +62,14 @@ data TypeContext
   | SubstSnoc TypeContext Variable Type
 
 
+-- | Get the type of a variable from a context.
+typeFromContext :: TypeContext -> Variable -> Maybe Type
+typeFromContext Empty _ = Nothing
+typeFromContext (VarSnoc c v vt) x
+  | v == x    = return vt
+  | otherwise = typeFromContext c x
+
+
 -- | The queue for implementing algorithmic subtyping rules.
 data Queue
   = Null
