@@ -284,10 +284,10 @@ Rule \textsc{S-DistAll} of $F_{i}^{+}$ is subsumed by our rules:
 \begin{align*}
   \bullet [c] &= c\\
   (\arrCC{\mathcal{C}}{c'})[c] &= \mathcal{C}[c'\to c]\\
-  \projlCC{\mathcal{C}}{A}{B}[c] &= \mathcal{C}[\compC{c}{\projlC{A}{B}}]\\
-  \projrCC{\mathcal{C}}{A}{B}[c] &= \mathcal{C}[\compC{c}{\projrC{A}{B}}]\\
-  \mpCC{\mathcal{C}}{\mathcal{M}}{c_1}{A}{B}[c] &= \compC{\distarrowqueueC{\mathcal{M}}{\left(\compC{c}{(\mpC{\projlC{A\to B}{A}}{\projrC{A\to B}{A}})}\right)}{(A\to B)}{A}}{\pairC{\mathcal{C}[\idC{A\to B}]}{c_1}}\\
-  \alllCC{\mathcal{C}}{\tau}[c] &= \mathcal{C}[\alllC{c}{\tau}]
+  \projlCC{\mathcal{C}}{A}{B}[c] &= \mathcal{C}[\compC{c}{\projlC{\toTarget{A}}{\toTarget{B}}}]\\
+  \projrCC{\mathcal{C}}{A}{B}[c] &= \mathcal{C}[\compC{c}{\projrC{\toTarget{A}}{\toTarget{B}}}]\\
+  \mpCC{\mathcal{C}}{\mathcal{M}}{c_1}{A}{B}[c] &= \compC{\distarrowqueueC{\mathcal{M}}{\left(\compC{c}{(\mpC{\projlC{\toTarget{A\to B}}{\toTarget{A}}}{\projrC{\toTarget{A\to B}}{\toTarget{A}}})}\right)}{\toTarget{A\to B}}{\toTarget{A}}}{\pairC{\mathcal{C}[\idC{\toTarget{A\to B}}]}{c_1}}\\
+  \alllCC{\mathcal{C}}{\tau}[c] &= \mathcal{C}[\alllC{c}{\toTarget{\tau}}]
 \end{align*}
 \end{minipage}
 
