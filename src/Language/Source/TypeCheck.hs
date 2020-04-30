@@ -29,15 +29,21 @@ data CoContext
 completeCoercion :: CoContext -> Target.Coercion -> Target.Coercion
 completeCoercion Hole c = c
 completeCoercion (XCoArr c' ctx) c = completeCoercion ctx (Target.CoArr c' c)
-completeCoercion (XCoPr1 a b ctx) c = completeCoercion ctx (Target.CoComp c (Target.CoPr1 a b))
-completeCoercion (XCoPr2 a b ctx) c = completeCoercion ctx (Target.CoComp c (Target.CoPr2 a b))
+completeCoercion (XCoPr1 a b ctx) c = let
+  a' = elabType a
+  b' = elabType b
+  in completeCoercion ctx (Target.CoComp c (Target.CoPr1 a' b'))
+completeCoercion (XCoPr2 a b ctx) c =  let
+  a' = elabType a
+  b' = elabType b
+  in completeCoercion ctx (Target.CoComp c (Target.CoPr2 a' b'))
 completeCoercion (XCoMP m c1 a b ctx) c = let
   a' = elabType a
   b' = elabType b
   comp2 = Target.CoComp (completeCoercion ctx (Target.CoId (Target.TyArr a' b'))) c1
   comp1 = queueToCoercion m (Target.CoComp c (Target.CoMP (Target.CoPr1 (Target.TyArr a' b') a') (Target.CoPr2 (Target.TyArr a' b') a'))) (TyArr a b) a
   in Target.CoComp comp1 comp2
-completeCoercion (XCoAt t ctx) c = completeCoercion ctx (Target.CoAt c t)
+completeCoercion (XCoAt t ctx) c = completeCoercion ctx (Target.CoAt c (elabType t))
 
 
 data BaseType
@@ -48,17 +54,17 @@ data BaseType
 
 
 typeToBase :: Type -> Maybe BaseType
-typeToBase (TyMono (TyNat)) = Just BaseNat
-typeToBase (TyMono (TyTop)) = Just BaseTop
+typeToBase (TyMono TyNat) = Just BaseNat
+typeToBase (TyMono TyTop) = Just BaseTop
 typeToBase (TyMono (TyVar v)) = Just (BaseVar v)
-typeToBase (TySubstVar v) = Just (BaseSubstVar v)
+typeToBase (TyMono (TySubstVar v)) = Just (BaseSubstVar v)
 typeToBase _ = Nothing
 
-baseToType :: BaseType -> Type
-baseToType BaseNat = TyMono TyNat
-baseToType BaseTop = TyMono TyTop
-baseToType (BaseVar v) = TyMono (TyVar v)
-baseToType (BaseSubstVar v) = TySubstVar v
+baseToMono :: BaseType -> Monotype
+baseToMono BaseNat = TyNat
+baseToMono BaseTop = TyTop
+baseToMono (BaseVar v) = TyVar v
+baseToMono (BaseSubstVar v) = TySubstVar v
 
 
 -- | For a Source type, get the corresponding Target type.
@@ -86,9 +92,9 @@ substType EmptySubst t                       = t
 substType sub@(SVar ap t s) (TyMono TyNat)   = TyMono TyNat
 substType sub@(SVar ap t s) (TyMono TyTop)   = TyMono TyTop
 substType sub@(SVar ap t s) (TyMono (TyVar v))
-  | ap == v = t
+  | ap == v = TyMono t
   | otherwise = (TyMono (TyVar v))
-substType sub@(SVar ap t s) (TySubstVar ap') = TySubstVar ap'
+substType sub@(SVar ap t s) (TyMono (TySubstVar ap')) = TyMono (TySubstVar ap')
 substType sub@(SVar ap t s) (TyArr a b)      = TyArr (substType sub a) (substType sub b)
 substType sub@(SVar ap t s) (TyIs a b)       = TyIs (substType sub a) (substType sub b)
 substType sub@(SVar ap t s) (TyAbs ap' a b)  = TyAbs ap' (substType sub a) (substType sub b)
@@ -97,9 +103,9 @@ substType sub@(SVar ap t s) (TyRec l a)      = TyRec l (substType sub a)
 substType sub@(SSub ap t s) (TyMono TyNat)   = TyMono TyNat
 substType sub@(SSub ap t s) (TyMono TyTop)   = TyMono TyTop
 substType sub@(SSub ap t s) (TyMono (TyVar v)) = TyMono (TyVar v)
-substType sub@(SSub ap t s) (TySubstVar ap')
-  | ap == ap' = t
-  | otherwise = TySubstVar ap'
+substType sub@(SSub ap t s) (TyMono (TySubstVar ap'))
+  | ap == ap' = TyMono t
+  | otherwise = TyMono (TySubstVar ap')
 substType sub@(SSub ap t s) (TyArr a b)      = TyArr (substType sub a) (substType sub b)
 substType sub@(SSub ap t s) (TyIs a b)       = TyIs (substType sub a) (substType sub b)
 substType sub@(SSub ap t s) (TyAbs ap' a b)  = TyAbs ap' (substType sub a) (substType sub b)
@@ -174,7 +180,7 @@ wellFormedSubst (SubstSnoc ctx ap b) (SVar ap' a sub)
 -- WFS-next
   | ap == ap' = do
     s1 <- wellFormedSubst ctx sub
-    ds <- disjoint ctx a b
+    ds <- disjoint ctx (TyMono a) b
     let s2 = appendSubst s1 (appendSubst sub ds)
       in return $ appendSubst s1 s2
   | otherwise = wellFormedSubst ctx (SVar ap' a sub)
@@ -189,21 +195,21 @@ unify ctx (BaseVar a) (BaseVar b)
 unify ctx (BaseSubstVar a) (BaseSubstVar b)
   | a == b = Just EmptySubst
 -- U-NatV
-unify ctx BaseNat (BaseSubstVar ap) = let nat = baseToType BaseNat in do
+unify ctx BaseNat (BaseSubstVar ap) = let nat = baseToMono BaseNat in do
   sub <- wellFormedSubst ctx (SVar ap nat EmptySubst)
   return $ (SVar ap nat sub)
 -- U-VNat
-unify ctx (BaseSubstVar ap) BaseNat = let nat = baseToType BaseNat in do
+unify ctx (BaseSubstVar ap) BaseNat = let nat = baseToMono BaseNat in do
   sub <- wellFormedSubst ctx (SVar ap nat EmptySubst)
   return $ (SVar ap nat sub)
 -- U-VC
 unify ctx (BaseSubstVar ap) (BaseVar ap')
-  | ap == ap' = let var = baseToType (BaseVar ap') in do
+  | ap == ap' = let var = baseToMono (BaseVar ap') in do
     sub <- wellFormedSubst ctx (SVar ap var EmptySubst)
     return $ (SVar ap var sub)
 -- U-CV
 unify ctx (BaseVar ap) (BaseSubstVar ap')
-  | ap == ap' = let var = baseToType (BaseVar ap) in do
+  | ap == ap' = let var = baseToMono (BaseVar ap) in do
     sub <- wellFormedSubst ctx (SVar ap var EmptySubst)
     return $ (SVar ap var sub)
 
@@ -283,7 +289,7 @@ subRight :: TypeContext -> Queue -> Type -> Type -> Maybe (Target.Coercion, Subs
 subRight ctx l a (TyMono TyTop) =
   return (
     Target.CoComp
-      (queueToCoercion l (TyMono TyTop))
+      (queueToCoercion l Target.CoTopAll (TyMono TyTop) (TyMono TyTop))  -- TODO: incorrect
       (Target.CoTop (elabType a)),
     EmptySubst
     )
@@ -294,7 +300,7 @@ subRight ctx l a (TyIs b1 b2) = do
   guard (s1 == s2)
   return (
     Target.CoComp
-      (queueToCoercion l (TyIs b1 b2))
+      (queueToCoercion l (Target.CoId (Target.TyTup (elabType b1) (elabType b2)))  b1 b2)
       (Target.CoPair c1 c2),
     s1
     )
@@ -309,7 +315,7 @@ subRight ctx l a b = case typeToBase b of
   Nothing -> Nothing
   Just bb -> do
     (ac, s) <- subLeft ctx l Null a Hole a bb
-    return (completeCoercion ac (Target.CoId a), s)  -- TODO: what are the rules for algorithmic context application?
+    return (completeCoercion ac (Target.CoId (elabType a)), s)
 
 
 freshVar :: Maybe Variable
@@ -324,12 +330,12 @@ subLeft ctx Null m a0 c e1 e2 = case typeToBase e1 of  -- TODO: switch case to p
     sub <- unify ctx bb e2
     return (c, sub)
 -- AL-VarArr
-subLeft ctx (ExtraType l b1) m a0 c (TySubstVar ap) e = do
+subLeft ctx (ExtraType l b1) m a0 c (TyMono (TySubstVar ap)) e = do
   ap1 <- freshVar
   ap2 <- freshVar
   let sub' = (SVar ap (TyMonoArr (TySubstVar ap1) (TySubstVar ap2)) EmptySubst) in do
-    (c1, sub1) <- subRight (substContext sub' ctx) Null (substType sub' b1) (TySubstVar ap1)
-    (c', sub) <- subLeft ctx l (ExtraType m b1) a0 (XCoArr c1 c) (TySubstVar ap2) e
+    (c1, sub1) <- subRight (substContext sub' ctx) Null (substType sub' b1) (TyMono (TySubstVar ap1))
+    (c', sub) <- subLeft ctx l (ExtraType m b1) a0 (XCoArr c1 c) (TyMono (TySubstVar ap2)) e
     return (c', appendSubst sub' (appendSubst sub1 sub))
 -- AL-AndL & AL-AndR
 subLeft ctx l m a0 c (TyIs a1 a2) e = andL ctx l m a0 c (TyIs a1 a2) e <|> andR ctx l m a0 c (TyIs a1 a2) e
@@ -350,7 +356,7 @@ subLeft ctx l m a0 c (TyArr a1 a2) e = arr ctx l m a0 c (TyArr a1 a2) e <|> mp c
 -- AL-Forall
 subLeft ctx l m a0 c (TyAbs ap a b) e = do
   ap' <- freshVar
-  subLeft (SubstSnoc ctx ap a) l m a0 (XCoAt (TySubstVar ap') c) (substType (SVar ap (TySubstVar ap') EmptySubst) b) e
+  subLeft (SubstSnoc ctx ap a) l m a0 (XCoAt (TyMono (TySubstVar ap')) c) (substType (SVar ap (TySubstVar ap') EmptySubst) b) e
 
 
 
