@@ -278,16 +278,9 @@ Rule \textsc{S-DistAll} of $F_{i}^{+}$ is subsumed by our rules:
     [\substitution{\alpha}{\tau}]\bullet &= \bullet\\
     [\substitution{\alpha}{\tau}](\mathcal{M},A) &= [\substitution{\alpha}{\tau}]\mathcal{M},([\substitution{\alpha}{\tau}]A)\\
   \end{align*}
-\end{minipage}\vspace{3pt}
+\end{minipage}%\vspace{3pt}
 \subsubsection{Coercion context completion}
-%% \begin{minipage}[t]{0.47\textwidth}
-%% \mypar{$\dblarrow{\mathcal{M}}{\mathcal{C}}$}
-%% \begin{align*}
-%%   \dblarrow{\bullet}{\mathcal{C}} &= \mathcal{C}\\
-%%   \dblarrow{(A,\mathcal{M})}{\mathcal{C}} &= \arrCC{(\dblarrow{\mathcal{M}}{\mathcal{C}})}{\idC{\toTarget{A}}}\\
-%% \end{align*}
-%% \end{minipage}
-\begin{minipage}[t]{\textwidth}
+\begin{minipage}[t]{0.7\textwidth}
 \begin{align*}
   \bullet [c] &= c\\
   (\arrCC{\mathcal{C}}{c'})[c] &= \mathcal{C}[c'\to c]\\
@@ -297,6 +290,19 @@ Rule \textsc{S-DistAll} of $F_{i}^{+}$ is subsumed by our rules:
   \alllCC{\mathcal{C}}{\tau}[c] &= \mathcal{C}[\alllC{c}{\tau}]
 \end{align*}
 \end{minipage}
+
+\subsubsection{Coercion context substitution}
+\begin{minipage}[t]{0.47\textwidth}
+\begin{align*}
+  [\substitution{\alpha}{\tau}](\bullet)                   &= \bullet\\
+  [\substitution{\alpha}{\tau}]\arrCC{\mathcal{C}}{c'}     &= \arrCC{([\substitution{\alpha}{\tau}]\mathcal{C})}{[\substitution{\alpha}{\tau}]c'}\\
+  [\substitution{\alpha}{\tau}]\projlCC{\mathcal{C}}{A}{B} &= \projlCC{([\substitution{\alpha}{\tau}]\mathcal{C})}{[\substitution{\alpha}{\tau}]A}{[\substitution{\alpha}{\tau}]B}\\
+  [\substitution{\alpha}{\tau}]\projrCC{\mathcal{C}}{A}{B} &= \projrCC{([\substitution{\alpha}{\tau}]\mathcal{C})}{[\substitution{\alpha}{\tau}]A}{[\substitution{\alpha}{\tau}]B}\\
+  [\substitution{\alpha}{\tau}]\mpCC{\mathcal{C}}{\mathcal{M}}{c_1}{A}{B} &= \mpCC{([\substitution{\alpha}{\tau}]\mathcal{C})}{([\substitution{\alpha}{\tau}]\mathcal{M})}{[\substitution{\alpha}{\tau}]c_1}{[\substitution{\alpha}{\tau}]A}{[\substitution{\alpha}{\tau}]B}\\
+  [\substitution{\alpha}{\tau}]\alllCC{\mathcal{C}}{\tau}[c] &= \mathcal{C}[\alllC{c}{\tau}]
+\end{align*}
+\end{minipage}
+
 
 \subsection{Judgments}
 \mypar{Well-formed substitution (algorithmic)}
@@ -393,12 +399,14 @@ Formula $\notarrow{A}$, in the rules below, means that $A$ is not a function typ
           {\unifyB{\Delta}{\xi_1}{\xi_2}{\theta}}
           {\algSubLeft{\Delta}{\bullet}{\mathcal{M}}{A_0}{\mathcal{C}}{\xi_1}{\xi_2}{\mathcal{C}}{\theta}}
           \and
+      \mprset{vskip=2pt}
       \inferrule*[right=AL-VarArr]
-                 {\theta= [\unification{\alpha}{(\hat\alpha_1\to\hat\alpha_2)}] \\ \fresh{\hat\alpha_1, \hat\alpha_2}\\ (\tentry{\hat\alpha}{A})\in\Delta\\\\
-                   \algSubRight{\theta(\Delta,\tentry{\hat\alpha_1}{\top},\tentry{\hat\alpha_2}{A})}{\bullet}{\theta'(B_1)}{\hat\alpha_1}{c_1}{\theta_1}\\
-                   \theta_1\circ\theta(\algSubLeft{\Delta}{\mathcal{L}}{\mathcal{M},B_1}{A_0}{\abs{c}{\mathcal{C}[\arrC{c_1}{c}]}}{\hat\alpha_2}{\xi)}{\mathcal{C'}}{\theta_2}
+                 {\theta= [\unification{\alpha}{(\hat\alpha_1\to\hat\alpha_2)}] \\ \fresh{\hat\alpha_1, \hat\alpha_2}\\ \Delta = \Delta_1,\tentry{\hat\alpha}{A},\Delta_2\\\\ %(\tentry{\hat\alpha}{A})\in\Delta\\\\
+                   \algSubRight{\Delta_1,\tentry{\hat\alpha_1}{\top},\tentry{\hat\alpha_2}{A},\theta(\Delta_2)}{\bullet}{\theta(B_1)}{\hat\alpha_1}{c_1}{\theta_1}\\
+                   \theta_1\circ\theta(\algSubLeft{\Delta}{\mathcal{L}}{\mathcal{M},B_1}{A_0}{\arrCC{\mathcal{C}}{c_1}}{\hat\alpha_2}{\xi)}{\mathcal{C'}}{\theta_2}
                  }
           {\algSubLeft{\Delta}{B_1,\mathcal{L}}{\mathcal{M}}{A_0}{\mathcal{C}}{\hat\alpha}{\xi}{\mathcal{C'}}{\theta_2\circ\theta_1\circ\theta}}
+          \mprset{vskip=}
       \and
       \inferrule*[right=AL-AndL]
           {\algSubLeft{\Delta}{\mathcal{L}}{\mathcal{M}}{A_0}{\projlCC{\mathcal{C}}{\toTarget{A_1}}{\toTarget{A_2}}}{A_1}{\xi}{\mathcal{C'}}{\theta}}
@@ -412,7 +420,6 @@ Formula $\notarrow{A}$, in the rules below, means that $A$ is not a function typ
           {\algSubRight{\Delta}{\bullet}{B_1}{A_1}{c_1}{\theta_1}\\ \theta_1(\algSubLeft{\Delta}{\mathcal{L}}{\mathcal{M},B_1}{A_0}{\arrCC{\mathcal{C}}{c_1}}{A_2}{\xi)}{\mathcal{C'}}{\theta}}
           {\algSubLeft{\Delta}{B_1,\mathcal{L}}{\mathcal{M}}{A_0}{\mathcal{C}}{A_1\to A_2}{\xi}{\mathcal{C'}}{\theta_2\circ\theta_1}}
       \and
-      \mprset{vskip=2pt}
       \inferrule*[right=AL-MP]
                  {\algSubRight{\Delta}{\bullet}{A_0}{\arrowqueue{\mathcal{M}}{A_1}}{c_1}{\theta_1}\\
                   \theta_1(\algSubLeft{\Delta}{\mathcal{L}}{\mathcal{M}}{A_0}{\mpCC{\mathcal{C}}{\mathcal{M}}{c_1}{\toTarget{A_1}}{\toTarget{A_2}}}{A_2}{\xi)}{\mathcal{C'}}{\theta_2}
@@ -420,7 +427,6 @@ Formula $\notarrow{A}$, in the rules below, means that $A$ is not a function typ
                  }
           {\algSubLeft{\Delta}{\mathcal{L}}{\mathcal{M}}{A_0}{\mathcal{C}}{A_1\to A_2}{\xi}{\mathcal{C'}}{\theta_2\circ\theta_1}}
       \and
-      \mprset{vskip=}
       \inferrule*[right=AL-Forall]
                  {\algSubLeft{\Delta,\tentry{\hat{\alpha}}{A}}{\mathcal{L}}{\mathcal{M}}{A_0}{\alllCC{\mathcal{C}}{\hat\alpha}}{[\alpha\mapsto\hat{\alpha}]B}{\xi}{\mathcal{C'}}{\theta}\\
                  \fresh{\hat\alpha}}
