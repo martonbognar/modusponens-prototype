@@ -18,6 +18,7 @@ data Monotype
   | TyTop
   | TyBool
   | TyVar Variable
+  | TySubstVar Variable  -- should only be used during typechecking
   | TyMonoArr Monotype Monotype
   | TyMonoIs Monotype Monotype
 
@@ -31,7 +32,6 @@ data Type
   | TyIs Type Type
   | TyAbs Variable Type Type
   | TyRec Label Type
-  | TySubstVar Variable -- should only be used during typechecking
 
 instance Eq Type where
   (TyMono m1)   == (TyMono m2) = m1 == m2
@@ -79,8 +79,8 @@ data Queue
 
 data Substitution
   = EmptySubst
-  | SVar Variable Type Substitution
-  | SSub Variable Type Substitution
+  | SVar Variable Monotype Substitution
+  | SSub Variable Monotype Substitution
   deriving (Eq)
 
 

@@ -54,6 +54,7 @@ data Coercion
   | CoPair Coercion Coercion
   | CoArr Coercion Coercion
   | CoAt Coercion Type
+  | CoMP Coercion Coercion
   | CoTyAbs Variable Coercion
 
 

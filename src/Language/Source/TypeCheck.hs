@@ -17,16 +17,28 @@ type TcM a = Either String a
 -- * New code from here
 -- ----------------------------------------------------------------------------
 
-data AlgContext
+data CoContext
   = Hole
-  | ContextAbs Variable AlgContext
-  | ExprApp AlgContext Expression
-  | ContextApp Expression AlgContext
-  | ContextPair AlgContext Expression
-  | ExprPair Expression AlgContext
-  | ContextRec Label AlgContext
-  | ContextAll Variable Type AlgContext
-  | ContextType AlgContext Target.Type
+  | XCoArr Target.Coercion CoContext
+  | XCoPr1 Type Type CoContext
+  | XCoPr2 Type Type CoContext
+  | XCoMP Queue Target.Coercion Type Type CoContext
+  | XCoAt Type CoContext
+
+
+completeCoercion :: CoContext -> Target.Coercion -> Target.Coercion
+completeCoercion Hole c = c
+completeCoercion (XCoArr c' ctx) c = completeCoercion ctx (Target.CoArr c' c)
+completeCoercion (XCoPr1 a b ctx) c = completeCoercion ctx (Target.CoComp c (Target.CoPr1 a b))
+completeCoercion (XCoPr2 a b ctx) c = completeCoercion ctx (Target.CoComp c (Target.CoPr2 a b))
+completeCoercion (XCoMP m c1 a b ctx) c = let
+  a' = elabType a
+  b' = elabType b
+  comp2 = Target.CoComp (completeCoercion ctx (Target.CoId (Target.TyArr a' b'))) c1
+  comp1 = queueToCoercion m (Target.CoComp c (Target.CoMP (Target.CoPr1 (Target.TyArr a' b') a') (Target.CoPr2 (Target.TyArr a' b') a'))) (TyArr a b) a
+  in Target.CoComp comp1 comp2
+completeCoercion (XCoAt t ctx) c = completeCoercion ctx (Target.CoAt c t)
+
 
 data BaseType
   = BaseNat
@@ -62,7 +74,9 @@ elabMono TyTop = Target.TyTop
 
 
 appendSubst :: Substitution -> Substitution -> Substitution
-appendSubst s1 s2 = undefined
+appendSubst EmptySubst s    = s
+appendSubst (SVar ap t f) s = (SVar ap t (appendSubst f s))
+appendSubst (SSub ap t f) s = (SSub ap t (appendSubst f s))
 
 
 -- TODO: apply substitutions recursively
@@ -260,7 +274,7 @@ subtyping :: Type -> Type -> Maybe (Target.Coercion, Substitution)
 subtyping = subRight Empty Null
 
 
-queueToCoercion :: Queue -> Type -> Target.Coercion
+queueToCoercion :: Queue -> Target.Coercion -> Type -> Type -> Target.Coercion
 queueToCoercion = undefined
 
 
@@ -294,15 +308,15 @@ subRight ctx l a (TyAbs ap b1 b2) = do
 subRight ctx l a b = case typeToBase b of
   Nothing -> Nothing
   Just bb -> do
-    (ac, s) <- subLeft ctx l Null a (ContextAbs _ _) a bb  -- TODO: where are the coercion contexts? how do we represent the id context?
-    return (_, s)  -- TODO: what are the rules for algorithmic context application?
+    (ac, s) <- subLeft ctx l Null a Hole a bb
+    return (completeCoercion ac (Target.CoId a), s)  -- TODO: what are the rules for algorithmic context application?
 
 
 freshVar :: Maybe Variable
 freshVar = undefined
 
 
-subLeft :: TypeContext -> Queue -> Queue -> Type -> AlgContext -> Type -> BaseType -> Maybe (AlgContext, Substitution)
+subLeft :: TypeContext -> Queue -> Queue -> Type -> CoContext -> Type -> BaseType -> Maybe (CoContext, Substitution)
 -- AL-Base
 subLeft ctx Null m a0 c e1 e2 = case typeToBase e1 of  -- TODO: switch case to pattern matching to avoid false enters
   Nothing -> Nothing
@@ -313,31 +327,30 @@ subLeft ctx Null m a0 c e1 e2 = case typeToBase e1 of  -- TODO: switch case to p
 subLeft ctx (ExtraType l b1) m a0 c (TySubstVar ap) e = do
   ap1 <- freshVar
   ap2 <- freshVar
-  let sub' = (SVar ap (TyArr (TySubstVar ap1) (TySubstVar ap2)) EmptySubst) in do
+  let sub' = (SVar ap (TyMonoArr (TySubstVar ap1) (TySubstVar ap2)) EmptySubst) in do
     (c1, sub1) <- subRight (substContext sub' ctx) Null (substType sub' b1) (TySubstVar ap1)
-    (c', sub) <- subLeft ctx l (ExtraType m b1) a0 (ContextAbs _ _) (TySubstVar ap2) e
+    (c', sub) <- subLeft ctx l (ExtraType m b1) a0 (XCoArr c1 c) (TySubstVar ap2) e
     return (c', appendSubst sub' (appendSubst sub1 sub))
 -- AL-AndL & AL-AndR
 subLeft ctx l m a0 c (TyIs a1 a2) e = andL ctx l m a0 c (TyIs a1 a2) e <|> andR ctx l m a0 c (TyIs a1 a2) e
   where
-    andL ctx l m a0 c (TyIs a1 a2) e = subLeft ctx l m a0 (ContextAbs _ _) a1 e
-    andR ctx l m a0 c (TyIs a1 a2) e = subLeft ctx l m a0 (ContextAbs _ _) a1 e
+    andL ctx l m a0 c (TyIs a1 a2) e = subLeft ctx l m a0 (XCoPr1 a1 a2 c) a1 e
+    andR ctx l m a0 c (TyIs a1 a2) e = subLeft ctx l m a0 (XCoPr2 a1 a2 c) a1 e
 -- AL-Arr & AL-MP
 subLeft ctx l m a0 c (TyArr a1 a2) e = arr ctx l m a0 c (TyArr a1 a2) e <|> mp ctx l m a0 c (TyArr a1 a2) e
   where
     arr ctx (ExtraType l b1) m a0 c (TyArr a1 a2) e = do
       (c1, sub1) <- subRight ctx Null b1 a1
-      (c', sub) <- subLeft ctx l (ExtraType m b1) a0 (ContextAbs _ _) a2 e
-      return (c', appendSubst _ sub1)
+      (c', sub) <- subLeft ctx l (ExtraType m b1) a0 (XCoArr c1 c) a2 e
+      return (c', appendSubst sub sub1)
     mp ctx l m a0 c (TyArr a1 a2) e = do
       (c1, sub1) <- subRight ctx Null a0 (queueToType m a1)
-      (c'', sub2) <- subLeft ctx l m a0 c' a2 e
-      let c' = ContextAbs _ _ in
-        return (c', appendSubst sub2 sub1)
+      (c', sub2) <- subLeft ctx l m a0 (XCoMP m c1 a1 a2 c) a2 e
+      return (c', appendSubst sub2 sub1)
 -- AL-Forall
 subLeft ctx l m a0 c (TyAbs ap a b) e = do
-  ap <- freshVar
-  subLeft (SubstSnoc ctx ap a) l m a0 (ContextAbs _ _) (substType (SVar ap (TySubstVar ap) EmptySubst) b) e
+  ap' <- freshVar
+  subLeft (SubstSnoc ctx ap a) l m a0 (XCoAt (TySubstVar ap') c) (substType (SVar ap (TySubstVar ap') EmptySubst) b) e
 
 
 
@@ -430,32 +443,3 @@ distArrows (ExtraType q t) t1 t2 = Target.CoComp (Target.CoArr (Target.CoId t') 
   where t' = elabType t
         t1' = elabType $ queueToType q t1
         t2' = elabType $ queueToType q t2
-
-
--- data CallStack
---   = EmptyStack
---   | Add Type Type CallStack
-
-
--- stackContains :: CallStack -> Type -> Type -> Bool
--- stackContains EmptyStack _ _ = False
--- stackContains (Add a' t' s) a t = (t == t' && a == a') || stackContains s a t
-
-
--- data XEnv
---   = XHole
---   | XCoArr XEnv Type Type Target.Coercion
---   | XProjLeft XEnv Type Type
---   | XProjRight XEnv Type Type
---   | XModPon Queue Target.Coercion Target.Coercion Type Type
-
-
--- xSem :: XEnv -> Target.Coercion -> Target.Coercion
--- xSem XHole k                 = k
--- xSem (XCoArr x _ _ k1) k     = xSem x (Target.CoArr k1 k)
--- xSem (XProjLeft x a b) k     = xSem x (Target.CoComp k (Target.CoPr1 a' b'))
---   where a' = elabType a
---         b' = elabType b
--- xSem (XProjRight x a b) k    = xSem x (Target.CoComp k (Target.CoPr2 a' b'))
---   where a' = elabType a
---         b' = elabType b
