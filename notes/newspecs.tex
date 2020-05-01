@@ -51,7 +51,7 @@ Desugaring of new coercion operators into target functions.
   \begin{mathpar}
     \inferrule*[right=D-TopL]{ }{\disjoint{\Delta}{\top}{A}} \and
     \inferrule*[right=D-TopR]{ }{\disjoint{\Delta}{A}{\top}} \\
-    \inferrule*[right=D-Arr]{\disjoint{\Delta}{A_2}{B_2}}{\disjoint{\Delta}{A_1\to A_2}{B_1\to B_2}} \and
+    %% \inferrule*[right=D-Arr]{\disjoint{\Delta}{A_2}{B_2}}{\disjoint{\Delta}{A_1\to A_2}{B_1\to B_2}} \and
     \inferrule*[right=D-ArrL]{\disjoint{\Delta}{A_2}{B}}{\disjoint{\Delta}{A_1\to A_2}{B}} \and
     \inferrule*[right=D-ArrR]{\disjoint{\Delta}{A}{B_2}}{\disjoint{\Delta}{A}{B_1\to B_2}} \and
     \inferrule*[right=D-AndL]{\disjoint{\Delta}{A_1}{B} \\ \disjoint{\Delta}{A_2}{B}}{\disjoint{\Delta}{A_1\& A_2}{B}} \and
