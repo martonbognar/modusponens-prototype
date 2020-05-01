@@ -311,19 +311,19 @@ Rule \textsc{S-DistAll} of $F_{i}^{+}$ is subsumed by our rules:
   \inferrule*[right=WFS-nil]{ }{\wfSubst{\Delta}{\bullet}{\bullet}} \and
   \inferrule*[]{\wfSubst{\Delta}{\theta,\unification{\alpha}{A}}{\theta'}}{\wfSubst{\Delta,\tentry{\alpha}{B}}{\theta,\unification{\alpha}{A}}{\theta'}} \and
   \inferrule*{\wfSubst{\Delta}{\theta,\unification{\beta}{A}}{\theta'}}{\wfSubst{\Delta,\tentry{\hat{\alpha}}{B}}{\theta,\unification{\beta}{A}}{\theta'}} \and
-  \inferrule*[right=WFS-next]{\wfSubst{\Delta}{\theta}{\theta_1} \\ \theta_1\circ\theta(\algdisjoint{\Delta}{A}{B)}{\theta_2}}{\wfSubst{\Delta,\tentry{\hat{\alpha}}{B}}{\theta,\unification{\alpha}{A}}{\theta_1\circ\theta_2}}
+  \inferrule*[right=WFS-next]{\wfSubst{\Delta}{\theta}{\theta_1} \\ \theta_1\circ\theta(\algdisjoint{\Delta}{A}{B)}{\theta_2}}{\wfSubst{\Delta,\tentry{\hat{\alpha}}{B}}{\theta,\unification{\alpha}{A}}{\theta_2\circ\theta_1}}
 \end{mathpar}
 }
 \mypar{Unification algorithm}
 \fbox{
   \begin{mathpar}
-    \inferrule*[right=U-refl]{ }{\unifyB{\Delta}{\xi}{\xi}{\bullet}} \and
-    \inferrule*[right=U-VVL]{\wfSubst{\Delta}{\unification{\alpha}{\hat\beta}}{\theta}}{\unifyB{\Delta}{\hat\alpha}{\hat\beta}{{\hat\alpha}\mapsto{\hat\beta},\,\theta}} \and
-    \inferrule*[right=U-VVR]{\wfSubst{\Delta}{\unification{\beta}{\hat\alpha}}{\theta}}{\unifyB{\Delta}{\hat\alpha}{\hat\beta}{{\hat\beta}\mapsto{\hat\alpha},\,\theta}} \and
-    \inferrule*[right=U-NatV]{\wfSubst{\Delta}{\unification{\alpha}{\nat}}{\theta}}{\unifyB{\Delta}{\nat}{\hat{\alpha}}{\theta,\unification{\alpha}{\nat}}} \and
-    \inferrule*[right=U-VNat]{\wfSubst{\Delta}{\unification{\alpha}{\nat}}{\theta}}{\unifyB{\Delta}{\hat{\alpha}}{\nat}{\theta,\unification{\alpha}{\nat}}} \and
-    \inferrule*[right=U-CV]{\wfSubst{\Delta}{\unification{\alpha}{\alpha}}{\theta}}{\unifyB{\Delta}{\alpha}{\hat{\alpha}}{\theta,\hat{\alpha}\mapsto\alpha}}\and
-    \inferrule*[right=U-VC]{\wfSubst{\Delta}{\unification{\alpha}{\alpha}}{\theta}}{\unifyB{\Delta}{\hat{\alpha}}{\alpha}{\theta,\hat{\alpha}\mapsto\alpha}}
+    \inferrule*[right=U-refl]{ }{\unifyB{\Delta}{\xi}{\xi}{\bullet}} \\
+    \inferrule*[right=U-VVL]{\wfSubst{\Delta}{[\unification{\alpha}{\hat\beta}]}{\theta}}{\unifyB{\Delta}{\hat\alpha}{\hat\beta}{{\hat\alpha}\mapsto{\hat\beta},\,\theta}} \and
+    \inferrule*[right=U-VVR]{\wfSubst{\Delta}{[\unification{\beta}{\hat\alpha}]}{\theta}}{\unifyB{\Delta}{\hat\alpha}{\hat\beta}{{\hat\beta}\mapsto{\hat\alpha},\,\theta}} \and
+    \inferrule*[right=U-NatV]{\wfSubst{\Delta}{[\unification{\alpha}{\nat}]}{\theta}}{\unifyB{\Delta}{\nat}{\hat{\alpha}}{\theta,\unification{\alpha}{\nat}}} \and
+    \inferrule*[right=U-VNat]{\wfSubst{\Delta}{[\unification{\alpha}{\nat}]}{\theta}}{\unifyB{\Delta}{\hat{\alpha}}{\nat}{\theta,\unification{\alpha}{\nat}}} \and
+    \inferrule*[right=U-CV]{\wfSubst{\Delta}{[\unification{\alpha}{\alpha}]}{\theta}}{\unifyB{\Delta}{\alpha}{\hat{\alpha}}{\theta,\hat{\alpha}\mapsto\alpha}}\and
+    \inferrule*[right=U-VC]{\wfSubst{\Delta}{[\unification{\alpha}{\alpha}]}{\theta}}{\unifyB{\Delta}{\hat{\alpha}}{\alpha}{\theta,\hat{\alpha}\mapsto\alpha}}
   \end{mathpar}
 }\\
 \fbox{
