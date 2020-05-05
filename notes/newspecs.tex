@@ -20,19 +20,20 @@
 \begin{document}
 \section{Syntax}
 \mypar{Syntax of source language, $F_{MP}^{+}$}
-\noindent\begin{tabular}{l r l}
-    Types        & $A, B$   & $::=~\tau~\mid~A \to B~\mid~A \& B~\mid~\textcolor{magenta}{\Tabs{\alpha}{A}{B}}$\vspace{0.3cm}\\
-    Monotypes    & $\tau$   & $::=~\nat~\mid~\top~\mid~\textcolor{magenta}{\alpha}~\mid~\tau_1\to\tau_2~\mid~\tau_1\&\tau_2$ \vspace{0.3cm}\\
-    Expressions  & $E$      & $::=~i~\mid~()~\mid~x~\mid~\abs{x}{E}~\mid~E_1\,E_2~\mid~E_1,,E_2~\mid~E : A~\mid~\textcolor{magenta}{\tabs{\alpha}{A}{E}}~\mid~\textcolor{magenta}{E\,A}$\vspace{0.3cm}\\
-    Type context & $\Delta$ & $::=~\bullet~\mid~\Delta,\tentry{\alpha}{A}$
+\noindent\begin{tabular}{l r r l}
+    Types        & $A, B$   & $::=$ & $\tau~\mid~A \to B~\mid~A \& B~\mid~\textcolor{magenta}{\Tabs{\alpha}{A}{B}}~\mid~\trecord{l}{A}$\vspace{0.3cm}\\
+    Monotypes    & $\tau$   & $::=$ & $\nat~\mid~\top~\mid~\textcolor{magenta}{\alpha}~\mid~\tau_1\to\tau_2~\mid~\tau_1\&\tau_2~\mid~\trecord{l}{\tau}$ \vspace{0.3cm}\\
+    Expressions  & $E$      & $::=$ & $i~\mid~()~\mid~x~\mid~\abs{x}{E}~\mid~E_1\,E_2~\mid~E_1,,E_2~\mid~E : A~\mid~\record{l}{E}~\mid~E.l$\vspace{0.1cm}\\
+                 &          &       & $\textcolor{magenta}{\tabs{\alpha}{A}{E}}~\mid~\textcolor{magenta}{E\,A}$\vspace{0.3cm}\\
+    Type context & $\Delta$ & $::=$ & $\bullet~\mid~\Delta,\tentry{\alpha}{A}$
   \end{tabular}
 
 \mypar{Syntax of target language}
 \noindent\begin{tabular}{l r r l}
     Types        & $\rho$   & $::=~$ & $\nat~\mid~\top~\mid~ \rho_1 \to \rho_2~\mid~\rho_1 \times \rho_2~\mid~\alpha~\mid~\Tabs{\alpha}{A}{\rho}$ \vspace{0.3cm}\\
-    Expressions  & $e$      & $::=~$ & $i~\mid~()~\mid~x~\mid~\abs{x}{e}~\mid~e_1\,e_2~\mid~e_1 , , e_2~\mid~c\,e~\mid~\Lambda{\alpha}.{e}~\mid~e\,A$ \vspace{0.3cm}\\
-    Coercions    & $c$      & $::=~$ & $\idC{\rho}~\mid~\topC{\rho}~\mid~\topArrC~\mid~\topAllC~\mid~\distArrC{\rho_1}{\rho_2}{\rho_3}~\mid~\projlC{\rho_1}{\rho_2}~\mid~\projrC{\rho_1}{\rho_2}~\mid$\vspace{0.1cm}\\
-                 &          & & $\mpC{c_1}{c_2}~\mid~\compC{c_1}{c_2}~\mid~\pairC{c_1}{c_2}~\mid~\arrC{c_1}{c_2}~\mid~\textcolor{magenta}{\alllC{c}{\rho}}~\mid~\textcolor{magenta}{\allrC{\alpha}{c}}$\vspace{0.3cm}\\
+    Expressions  & $e$      & $::=~$ & $i~\mid~()~\mid~x~\mid~\abs{x}{e}~\mid~e_1\,e_2~\mid~e_1 , , e_2~\mid~c\,e~\mid~\Lambda{\alpha}.{e}~\mid~e\,A~\mid~\record{l}{e}~\mid~e.l$ \vspace{0.3cm}\\
+    Coercions    & $c$      & $::=~$ & $\idC{\rho}~\mid~\topC{\rho}~\mid~\topArrC~\mid~\topRecC{l}~\mid~\topAllC~\mid~\distArrC{\rho_1}{\rho_2}{\rho_3}~\mid~\distRecC{l}{\rho_1}{\rho_2}~\mid~\projlC{\rho_1}{\rho_2}$\vspace{0.1cm}\\
+                 &          & & $\projrC{\rho_1}{\rho_2}~\mid~\mpC{c_1}{c_2}~\mid~\compC{c_1}{c_2}~\mid~\pairC{c_1}{c_2}~\mid~\arrC{c_1}{c_2}~\mid~\textcolor{magenta}{\alllC{c}{\rho}}~\mid~\textcolor{magenta}{\allrC{\alpha}{c}}~\mid~\trecord{l}{c}$\vspace{0.3cm}\\
     Type context & $\Phi$   & $::=~$ & $\bullet~\mid~\Phi,\alpha$\vspace{0.1cm}\\
     Term context & $\Psi$   & $::=~$ & $\bullet~\mid~\Psi,\eentry{x}{\rho}$
   \end{tabular}
@@ -50,21 +51,21 @@ Desugaring of new coercion operators into target functions.
 \fbox{
   \begin{mathpar}
     \inferrule*[right=D-TopL]{ }{\disjoint{\Delta}{\top}{A}} \and
-    \inferrule*[right=D-TopR]{ }{\disjoint{\Delta}{A}{\top}} \\
+%    \inferrule*[right=D-TopR]{ }{\disjoint{\Delta}{A}{\top}} \and
     %% \inferrule*[right=D-Arr]{\disjoint{\Delta}{A_2}{B_2}}{\disjoint{\Delta}{A_1\to A_2}{B_1\to B_2}} \and
     \inferrule*[right=D-ArrL]{\disjoint{\Delta}{A_2}{B}}{\disjoint{\Delta}{A_1\to A_2}{B}} \and
-    \inferrule*[right=D-ArrR]{\disjoint{\Delta}{A}{B_2}}{\disjoint{\Delta}{A}{B_1\to B_2}} \and
+%    \inferrule*[right=D-ArrR]{\disjoint{\Delta}{A}{B_2}}{\disjoint{\Delta}{A}{B_1\to B_2}} \and
     \inferrule*[right=D-AndL]{\disjoint{\Delta}{A_1}{B} \\ \disjoint{\Delta}{A_2}{B}}{\disjoint{\Delta}{A_1\& A_2}{B}} \and
-    \inferrule*[right=D-AndR]{\disjoint{\Delta}{A}{B_1} \\ \disjoint{\Delta}{A}{B_2}}{\disjoint{\Delta}{A}{B_1\& B_2}} \and
+%    \inferrule*[right=D-AndR]{\disjoint{\Delta}{A}{B_1} \\ \disjoint{\Delta}{A}{B_2}}{\disjoint{\Delta}{A}{B_1\& B_2}} \and
     \inferrule*[right=D-VarL]{\tentry{\alpha}{A}\in{\Delta} \\ \subt{A}{B}}{\disjoint{\Delta}{\alpha}{B}} \and
-    \inferrule*[right=D-VarR]{\tentry{\beta}{B}\in{\Delta} \\ \subt{B}{A}}{\disjoint{\Delta}{A}{\beta}} \and
-%    \inferrule{\disjoint{\Delta}{A}{B}}{\disjoint{\Delta}{\trecord{l}{A}}{\trecord{l}{B}}} \and
-    %% \inferrule{l_1\neq l_2}{\disjoint{\Delta}{\trecord{l_1}{A}}{\trecord{l_2}{B}}}\\
+%    \inferrule*[right=D-VarR]{\tentry{\beta}{B}\in{\Delta} \\ \subt{B}{A}}{\disjoint{\Delta}{A}{\beta}} \and
     \mprset{sep=1em}
     \inferrule*[right=D-AllL]{(\forall \tau,\,\disjoint{\Delta}{\tau}{A}\implies\disjoint{\Delta}{[\alpha\mapsto\tau]B_1}{B_2})}{\disjoint{\Delta}{\Tabs{\alpha}{A}{B_1}}{B_2}}\and
-    \inferrule*[right=D-AllR]{(\forall \tau,\,\disjoint{\Delta}{\tau}{A}\implies\disjoint{\Delta}{B_1}{[\alpha\mapsto\tau]B_2})}{\disjoint{\Delta}{B_1}{\Tabs{\alpha}{A}{B_2}}}\and
-    %% \inferrule*[right=D-All]{\disjoint{\Delta,\tentry{\alpha}{A_1\& B_1}}{A_2}{B_2}}{\disjoint{\Delta}{\Tabs{\alpha}{A_1}{A_2}}{\Tabs{\alpha}{B_1}{B_2}}} \and
-    \inferrule*[right=]{\starax{A}{B}}{\disjoint{\Delta}{A}{B}}
+%    \inferrule*[right=D-AllR]{(\forall \tau,\,\disjoint{\Delta}{\tau}{A}\implies\disjoint{\Delta}{B_1}{[\alpha\mapsto\tau]B_2})}{\disjoint{\Delta}{B_1}{\Tabs{\alpha}{A}{B_2}}}\and
+    \inferrule*[right=D-Rec]{\disjoint{\Delta}{A}{B}}{\disjoint{\Delta}{\trecord{l}{A}}{\trecord{l}{B}}} \and
+    \inferrule*[right=D-NRec]{l_1\neq l_2}{\disjoint{\Delta}{\trecord{l_1}{A}}{\trecord{l_2}{B}}} \and
+    %% \inferrule*[right=D-Sym]{\disjoint{\Delta}{A}{B}}{\disjoint{\Delta}{B}{A}} \and
+    %% \inferrule*[right=D-ax]{\starax{A}{B}}{\disjoint{\Delta}{A}{B}}
   \end{mathpar}
 }
 \subsection{Notes}
@@ -108,8 +109,10 @@ this behaviour is recovered by:
     \inferrule*[right=S-andL]{ }{\Subtype{\Delta}{A_1\& A_2}{A_1}{\projlC{\toTarget{A_1}}{\toTarget{A_2}}}} \and
     \inferrule*[right=S-andR]{ }{\Subtype{\Delta}{A_1\& A_2}{A_2}{\projrC{\toTarget{A_1}}{\toTarget{A_2}}}} \and
     \inferrule*[right=S-arr]{\Subtype{\Delta}{B_1}{A_1}{c_1}\\ \Subtype{\Delta}{A_2}{B_2}{c_2}}{\Subtype{\Delta}{A_1\to A_2}{B_1\to B_2}{\arrC{c_1}{c_2}}} \and
+    \inferrule*[right=S-rcd]{\Subtype{\Delta}{A}{B}{c}}{\Subtype{\Delta}{\trecord{l}{A}}{\trecord{l}{B}}{\trecord{l}{c}}} \and
     \inferrule*[right=S-mp]{\Subtype{\Delta}{A}{B_1\to B_2}{c_1} \\ \Subtype{\Delta}{A}{B_1}{c_2}}{\Subtype{\Delta}{A}{B_2}{\mpC{c_1}{c_2}}} \and
     \inferrule*[right=S-distArr]{ }{\Subtype{\Delta}{(A\to B_1)\&(A\to B_2)}{A\to{B_1\& B_2}}{\distArrC{\toTarget{A}}{\toTarget{B_1}}{\toTarget{B_2}}}} \and
+    \inferrule*[right=S-distRcd]{ }{\Subtype{\Delta}{\trecord{l}{A}\&\trecord{l}{B}}{\trecord{l}{A\& B}}{\distRecC{l}{\toTarget{A}}{\toTarget{B}}}} \and
     \inferrule*[right=S-allL]{\disjoint{\Delta}{\tau}{A} \\ \Subtype{\Delta}{[\alpha\mapsto\tau]B}{B'}{c}}{\Subtype{\Delta}{\Tabs{\alpha}{A}{B}}{B'}{\alllC{c}{\tau}}} \and
     \inferrule*[right=S-allR]{\Subtype{\Delta,\tentry{\alpha}{B_1}}{A}{B_2}{c}}{\Subtype{\Delta}{A}{\Tabs{\alpha}{B_1}{B_2}}{\allrC{\alpha}{c}}}
   \end{mathpar}\hfill
@@ -178,8 +181,8 @@ Rule \textsc{S-DistAll} of $F_{i}^{+}$ is subsumed by our rules:
     Expressions   & $E$      & $::=$ & $i~\mid~\True~\mid~\False~\mid~()~\mid~x~\mid~\abs{x}{E}~\mid~E_1\,E_2~\mid~E_1,,E_2~\mid$\vspace{0.1cm}\\
                   &          &       & $E : A~\mid~\textcolor{magenta}{\tabs{\alpha}{A}{E}}~\mid~\textcolor{magenta}{E\,A}$\vspace{0.3cm}\\
     Type context  & $\Delta$ & $::=$ & $\bullet~\mid~\Delta,\tentry{\alpha}{A}~\mid~\Delta,\tentry{\hat{\alpha}}{A}$\vspace{0.3cm}\\
-    Type queue    & $\mathcal{L},\mathcal{M}$ & $::=$ & $\bullet~\mid~\mathcal{L},A$\vspace{0.3cm}\\
-    Coercion context & $\mathcal{C}$ & $::=$ & $\bullet~\mid~\arrCC{\mathcal{C}}{c}~\mid~\projlCC{\mathcal{C}}{A}{B}~\mid~\projrCC{\mathcal{C}}{A}{B}~\mid~\mpCC{\mathcal{C}}{\mathcal{M}}{c_1}{A}{B}~\mid~\alllCC{\mathcal{C}}{\tau}$\vspace{0.3cm}\\
+    Type queue    & $\mathcal{L},\mathcal{M}$ & $::=$ & $\bullet~\mid~\mathcal{L},A~\mid~\mathcal{L},l$\vspace{0.3cm}\\
+    Coercion context & $\mathcal{C}$ & $::=$ & $\bullet~\mid~\arrCC{\mathcal{C}}{c}~\mid~\projlCC{\mathcal{C}}{A}{B}~\mid~\projrCC{\mathcal{C}}{A}{B}~\mid~\mpCC{\mathcal{C}}{\mathcal{M}}{c_1}{A}{B}~\mid~\alllCC{\mathcal{C}}{\tau}~\mid~\recCC{\mathcal{C}}{l}$\vspace{0.3cm}\\
     Type variable substitutions & $\theta$ & $::=$ & $\bullet~\mid~\unification{\alpha}{A},\theta~\mid~\substitution{\alpha}{A},\theta$\vspace{0.3cm}
   \end{tabular}
   \caption{The language of the algorithm}
@@ -287,7 +290,8 @@ Rule \textsc{S-DistAll} of $F_{i}^{+}$ is subsumed by our rules:
   \projlCC{\mathcal{C}}{A}{B}[c] &= \mathcal{C}[\compC{c}{\projlC{\toTarget{A}}{\toTarget{B}}}]\\
   \projrCC{\mathcal{C}}{A}{B}[c] &= \mathcal{C}[\compC{c}{\projrC{\toTarget{A}}{\toTarget{B}}}]\\
   \mpCC{\mathcal{C}}{\mathcal{M}}{c_1}{A}{B}[c] &= \compC{\distarrowqueueC{\mathcal{M}}{\left(\compC{c}{(\mpC{\projlC{\toTarget{A\to B}}{\toTarget{A}}}{\projrC{\toTarget{A\to B}}{\toTarget{A}}})}\right)}{\toTarget{A\to B}}{\toTarget{A}}}{\pairC{\mathcal{C}[\idC{\toTarget{A\to B}}]}{c_1}}\\
-  \alllCC{\mathcal{C}}{\tau}[c] &= \mathcal{C}[\alllC{c}{\toTarget{\tau}}]
+  \alllCC{\mathcal{C}}{\tau}[c] &= \mathcal{C}[\alllC{c}{\toTarget{\tau}}]\\
+  \recCC{\mathcal{C}}{l}[c] &= \mathcal{C}[\trecord{l}{c}]
 \end{align*}
 \end{minipage}
 
@@ -342,6 +346,7 @@ Formula $\notarrow{A}$, in the rules below, means that $A$ is not a function typ
   \inferrule*[right=AD-VarR]{\tentry{\beta}{B}\in{\Delta} \\ \algSubRight{\Delta}{\bullet}{B}{A}{c}{\theta}}{\algdisjoint{\Delta}{A}{\beta}{\theta}} \and
   \inferrule*[right=AD-UVarL]{\tentry{\hat\alpha}{A}\in\Delta \\ \algSubRight{\Delta}{\bullet}{A}{B}{c}{\theta}}{\algdisjoint{\Delta}{\hat\alpha}{B}{\theta}} \and
   \inferrule*[right=AD-UVarR]{\tentry{\hat\beta}{B}\in{\Delta} \\ \algSubRight{\Delta}{\bullet}{B}{A}{c}{\theta}}{\algdisjoint{\Delta}{A}{\hat\beta}{\theta}} \and
+  \inferrule*[right=AD-Rcd]{\algdisjoint{\Delta}{A}{B}{\theta}}{\algdisjoint{\Delta}{\trecord{l}{A}}{\trecord{l}{B}}{\theta}} \and
   \inferrule*[right=AD-Arr]{\algdisjoint{\Delta}{A_2}{B_2}{\theta}}{\algdisjoint{\Delta}{A_1\to A_2}{B_1\to B_2}{\theta}} \and
   \inferrule*[right=AD-ArrL]{\algdisjoint{\Delta}{A_2}{B}{\theta} \\ \notarrow{B}}{\algdisjoint{\Delta}{A_1\to A_2}{B}{\theta}} \and
   \inferrule*[right=AD-ArrR]{\algdisjoint{\Delta}{A}{B_2}{\theta} \\ \notarrow{A}}{\algdisjoint{\Delta}{A}{B_1\to B_2}{\theta}} \and
@@ -356,7 +361,11 @@ Formula $\notarrow{A}$, in the rules below, means that $A$ is not a function typ
 \fbox{
   \begin{mathpar}
     \inferrule*[right=AX-NatBool]{ }{\starax{\nat}{\bool}}\and
-    \inferrule*[right=AX-BoolNat]{ }{\starax{\bool}{\nat}}
+    \inferrule*[right=AX-BoolNat]{ }{\starax{\bool}{\nat}}\and
+    \inferrule*[right=AX-RcdNat]{ }{\starax{\trecord{l}{A}}{\nat}}\and
+    \inferrule*[right=AX-NatRcd]{ }{\starax{\nat}{\trecord{l}{A}}}\and
+    \inferrule*[right=AX-RcdBool]{ }{\starax{\trecord{l}{A}}{\bool}}\and
+    \inferrule*[right=AX-BoolRcd]{ }{\starax{\bool}{\trecord{l}{A}}}
     %% \inferrule*{}
   \end{mathpar}
 }
@@ -372,15 +381,19 @@ Formula $\notarrow{A}$, in the rules below, means that $A$ is not a function typ
   
   \begin{subfigure}{\textwidth}
     \begin{mathpar}
-      \inferrule
+      \inferrule*[right=AR-top]
           { }
           {\algSubRight{\Delta}{\mathcal{L}}{A}{\top}{\compC{\toparrowqueue{\mathcal{L}}}{\topC{\toTarget{A}}}}{\bullet}}
       \and
+      \inferrule*[right=AR-rcd]
+          {\algSubRight{\Delta}{\mathcal{L},l}{A}{B}{c}{\theta}}
+          {\algSubRight{\Delta}{\mathcal{L}}{A}{\trecord{l}{B}}{c}{\theta}}
+      \and    
       \inferrule*[right=AR-and]
           {\algSubRight{\Delta}{\mathcal{L}}{A}{B_1}{c_1}{\theta} \\ \algSubRight{\Delta}{\mathcal{L}}{A}{B_2}{c_2}{\theta}}
           {\algSubRight{\Delta}{\mathcal{L}}{A}{B_1\& B_2}{\compC{\distarrowqueue{\mathcal{L}}{B_1}{B_2}}{\pairC{c_1}{c_2}}}{\theta}}
       \and
-      \inferrule
+      \inferrule*[right=AR-arr]
           {\algSubRight{\Delta}{\mathcal{L},B_1}{A}{B_2}{c}{\theta}}
           {\algSubRight{\Delta}{\mathcal{L}}{A}{B_1\to B_2}{c}{\theta}}
       \and
@@ -417,6 +430,10 @@ Formula $\notarrow{A}$, in the rules below, means that $A$ is not a function typ
       \inferrule*[right=AL-AndR]
           {\algSubLeft{\Delta}{\mathcal{L}}{\mathcal{M}}{A_0}{\projrCC{\mathcal{C}}{\toTarget{A_1}}{\toTarget{A_2}}}{A_2}{\xi}{\mathcal{C'}}{\theta}}
           {\algSubLeft{\Delta}{\mathcal{L}}{\mathcal{M}}{A_0}{\mathcal{C}}{A_1\& A_2}{\xi}{\mathcal{C'}}{\theta}}
+      \and
+      \inferrule*[right=AL-Rcd]
+          {\algSubLeft{\Delta}{\mathcal{L}}{\mathcal{M},l}{A_0}{\recCC{\mathcal{C}}{l}}{A}{\xi}{\mathcal{C'}}{\theta}}
+          {\algSubLeft{\Delta}{l,\mathcal{L}}{\mathcal{M}}{A_0}{\mathcal{C}}{\trecord{l}{A}}{\xi}{\mathcal{C'}}{\theta}}
       \and
       \inferrule*[right=AL-Arr]
           {\algSubRight{\Delta}{\bullet}{B_1}{A_1}{c_1}{\theta_1}\\ \theta_1(\algSubLeft{\Delta}{\mathcal{L}}{\mathcal{M},B_1}{A_0}{\arrCC{\mathcal{C}}{c_1}}{A_2}{\xi)}{\mathcal{C'}}{\theta}}
