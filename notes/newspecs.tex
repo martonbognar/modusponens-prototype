@@ -27,13 +27,14 @@
                  &          &       & $\textcolor{magenta}{\tabs{\alpha}{A}{E}}~\mid~\textcolor{magenta}{E\,A}$\vspace{0.3cm}\\
     Type context & $\Delta$ & $::=$ & $\bullet~\mid~\Delta,\tentry{\alpha}{A}$
   \end{tabular}
+%% \klara{Is there a reason to exclude intersection types from monotypes?}
 
 \mypar{Syntax of target language}
 \noindent\begin{tabular}{l r r l}
     Types        & $\rho$   & $::=~$ & $\nat~\mid~\top~\mid~ \rho_1 \to \rho_2~\mid~\rho_1 \times \rho_2~\mid~\alpha~\mid~\Tabs{\alpha}{A}{\rho}$ \vspace{0.3cm}\\
     Expressions  & $e$      & $::=~$ & $i~\mid~()~\mid~x~\mid~\abs{x}{e}~\mid~e_1\,e_2~\mid~e_1 , , e_2~\mid~c\,e~\mid~\Lambda{\alpha}.{e}~\mid~e\,A~\mid~\record{l}{e}~\mid~e.l$ \vspace{0.3cm}\\
-    Coercions    & $c$      & $::=~$ & $\idC{\rho}~\mid~\topC{\rho}~\mid~\topArrC~\mid~\topRecC{l}~\mid~\topAllC~\mid~\distArrC{\rho_1}{\rho_2}{\rho_3}~\mid~\distRecC{l}{\rho_1}{\rho_2}~\mid~\projlC{\rho_1}{\rho_2}$\vspace{0.1cm}\\
-                 &          & & $\projrC{\rho_1}{\rho_2}~\mid~\mpC{c_1}{c_2}~\mid~\compC{c_1}{c_2}~\mid~\pairC{c_1}{c_2}~\mid~\arrC{c_1}{c_2}~\mid~\textcolor{magenta}{\alllC{c}{\rho}}~\mid~\textcolor{magenta}{\allrC{\alpha}{c}}~\mid~\trecord{l}{c}$\vspace{0.3cm}\\
+    Coercions    & $c$      & $::=~$ & $\idC{\rho}~\mid~\topC{\rho}~\mid~\topArrC~\mid~\topAllC~\mid~\distArrC{\rho_1}{\rho_2}{\rho_3}~\mid~\distRecC{l}{\rho_1}{\rho_2}~\mid~\projlC{\rho_1}{\rho_2}~\mid~\projrC{\rho_1}{\rho_2}~\mid$\vspace{0.1cm}\\
+                 &          & & $\mpC{c_1}{c_2}~\mid~\compC{c_1}{c_2}~\mid~\pairC{c_1}{c_2}~\mid~\arrC{c_1}{c_2}~\mid~\textcolor{magenta}{\alllC{c}{\rho}}~\mid~\textcolor{magenta}{\allrC{\alpha}{c}}~\mid~\trecord{l}{c}$\vspace{0.3cm}\\
     Type context & $\Phi$   & $::=~$ & $\bullet~\mid~\Phi,\alpha$\vspace{0.1cm}\\
     Term context & $\Psi$   & $::=~$ & $\bullet~\mid~\Psi,\eentry{x}{\rho}$
   \end{tabular}
@@ -347,6 +348,7 @@ Formula $\notarrow{A}$, in the rules below, means that $A$ is not a function typ
   \inferrule*[right=AD-UVarL]{\tentry{\hat\alpha}{A}\in\Delta \\ \algSubRight{\Delta}{\bullet}{A}{B}{c}{\theta}}{\algdisjoint{\Delta}{\hat\alpha}{B}{\theta}} \and
   \inferrule*[right=AD-UVarR]{\tentry{\hat\beta}{B}\in{\Delta} \\ \algSubRight{\Delta}{\bullet}{B}{A}{c}{\theta}}{\algdisjoint{\Delta}{A}{\hat\beta}{\theta}} \and
   \inferrule*[right=AD-Rcd]{\algdisjoint{\Delta}{A}{B}{\theta}}{\algdisjoint{\Delta}{\trecord{l}{A}}{\trecord{l}{B}}{\theta}} \and
+  \inferrule*[right=AD-Nrcd]{l_1 \neq l_2}{\algdisjoint{\Delta}{\trecord{l_1}{A}}{\trecord{l_2}{B}}{\bullet}} \and
   \inferrule*[right=AD-Arr]{\algdisjoint{\Delta}{A_2}{B_2}{\theta}}{\algdisjoint{\Delta}{A_1\to A_2}{B_1\to B_2}{\theta}} \and
   \inferrule*[right=AD-ArrL]{\algdisjoint{\Delta}{A_2}{B}{\theta} \\ \notarrow{B}}{\algdisjoint{\Delta}{A_1\to A_2}{B}{\theta}} \and
   \inferrule*[right=AD-ArrR]{\algdisjoint{\Delta}{A}{B_2}{\theta} \\ \notarrow{A}}{\algdisjoint{\Delta}{A}{B_1\to B_2}{\theta}} \and
