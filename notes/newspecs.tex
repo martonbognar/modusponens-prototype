@@ -318,8 +318,8 @@ Rule \textsc{S-DistAll} of $F_{i}^{+}$ is subsumed by our rules:
 \fbox{
   \begin{mathpar}
     \inferrule*[right=U-refl]{ }{\unifyB{\Delta}{\xi}{\xi}{\bullet}} \\
-    \inferrule*[right=U-VVL]{\wfSubst{\Delta}{[\unification{\alpha}{\hat\beta}]}{\theta}}{\unifyB{\Delta}{\hat\alpha}{\hat\beta}{{\hat\alpha}\mapsto{\hat\beta},\,\theta}} \and
-    \inferrule*[right=U-VVR]{\wfSubst{\Delta}{[\unification{\beta}{\hat\alpha}]}{\theta}}{\unifyB{\Delta}{\hat\alpha}{\hat\beta}{{\hat\beta}\mapsto{\hat\alpha},\,\theta}} \and
+    \inferrule*[right=U-VVL]{\wfSubst{\Delta}{[\unification{\alpha}{\hat\beta}]}{\theta}}{\unifyB{\Delta}{\hat\alpha}{\hat\beta}{\theta,{\hat\alpha}\mapsto{\hat\beta}}} \and
+    \inferrule*[right=U-VVR]{\wfSubst{\Delta}{[\unification{\beta}{\hat\alpha}]}{\theta}}{\unifyB{\Delta}{\hat\alpha}{\hat\beta}{\theta,{\hat\beta}\mapsto{\hat\alpha}}} \and
     \inferrule*[right=U-NatV]{\wfSubst{\Delta}{[\unification{\alpha}{\nat}]}{\theta}}{\unifyB{\Delta}{\nat}{\hat{\alpha}}{\theta,\unification{\alpha}{\nat}}} \and
     \inferrule*[right=U-VNat]{\wfSubst{\Delta}{[\unification{\alpha}{\nat}]}{\theta}}{\unifyB{\Delta}{\hat{\alpha}}{\nat}{\theta,\unification{\alpha}{\nat}}} \and
     \inferrule*[right=U-CV]{\wfSubst{\Delta}{[\unification{\alpha}{\alpha}]}{\theta}}{\unifyB{\Delta}{\alpha}{\hat{\alpha}}{\theta,\hat{\alpha}\mapsto\alpha}}\and
