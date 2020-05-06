@@ -65,7 +65,7 @@ Desugaring of new coercion operators into target functions.
 %    \inferrule*[right=D-AllR]{(\forall \tau,\,\disjoint{\Delta}{\tau}{A}\implies\disjoint{\Delta}{B_1}{[\alpha\mapsto\tau]B_2})}{\disjoint{\Delta}{B_1}{\Tabs{\alpha}{A}{B_2}}}\and
     \inferrule*[right=D-Rec]{\disjoint{\Delta}{A}{B}}{\disjoint{\Delta}{\trecord{l}{A}}{\trecord{l}{B}}} \and
     \inferrule*[right=D-NRec]{l_1\neq l_2}{\disjoint{\Delta}{\trecord{l_1}{A}}{\trecord{l_2}{B}}} \and
-    %% \inferrule*[right=D-Sym]{\disjoint{\Delta}{A}{B}}{\disjoint{\Delta}{B}{A}} \and
+    \inferrule*[right=D-Sym]{\disjoint{\Delta}{A}{B}}{\disjoint{\Delta}{B}{A}} \and
     %% \inferrule*[right=D-ax]{\starax{A}{B}}{\disjoint{\Delta}{A}{B}}
   \end{mathpar}
 }
