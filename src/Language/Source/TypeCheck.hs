@@ -13,6 +13,29 @@ import Data.Maybe
 import Language.Source.Syntax
 
 
+queueToType :: Queue -> Type -> Type
+queueToType Null a = a
+queueToType (ExtraType q b) a = queueToType q (TyArr b a)
+queueToType (ExtraLabel q l) a = queueToType q (TyRec l a)
+
+queueToCoercion :: Queue -> Target.Coercion -> Type -> Type -> Target.Coercion
+queueToCoercion Null c _ _ = c
+queueToCoercion (ExtraType q t) k a b = Target.CoComp (Target.CoArr (Target.CoId t') (queueToCoercion q k a b)) (Target.CoDistArr t' a' b')
+  where t' = elabType t
+        a' = elabType $ queueToType q a
+        b' = elabType $ queueToType q b
+queueToCoercion (ExtraLabel q l) k a b = undefined  -- TODO: ?
+
+queueTop :: Queue -> Target.Coercion
+queueTop Null = Target.CoTop (elabType (TyMono TyTop))
+queueTop (ExtraType t a) = Target.CoComp (Target.CoArr (Target.CoTop a') (queueTop t)) Target.CoTopArr
+  where a' = elabType a
+queueTop (ExtraLabel q l) = undefined  -- TODO: ?
+
+freshVar :: Maybe Variable
+freshVar = undefined
+
+
 -- * Algorithmic typing
 -- ----------------------------------------------------------------------------
 
@@ -374,32 +397,22 @@ disjointAx _ _ = False
 subtyping :: Type -> Type -> Maybe (Target.Coercion, Substitution)
 subtyping = subRight EmptyCtx Null
 
-
-queueToCoercion :: Queue -> Target.Coercion -> Type -> Type -> Target.Coercion
-queueToCoercion = undefined
-
-
 subRight :: TypeContext -> Queue -> Type -> Type -> Maybe (Target.Coercion, Substitution)
--- ?
-subRight ctx l a (TyMono TyTop) =
-  return (
-    Target.CoComp
-      (queueToCoercion l Target.CoTopAll (TyMono TyTop) (TyMono TyTop))  -- TODO: incorrect
-      (Target.CoTop (elabType a)),
-    EmptySubst
-    )
+-- AR-top
+subRight ctx l a (TyMono TyTop) = let
+  qc = queueTop l
+  top = Target.CoTop (elabType a)
+  in return (Target.CoComp qc top, EmptySubst)
+-- AR-rcd
+subRight ctx q a (TyRec l b) = subRight ctx (ExtraLabel q l) a b
 -- AR-and
 subRight ctx l a (TyIs b1 b2) = do
   (c1, s1) <- subRight ctx l a b1
   (c2, s2) <- subRight ctx l a b2
   guard (s1 == s2)
-  return (
-    Target.CoComp
-      (queueToCoercion l (Target.CoId (Target.TyTup (elabType b1) (elabType b2)))  b1 b2)
-      (Target.CoPair c1 c2),
-    s1
-    )
--- ?
+  let qc = queueToCoercion l (Target.CoId (Target.TyTup (elabType b1) (elabType b2))) b1 b2
+    in return (Target.CoComp qc (Target.CoPair c1 c2), s1)
+-- AR-arr
 subRight ctx l a (TyArr b1 b2) = subRight ctx (ExtraType l b1) a b2
 -- AR-all
 subRight ctx l a (TyAbs ap b1 b2) = do
@@ -412,40 +425,76 @@ subRight ctx l a b = case typeToBase b of
     (ac, s) <- subLeft ctx l Null a Hole a bb
     return (completeCoercion ac (Target.CoId (elabType a)), s)
 
-
-freshVar :: Maybe Variable
-freshVar = undefined
-
-
 subLeft :: TypeContext -> Queue -> Queue -> Type -> CoContext -> Type -> BaseType -> Maybe (CoContext, Substitution)
 -- AL-Base
-subLeft ctx Null m a0 c e1 e2 = case typeToBase e1 of  -- TODO: switch case to pattern matching to avoid false enters
-  Nothing -> Nothing
-  Just bb ->  do
-    sub <- unify ctx bb e2
-    return (c, sub)
+subLeft ctx Null m a0 c e1@(TyMono TyNat) e2 = do
+  e1' <- typeToBase e1
+  sub <- unify ctx e1' e2
+  return (c, sub)
+subLeft ctx Null m a0 c e1@(TyMono TyBool) e2 = do
+  e1' <- typeToBase e1
+  sub <- unify ctx e1' e2
+  return (c, sub)
+subLeft ctx Null m a0 c e1@(TyMono TyTop) e2 = do
+  e1' <- typeToBase e1
+  sub <- unify ctx e1' e2
+  return (c, sub)
+subLeft ctx Null m a0 c e1@(TyMono (TyVar x)) e2 = do
+  e1' <- typeToBase e1
+  sub <- unify ctx e1' e2
+  return (c, sub)
+subLeft ctx Null m a0 c e1@(TyMono (TySubstVar x)) e2 = do
+  e1' <- typeToBase e1
+  sub <- unify ctx e1' e2
+  return (c, sub)
 -- AL-VarArr
 subLeft ctx (ExtraType l b1) m a0 c (TyMono (TySubstVar ap)) e = do
   ap1 <- freshVar
   ap2 <- freshVar
-  let sub' = (SVar ap (TyMonoArr (TySubstVar ap1) (TySubstVar ap2)) EmptySubst) in do
-    (c1, sub1) <- subRight (substContext sub' ctx) Null (substType sub' b1) (TyMono (TySubstVar ap1))
-    (c', sub) <- subLeft ctx l (ExtraType m b1) a0 (XCoArr c1 c) (TyMono (TySubstVar ap2)) e
-    return (c', appendSubst sub' (appendSubst sub1 sub))
+  a <- typeFromContext ctx ap
+  (ctx1, ctx2) <- extractCtx ctx ap a
+  let sub = (SVar ap (TyMonoArr (TySubstVar ap1) (TySubstVar ap2)) EmptySubst) in do
+    (c1, sub1) <- subRight
+                    (appendCtx (substContext sub ctx2) (CSub (CSub ctx1 ap1 (TyMono TyTop)) ap2 a))  -- TODO: probably incorrect
+                    Null
+                    (substType sub b1)
+                    (TyMono (TySubstVar ap1))
+    (c', sub2) <- subLeft
+                    ctx
+                    l
+                    (ExtraType m b1)
+                    a0
+                    (XCoArr c1 c)
+                    (TyMono (TySubstVar ap2))
+                    e
+    return (c', appendSubst sub2 (appendSubst sub1 sub))
 -- AL-AndL & AL-AndR
 subLeft ctx l m a0 c (TyIs a1 a2) e = andL ctx l m a0 c (TyIs a1 a2) e <|> andR ctx l m a0 c (TyIs a1 a2) e
   where
     andL ctx l m a0 c (TyIs a1 a2) e = subLeft ctx l m a0 (XCoPr1 a1 a2 c) a1 e
     andR ctx l m a0 c (TyIs a1 a2) e = subLeft ctx l m a0 (XCoPr2 a1 a2 c) a1 e
+-- AL-Rcd
+subLeft ctx (ExtraLabel q l) m a0 c (TyRec l' a) e = subLeft ctx q (ExtraLabel m l) a0 (XCoLabel l c) a e  -- TODO: label order incorrect
 -- AL-Arr & AL-MP
-subLeft ctx l m a0 c (TyArr a1 a2) e = arr ctx l m a0 c (TyArr a1 a2) e <|> mp ctx l m a0 c (TyArr a1 a2) e
+subLeft ctx l m a0 c (TyArr a1 a2) e
+  = arr ctx l m a0 c (TyArr a1 a2) (TyMono (baseToMono e)) <|> mp ctx l m a0 c (TyArr a1 a2) (TyMono (baseToMono e))
   where
     arr ctx (ExtraType l b1) m a0 c (TyArr a1 a2) e = do
       (c1, sub1) <- subRight ctx Null b1 a1
-      (c', sub) <- subLeft ctx l (ExtraType m b1) a0 (XCoArr c1 c) a2 e
-      return (c', appendSubst sub sub1)
+      e' <- typeToBase (substType sub1 e)
+      (c', sub2) <- subLeft
+                      (substContext sub1 ctx)
+                      (substQueue sub1 l)
+                      (substQueue sub1 (ExtraType m b1))
+                      (substType sub1 a0)
+                      (substCoCtx sub1 (XCoArr c1 c))
+                      (substType sub1 a2)
+                      e'
+      return (c', appendSubst sub2 sub1)
+
     mp ctx l m a0 c (TyArr a1 a2) e = do
       (c1, sub1) <- subRight ctx Null a0 (queueToType m a1)
+      e' <- typeToBase (substType sub1 e)
       (c', sub2) <- subLeft
                       (substContext sub1 ctx)
                       (substQueue sub1 l)
@@ -453,15 +502,23 @@ subLeft ctx l m a0 c (TyArr a1 a2) e = arr ctx l m a0 c (TyArr a1 a2) e <|> mp c
                       (substType sub1 a0)
                       (substCoCtx sub1 (XCoMP m c1 a1 a2 c))
                       (substType sub1 a2)
-                      (substType sub1 e)
+                      e'
       return (c', appendSubst sub2 sub1)
 -- AL-Forall
 subLeft ctx l m a0 c (TyAbs ap a b) e = do
   ap' <- freshVar
-  subLeft (CSub ctx ap a) l m a0 (XCoAt (TyMono (TySubstVar ap')) c) (substType (SVar ap (TySubstVar ap') EmptySubst) b) e
+  subLeft
+    (CSub ctx ap a)
+    l
+    m
+    a0
+    (XCoAt (TyMono (TySubstVar ap')) c)
+    (substType (SVar ap (TySubstVar ap') EmptySubst) b)
+    e
 
 
-
+extractCtx = undefined
+appendCtx = undefined
 
 
 -- * Old code from here
@@ -523,31 +580,3 @@ checking c e a
   = do (b, v) <- inferenceWithContext c e
        (co, _) <- subtyping b a
        return (Target.ExCoApp co v)
-
-topArrows :: Queue -> Target.Coercion
-topArrows Null = Target.CoTop (elabMono TyTop)
-topArrows (ExtraType l a) = Target.CoComp (Target.CoArr (Target.CoTop a') (topArrows l)) Target.CoTopArr
-  where a' = elabType a
-
-
--- | Convert a queue to a type. (Definition 24)
-queueToType :: Queue -> Type -> Type
-queueToType Null a = a
-queueToType (ExtraType q b) a = queueToType q (TyArr b a)
--- queueToType (ExtraLabel q l) a = queueToType q (TyRec l a)
-
-
-distArrows' :: Queue -> Target.Coercion -> Type -> Type -> Target.Coercion
-distArrows' Null k _ _ = k
-distArrows' (ExtraType q t) k a b = Target.CoComp (Target.CoArr (Target.CoId t') (distArrows' q k a b)) (Target.CoDistArr t' a' b')
-  where t' = elabType t
-        a' = elabType $ queueToType q a
-        b' = elabType $ queueToType q b
-
-distArrows :: Queue -> Type -> Type -> Target.Coercion
-distArrows Null t1 t2 = Target.CoId t'
-  where t' = elabType (TyIs t1 t2)
-distArrows (ExtraType q t) t1 t2 = Target.CoComp (Target.CoArr (Target.CoId t') (distArrows q t1 t2)) (Target.CoDistArr t' t1' t2')
-  where t' = elabType t
-        t1' = elabType $ queueToType q t1
-        t2' = elabType $ queueToType q t2
