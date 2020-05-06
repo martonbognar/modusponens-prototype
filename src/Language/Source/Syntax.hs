@@ -67,15 +67,15 @@ data Expression
 -- data SubstitutionVariable = SubstVar Variable
 
 data TypeContext
-  = Empty
-  | VarSnoc TypeContext Variable Type
-  | SubstSnoc TypeContext Variable Type
+  = EmptyCtx
+  | CVar TypeContext Variable Type
+  | CSub TypeContext Variable Type
 
 
 -- | Get the type of a variable from a context.
 typeFromContext :: TypeContext -> Variable -> Maybe Type
-typeFromContext Empty _ = Nothing
-typeFromContext (VarSnoc c v vt) x
+typeFromContext EmptyCtx _ = Nothing
+typeFromContext (CVar c v vt) x
   | v == x    = return vt
   | otherwise = typeFromContext c x
 
@@ -83,7 +83,7 @@ typeFromContext (VarSnoc c v vt) x
 -- | The queue for implementing algorithmic subtyping rules.
 data Queue
   = Null
-  -- | ExtraLabel Queue Label
+  | ExtraLabel Queue Label
   | ExtraType Queue Type
 
 
@@ -153,8 +153,8 @@ instance PrettyPrint Expression where
   ppr (ExRecFld e l)  = hcat [ppr e, dot, ppr l]
 
 instance PrettyPrint TypeContext where
-  ppr Empty        = ppr "•"
-  ppr (VarSnoc c v t) = hcat [ppr c, comma, ppr v, colon, ppr t]
+  ppr EmptyCtx     = ppr "•"
+  ppr (CVar c v t) = hcat [ppr c, comma, ppr v, colon, ppr t]
 
 instance Show Type where
   show = render . ppr

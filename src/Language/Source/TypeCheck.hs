@@ -24,6 +24,7 @@ data CoContext
   | XCoPr2 Type Type CoContext
   | XCoMP Queue Target.Coercion Type Type CoContext
   | XCoAt Type CoContext
+  | XCoLabel Label CoContext
 
 
 completeCoercion :: CoContext -> Target.Coercion -> Target.Coercion
@@ -147,17 +148,17 @@ substExpr sub@(SSub ap t s) (ExRecFld e l)    = ExRecFld (substExpr sub e) l
 substContext :: Substitution -> TypeContext -> TypeContext
 substContext EmptySubst c = c
 
-substContext sub@(SVar ap t s) Empty                 = Empty
-substContext sub@(SVar ap t s) (VarSnoc ctx ap' a)
+substContext sub@(SVar ap t s) EmptyCtx                 = EmptyCtx
+substContext sub@(SVar ap t s) (CVar ctx ap' a)
   | ap == ap' = substContext sub ctx
-  | otherwise = (VarSnoc (substContext sub ctx) ap' (substType sub a))
-substContext sub@(SVar ap t s) (SubstSnoc ctx ap' a) = (VarSnoc (substContext sub ctx) ap' (substType sub a))
+  | otherwise = (CVar (substContext sub ctx) ap' (substType sub a))
+substContext sub@(SVar ap t s) (CSub ctx ap' a) = (CVar (substContext sub ctx) ap' (substType sub a))
 
-substContext sub@(SSub ap t s) Empty                 = Empty
-substContext sub@(SSub ap t s) (VarSnoc ctx ap' a)   = (VarSnoc (substContext sub ctx) ap' (substType sub a))
-substContext sub@(SSub ap t s) (SubstSnoc ctx ap' a)
+substContext sub@(SSub ap t s) EmptyCtx                 = EmptyCtx
+substContext sub@(SSub ap t s) (CVar ctx ap' a)   = (CVar (substContext sub ctx) ap' (substType sub a))
+substContext sub@(SSub ap t s) (CSub ctx ap' a)
   | ap == ap' = substContext sub ctx
-  | otherwise = (VarSnoc (substContext sub ctx) ap' (substType sub a))
+  | otherwise = (CVar (substContext sub ctx) ap' (substType sub a))
 
 
 substQueue :: Substitution -> Queue -> Queue
@@ -174,9 +175,9 @@ wellFormedSubst :: TypeContext -> Substitution -> Maybe Substitution
 -- WFS-nil
 wellFormedSubst _ EmptySubst = Just EmptySubst
 -- ?
-wellFormedSubst (VarSnoc ctx ap b) (SVar ap' a sub)
+wellFormedSubst (CVar ctx ap b) (SVar ap' a sub)
   | ap == ap'  = wellFormedSubst ctx (SVar ap' a sub)
-wellFormedSubst (SubstSnoc ctx ap b) (SVar ap' a sub)
+wellFormedSubst (CSub ctx ap b) (SVar ap' a sub)
 -- WFS-next
   | ap == ap' = do
     s1 <- wellFormedSubst ctx sub
@@ -258,13 +259,13 @@ disjoint ctx a                      (TyIs b1 b2)
     if s1 == s2 then return s2 else Nothing
 -- AD-All
 disjoint ctx (TyAbs ap a1 a2)        (TyAbs ap' b1 b2)
-  | ap == ap' = disjoint (SubstSnoc ctx ap (TyIs a1 b1)) (substType (SVar ap (TySubstVar ap) EmptySubst) a2) (substType (SVar ap (TySubstVar ap) EmptySubst) b2)
+  | ap == ap' = disjoint (CSub ctx ap (TyIs a1 b1)) (substType (SVar ap (TySubstVar ap) EmptySubst) a2) (substType (SVar ap (TySubstVar ap) EmptySubst) b2)
 -- AD-AllL
 disjoint ctx (TyAbs ap a b1)        b2
-  = disjoint (SubstSnoc ctx ap a) (substType (SVar ap (TySubstVar ap) EmptySubst) b1) b2
+  = disjoint (CSub ctx ap a) (substType (SVar ap (TySubstVar ap) EmptySubst) b1) b2
 -- AD-AllR
 disjoint ctx b1        (TyAbs ap a b2)
-  = disjoint (SubstSnoc ctx ap a) b1 (substType (SVar ap (TySubstVar ap) EmptySubst) b2)
+  = disjoint (CSub ctx ap a) b1 (substType (SVar ap (TySubstVar ap) EmptySubst) b2)
 -- AD-Ax
 disjoint ctx a                      b
   = if disjointAx a b then return EmptySubst else Nothing
@@ -277,7 +278,7 @@ disjointAx _ _ = False
 
 
 subtyping :: Type -> Type -> Maybe (Target.Coercion, Substitution)
-subtyping = subRight Empty Null
+subtyping = subRight EmptyCtx Null
 
 
 queueToCoercion :: Queue -> Target.Coercion -> Type -> Type -> Target.Coercion
@@ -308,7 +309,7 @@ subRight ctx l a (TyIs b1 b2) = do
 subRight ctx l a (TyArr b1 b2) = subRight ctx (ExtraType l b1) a b2
 -- AR-all
 subRight ctx l a (TyAbs ap b1 b2) = do
-  (c, s) <- subRight (VarSnoc ctx ap b1) l a b2
+  (c, s) <- subRight (CVar ctx ap b1) l a b2
   return (Target.CoTyAbs ap c, s)
 -- AR-base
 subRight ctx l a b = case typeToBase b of
@@ -363,7 +364,7 @@ subLeft ctx l m a0 c (TyArr a1 a2) e = arr ctx l m a0 c (TyArr a1 a2) e <|> mp c
 -- AL-Forall
 subLeft ctx l m a0 c (TyAbs ap a b) e = do
   ap' <- freshVar
-  subLeft (SubstSnoc ctx ap a) l m a0 (XCoAt (TyMono (TySubstVar ap')) c) (substType (SVar ap (TySubstVar ap') EmptySubst) b) e
+  subLeft (CSub ctx ap a) l m a0 (XCoAt (TyMono (TySubstVar ap')) c) (substType (SVar ap (TySubstVar ap') EmptySubst) b) e
 
 
 
@@ -373,7 +374,7 @@ subLeft ctx l m a0 c (TyAbs ap a b) e = do
 -- ----------------------------------------------------------------------------
 
 inference :: Expression -> Maybe (Type, Target.Expression)
-inference = inferenceWithContext Empty
+inference = inferenceWithContext EmptyCtx
 
 
 -- | inferenceWithContext
@@ -421,7 +422,7 @@ inferenceWithContext _ ExAbs {} = Nothing
 checking :: TypeContext -> Expression -> Type -> Maybe Target.Expression
 -- T-ABS
 checking c (ExAbs x e) (TyArr a b)
-  = do v <- checking (VarSnoc c x a) e b
+  = do v <- checking (CVar c x a) e b
        return (Target.ExAbs x (elabType a) v)
 -- T-SUB
 checking c e a
