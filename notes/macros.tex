@@ -12,21 +12,36 @@
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+%% Comments
+\newcommand*{\klara}[1]{\textcolor{orange}{#1}}
+
+%% Contexts
+\newcommand*{\hatmarker}[1]{{}_{\blacktriangleright\hat{#1}}}
+\newcommand*{\tentry}[2]{#1\ast #2}
+\newcommand*{\eentry}[2]{#1 : #2}
+
 %% Well-formedness
+\newcommand*{\synthmode}[4]{#1\vdash #2\,\textcolor{red}{\Rightarrow}\,{#3}\leadsto\elab{#4}}
+\newcommand*{\checkmode}[4]{#1\vdash #2\,\textcolor{blue}{\Leftarrow}\,{#3}\leadsto\elab{#4}}
+\newcommand*{\synthspine}[5]{#1\vdash #2\bullet #3\,\textcolor{violet}{\rightrightarrows}\,{#4}\leadsto\elab{#5}}
+\newcommand*{\algsynthmode}[5]{#1\vdash #2\,\textcolor{red}{\Rightarrow}\,{#3}\leadsto\elab{#4}\dashv #5}
+\newcommand*{\algcheckmode}[5]{#1\vdash #2\,\textcolor{blue}{\Leftarrow}\,{#3}\leadsto\elab{#4}\dashv #5}
+\newcommand*{\algsynthspine}[6]{#1\vdash #2\bullet #3\,\textcolor{violet}{\rightrightarrows}\,{#4}\leadsto\elab{#5}\dashv #6}
 \newcommand*{\wfT}[2]{#1\vdash #2}
 \newcommand*{\wfC}[4]{#1\vdash #2 : #3 \triangleright #4}
+\newcommand*{\wfContext}[1]{\vdash #1}
 
 %% Evaluation
 
 %% Disjointness
-\newcommand*{\starr}[2]{#1\ast #2}
+\newcommand*{\starr}[2]{\tentry{#1}{#2}}
 \newcommand*{\starax}[2]{#1\ast_{ax} #2}
 \newcommand*{\disjoint}[3]{#1 \vdash \starr{#2}{#3}}
 \newcommand*{\algdisjoint}[4]{#1 \vdash \starr{#2}{#3}\,\leadsto #4}
+\newcommand*{\udisjoint}[1]{{\vdash_d}{#1}}
 
-%% Subtyping
+%% Declarative subtyping
 \newcommand*{\subtypeof}{\prec :}
-\newcommand*{\tentry}[2]{\starr{#1}{#2}}
 \newcommand*{\subt}[2]{#1\subtypeof #2}
 \newcommand*{\subtype}[3]{\subt{#1}{#2}\,\elab{\leadsto #3}}
 \newcommand*{\Subtype}[4]{#1\vdash\subtype{#2}{#3}{#4}}
@@ -64,9 +79,6 @@
 \newcommand*{\Tabs}[3]{\forall(\tentry{#1}{#2}).#3}
 \newcommand*{\Tabst}[2]{\forall #1.#2}
 \newcommand*{\trecord}[2]{\{#1\,:\,#2\}}
-
-%% Typing environments
-\newcommand*{\eentry}[2]{{#1}:{#2}}
 
 %% Substitution
 \newcommand*{\substitution}[2]{#1\mapsto #2}
