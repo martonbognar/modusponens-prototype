@@ -13,7 +13,7 @@
 
 
 \input{macros}
-\newcommand{\mypar}[1]{\vspace{0.2cm}\paragraph{#1:} \hfill\vspace{0.1cm}}
+\newcommand{\mypar}[1]{\vspace{0.2cm}\paragraph{#1:} \hfill\\\vspace{0.1cm}}
 
 \newtheorem{theorem}{Theorem}
 
@@ -48,7 +48,38 @@ Desugaring of new coercion operators into target functions.
   \end{align*}
 
 \section{Declarative Specification}
-\mypar{Disjointness - Declarative}
+\subsection{Declarative bidirectional typing}
+%% \subsubsection{Declarative bidirectional typing}
+\fbox{
+\begin{mathpar}
+  \inferrule*[right=TS-top]{\wfContext{\Gamma}}{\synthmode{\Gamma}{()}{\top}{()}} \and
+  \inferrule*[right=TS-nat]{\wfContext{\Gamma}}{\synthmode{\Gamma}{i}{\nat}{i}} \and
+  \inferrule*[right=TS-var]{\wfContext{\Gamma}\\(\eentry{x}{A})\in\Gamma}{\synthmode{\Gamma}{x}{A}{x}} \and
+  \inferrule*[right=TS-Rcd]{\synthmode{\Gamma}{E}{A}{e}}{\synthmode{\Gamma}{\record{l}{E}}{\trecord{l}{A}}{\record{l}{e}}}\and
+  \inferrule*[right=TS-Proj]{\synthmode{\Gamma}{E}{\trecord{l}{A}}{e}}{\synthmode{\Gamma}{E.l}{A}{e.l}}\and
+  \inferrule*[right=TS-app]{\synthmode{\Gamma}{E_1}{A\to B}{e_1}\\ \checkmode{\Gamma}{E_2}{A}{e_2}}{\synthmode{\Gamma}{E_1\,E_2}{B}{e_1\,e_2}} \and
+  \inferrule*[right=TS-anno]{\checkmode{\Gamma}{E}{A}{e}}{\synthmode{\Gamma}{E:A}{A}{e}} \and
+  \inferrule*[right=TS-merge]{\synthmode{\Gamma}{E_1}{A_1}{e_1}\\ \synthmode{\Gamma}{E_2}{A_2}{e_2}\\ \udisjoint{A\& B}}{\synthmode{\Gamma}{E_1,,E_2}{A_1\& A_2}{\pairC{e_1}{e_2}}}\and
+  %% \nrule{TS-abs}{\checkmode{\Gamma,\tentry{\hat\alpha}{\top},\tentry{\hat\beta}{\top},\eentry{x}{\hat\alpha}}{E}{\hat\beta}{e}{\Gamma',\eentry{x}{\hat\alpha},\Theta}\\\fresh{\hat\alpha,\hat\beta}}{\synthmode{\Gamma}{\abs{x}{E}}{\hat\alpha\to \hat\beta}{\abs{x}{e}}{\Gamma'}}\and
+  \inferrule*[right=TS-Tabs]{\synthmode{\Gamma,\tentry{\alpha}{A}}{E}{B}{e}}{\synthmode{\Gamma}{\tabs{\alpha}{A}{E}}{\Tabs{\alpha}{A}{B}}{\Lambda\alpha.e}}\and
+  \inferrule*[right=TS-Tapp]{\synthmode{\Gamma}{E}{\Tabs{\alpha}{A}{B}}{e}\\ \disjoint{\Gamma}{A}{A'}}{\synthmode{\Gamma}{E\,A'}{[\substitution{\alpha}{A'}]B}{e\,\toTarget{A'}}}
+\end{mathpar}
+}
+\fbox{
+\begin{mathpar}
+  \inferrule*[right=TC-abs]{\wfT{\Gamma}{A}\\\checkmode{\Gamma,\eentry{x}{A}}{E}{B}{e}}{\checkmode{\Gamma}{\abs{x}{E}}{A\to B}{\abs{x}{e}}} \and
+  \inferrule*[right=TC-sub]{\synthmode{\Gamma}{E}{A}{e}\\ \Subtype{\Gamma}{A}{B}{c}}{\checkmode{\Gamma}{E}{B}{c\,e}}\and
+\end{mathpar}
+}
+%% \fbox{
+%% \begin{mathpar}
+%%   \inferrule*[right=T-..]{\checkmode{\Gamma,\eentry{x}{A_1}}{E}{A_2}{e}{\Gamma',\eentry{x}{A_1},\Theta}}{\checkmode{\Gamma}{\abs{x}{E}}{A_1\to A_2}{\abs{x}{e}}{\Gamma'}} \and
+%%   \inferrule*[right=T-sub]{\synthmode{\Gamma}{E}{A}{e}{\Theta}\\ \ldots }{\checkmode{\Gamma}{E}{B}{c\,e}{\Gamma'}}
+%% \end{mathpar}
+%% }
+
+\subsection{Declarative Disjointness}
+%% \mypar{Disjointness - Declarative}
 \fbox{
   \begin{mathpar}
     \inferrule*[right=D-TopL]{ }{\disjoint{\Delta}{\top}{A}} \and
@@ -65,12 +96,13 @@ Desugaring of new coercion operators into target functions.
 %    \inferrule*[right=D-AllR]{(\forall \tau,\,\disjoint{\Delta}{\tau}{A}\implies\disjoint{\Delta}{B_1}{[\alpha\mapsto\tau]B_2})}{\disjoint{\Delta}{B_1}{\Tabs{\alpha}{A}{B_2}}}\and
     \inferrule*[right=D-Rec]{\disjoint{\Delta}{A}{B}}{\disjoint{\Delta}{\trecord{l}{A}}{\trecord{l}{B}}} \and
     \inferrule*[right=D-NRec]{l_1\neq l_2}{\disjoint{\Delta}{\trecord{l_1}{A}}{\trecord{l_2}{B}}} \and
-    \inferrule*[right=D-Sym]{\disjoint{\Delta}{A}{B}}{\disjoint{\Delta}{B}{A}} \and
+    \inferrule*[right=D-NatRcd]{ }{\disjoint{\Delta}{\nat}{\trecord{l}{A}}}\and
+    \inferrule*[right=D-Sym]{\disjoint{\Delta}{A}{B}}{\disjoint{\Delta}{B}{A}}
     %% \inferrule*[right=D-ax]{\starax{A}{B}}{\disjoint{\Delta}{A}{B}}
   \end{mathpar}
 }
-\subsection{Notes}
-\subsubsection{Subsumption of \textsc{D-Forall} from $F_{i}^{+}$}
+\subsubsection{Notes}
+\mypar{Subsumption of \textsc{D-Forall} from $F_{i}^{+}$}
 Rule \textsc{D-Forall} of $F_{i}^{+}$ is subsumed by our rules:
 \[
 \inferrule*[right=D-forall]
@@ -98,7 +130,7 @@ this behaviour is recovered by:
     {\disjoint{\Delta}{\Tabs{\alpha}{A_1}{A_2}}{\Tabs{\alpha}{B_1}{B_2}}}
 \]
 
-\mypar{Subtyping - Declarative}
+\subsection{Declarative Subtyping}
 \fbox{
   \begin{mathpar}
     \inferrule*[right=S-refl]{ }{\Subtype{\Delta}{A}{A}{\idC{\toTarget{A}}}} \and
@@ -118,8 +150,8 @@ this behaviour is recovered by:
     \inferrule*[right=S-allR]{\Subtype{\Delta,\tentry{\alpha}{B_1}}{A}{B_2}{c}}{\Subtype{\Delta}{A}{\Tabs{\alpha}{B_1}{B_2}}{\allrC{\alpha}{c}}}
   \end{mathpar}\hfill
 }\\
-\subsection{Notes}
-\subsubsection{Predicative instantiation}
+\subsubsection{Notes}
+\mypar{Predicative instantiation}
 We use predicative type instantiation (rule \textsc{S-allL}) to avoid following kind of non-termination, where $\mathcal{A} :=\Tabs{\alpha}{A}{\alpha\to\alpha}$.
 In the premise of rule \textsc{S-allL} below, we use substitution $[\alpha\mapsto\mathcal{A}]$.
 \begin{mathpar}
@@ -141,7 +173,7 @@ In the premise of rule \textsc{S-allL} below, we use substitution $[\alpha\mapst
              {\Subtype{\Delta}{\mathcal{A}}{\mathcal{A}}{\mpC{(\alllC{?}{\toTarget{\mathcal{A}}})}{\idC{\toTarget{\mathcal{A}}}}}}
 \end{mathpar}
 
-\subsubsection{Subsumption of \textsc{S-DistAll} and \textsc{S-topAll} from $F_{i}^{+}$}
+\mypar{Subsumption of \textsc{S-DistAll} and \textsc{S-topAll} from $F_{i}^{+}$}
 Rule \textsc{S-DistAll} of $F_{i}^{+}$ is subsumed by our rules:
 \begin{mathpar}
   \inferrule*
@@ -308,8 +340,8 @@ Rule \textsc{S-DistAll} of $F_{i}^{+}$ is subsumed by our rules:
 \end{align*}
 \end{minipage}
 
-
 \subsection{Judgments}
+
 \mypar{Well-formed substitution (algorithmic)}
 \fbox{
 \begin{mathpar}
