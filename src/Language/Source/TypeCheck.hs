@@ -18,6 +18,7 @@ import Language.Source.Syntax
 
 data BaseType
   = BaseNat
+  | BaseBool
   | BaseTop
   | BaseVar Variable
   | BaseSubstVar Variable
@@ -213,43 +214,64 @@ wellFormedSubst _ EmptySubst = Just EmptySubst
 -- ?
 wellFormedSubst (CVar ctx ap b) (SVar ap' a sub)
   | ap == ap'  = wellFormedSubst ctx (SVar ap' a sub)
+  | otherwise = Nothing  -- TODO: ?
 wellFormedSubst (CSub ctx ap b) (SVar ap' a sub)
 -- WFS-next
   | ap == ap' = do
     s1 <- wellFormedSubst ctx sub
-    ds <- disjoint ctx (TyMono a) b
-    let s2 = appendSubst s1 (appendSubst sub ds)
-      in return $ appendSubst s1 s2
+    let app = appendSubst s1 sub in do
+      s2 <- disjoint (substContext app ctx) (substType app (TyMono a)) (substType app b)
+      return $ appendSubst s2 s1
   | otherwise = wellFormedSubst ctx (SVar ap' a sub)
 
+-- * Unification
+-- ----------------------------------------------------------------------------
 
 unify :: TypeContext -> BaseType -> BaseType -> Maybe Substitution
 -- U-refl
 unify ctx BaseNat BaseNat = Just EmptySubst
+unify ctx BaseBool BaseBool = Just EmptySubst
 unify ctx BaseTop BaseTop = Just EmptySubst
+
 unify ctx (BaseVar a) (BaseVar b)
   | a == b = Just EmptySubst
+  | otherwise = Nothing  -- TODO: ?
 unify ctx (BaseSubstVar a) (BaseSubstVar b)
   | a == b = Just EmptySubst
+  | otherwise = vvl <|> vvr where
+    -- U-VVL
+    vvl = do
+      sub <- wellFormedSubst ctx (SVar a (TySubstVar b) EmptySubst)
+      return $ SVar a (TySubstVar b) sub
+    -- U-VVR
+    vvr = do
+      sub <- wellFormedSubst ctx (SVar b (TySubstVar a) EmptySubst)
+      return $ SVar b (TySubstVar a) sub
+
 -- U-NatV
 unify ctx BaseNat (BaseSubstVar ap) = let nat = baseToMono BaseNat in do
   sub <- wellFormedSubst ctx (SVar ap nat EmptySubst)
-  return $ (SVar ap nat sub)
+  return $ SVar ap nat sub
 -- U-VNat
 unify ctx (BaseSubstVar ap) BaseNat = let nat = baseToMono BaseNat in do
   sub <- wellFormedSubst ctx (SVar ap nat EmptySubst)
-  return $ (SVar ap nat sub)
+  return $ SVar ap nat sub
+
 -- U-VC
-unify ctx (BaseSubstVar ap) (BaseVar ap')
-  | ap == ap' = let var = baseToMono (BaseVar ap') in do
-    sub <- wellFormedSubst ctx (SVar ap var EmptySubst)
-    return $ (SVar ap var sub)
+unify ctx (BaseSubstVar ap') (BaseVar ap)
+  | ap == ap' = let var = baseToMono (BaseVar ap) in do
+    sub <- wellFormedSubst ctx (SVar ap' var EmptySubst)
+    return $ SVar ap' var sub
+  | otherwise = Nothing  -- TODO: ?
 -- U-CV
 unify ctx (BaseVar ap) (BaseSubstVar ap')
   | ap == ap' = let var = baseToMono (BaseVar ap) in do
-    sub <- wellFormedSubst ctx (SVar ap var EmptySubst)
-    return $ (SVar ap var sub)
+    sub <- wellFormedSubst ctx (SVar ap' var EmptySubst)
+    return $ SVar ap' var sub
+  | otherwise = Nothing  -- TODO: ?
 
+-- * Disjointness
+-- ----------------------------------------------------------------------------
 
 disjoint :: TypeContext -> Type -> Type -> Maybe Substitution
 -- AD-TopL
