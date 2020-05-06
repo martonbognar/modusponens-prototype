@@ -52,14 +52,14 @@ Desugaring of new coercion operators into target functions.
 %% \subsubsection{Declarative bidirectional typing}
 \fbox{
 \begin{mathpar}
-  \inferrule*[right=T-top]{\wfContext{\Gamma}}{\synthmode{\Gamma}{()}{\top}{()}} \and
-  \inferrule*[right=T-nat]{\wfContext{\Gamma}}{\synthmode{\Gamma}{i}{\nat}{i}} \and
-  \inferrule*[right=T-var]{\wfContext{\Gamma}\\(\eentry{x}{A})\in\Gamma}{\synthmode{\Gamma}{x}{A}{x}} \and
-  \inferrule*[right=T-Rcd]{\synthmode{\Gamma}{E}{A}{e}}{\synthmode{\Gamma}{\record{l}{E}}{\trecord{l}{A}}{\record{l}{e}}}\and
-  \inferrule*[right=T-Proj]{\synthmode{\Gamma}{E}{\trecord{l}{A}}{e}}{\synthmode{\Gamma}{E.l}{A}{e.l}}\and
-  \inferrule*[right=T-app]{\synthmode{\Gamma}{E_1}{A\to B}{e_1}\\ \checkmode{\Gamma}{E_2}{A}{e_2}}{\synthmode{\Gamma}{E_1\,E_2}{B}{e_1\,e_2}} \and
-  \inferrule*[right=T-anno]{\checkmode{\Gamma}{E}{A}{e}}{\synthmode{\Gamma}{E:A}{A}{e}} \and
-  \inferrule*[right=T-merge]{\synthmode{\Gamma}{E_1}{A_1}{e_1}\\ \synthmode{\Gamma}{E_2}{A_2}{e_2}\\ \udisjoint{A\& B}}{\synthmode{\Gamma}{E_1,,E_2}{A_1\& A_2}{\pairC{e_1}{e_2}}{\Gamma'}}\and
+  \inferrule*[right=TS-top]{\wfContext{\Gamma}}{\synthmode{\Gamma}{()}{\top}{()}} \and
+  \inferrule*[right=TS-nat]{\wfContext{\Gamma}}{\synthmode{\Gamma}{i}{\nat}{i}} \and
+  \inferrule*[right=TS-var]{\wfContext{\Gamma}\\(\eentry{x}{A})\in\Gamma}{\synthmode{\Gamma}{x}{A}{x}} \and
+  \inferrule*[right=TS-Rcd]{\synthmode{\Gamma}{E}{A}{e}}{\synthmode{\Gamma}{\record{l}{E}}{\trecord{l}{A}}{\record{l}{e}}}\and
+  \inferrule*[right=TS-Proj]{\synthmode{\Gamma}{E}{\trecord{l}{A}}{e}}{\synthmode{\Gamma}{E.l}{A}{e.l}}\and
+  \inferrule*[right=TS-app]{\synthmode{\Gamma}{E_1}{A\to B}{e_1}\\ \checkmode{\Gamma}{E_2}{A}{e_2}}{\synthmode{\Gamma}{E_1\,E_2}{B}{e_1\,e_2}} \and
+  \inferrule*[right=TS-anno]{\checkmode{\Gamma}{E}{A}{e}}{\synthmode{\Gamma}{E:A}{A}{e}} \and
+  \inferrule*[right=TS-merge]{\synthmode{\Gamma}{E_1}{A_1}{e_1}\\ \synthmode{\Gamma}{E_2}{A_2}{e_2}\\ \udisjoint{A\& B}}{\synthmode{\Gamma}{E_1,,E_2}{A_1\& A_2}{\pairC{e_1}{e_2}}}\and
   %% \nrule{TS-abs}{\checkmode{\Gamma,\tentry{\hat\alpha}{\top},\tentry{\hat\beta}{\top},\eentry{x}{\hat\alpha}}{E}{\hat\beta}{e}{\Gamma',\eentry{x}{\hat\alpha},\Theta}\\\fresh{\hat\alpha,\hat\beta}}{\synthmode{\Gamma}{\abs{x}{E}}{\hat\alpha\to \hat\beta}{\abs{x}{e}}{\Gamma'}}\and
   \inferrule*[right=TS-Tabs]{\synthmode{\Gamma,\tentry{\alpha}{A}}{E}{B}{e}}{\synthmode{\Gamma}{\tabs{\alpha}{A}{E}}{\Tabs{\alpha}{A}{B}}{\Lambda\alpha.e}}\and
   \inferrule*[right=TS-Tapp]{\synthmode{\Gamma}{E}{\Tabs{\alpha}{A}{B}}{e}\\ \disjoint{\Gamma}{A}{A'}}{\synthmode{\Gamma}{E\,A'}{[\substitution{\alpha}{A'}]B}{e\,\toTarget{A'}}}
