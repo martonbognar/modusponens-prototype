@@ -12,40 +12,9 @@ import Data.Maybe
 
 import Language.Source.Syntax
 
-type TcM a = Either String a
 
--- * New code from here
+-- * Algorithmic typing
 -- ----------------------------------------------------------------------------
-
-data CoContext
-  = Hole
-  | XCoArr Target.Coercion CoContext
-  | XCoPr1 Type Type CoContext
-  | XCoPr2 Type Type CoContext
-  | XCoMP Queue Target.Coercion Type Type CoContext
-  | XCoAt Type CoContext
-  | XCoLabel Label CoContext
-
-
-completeCoercion :: CoContext -> Target.Coercion -> Target.Coercion
-completeCoercion Hole c = c
-completeCoercion (XCoArr c' ctx) c = completeCoercion ctx (Target.CoArr c' c)
-completeCoercion (XCoPr1 a b ctx) c = let
-  a' = elabType a
-  b' = elabType b
-  in completeCoercion ctx (Target.CoComp c (Target.CoPr1 a' b'))
-completeCoercion (XCoPr2 a b ctx) c =  let
-  a' = elabType a
-  b' = elabType b
-  in completeCoercion ctx (Target.CoComp c (Target.CoPr2 a' b'))
-completeCoercion (XCoMP m c1 a b ctx) c = let
-  a' = elabType a
-  b' = elabType b
-  comp2 = Target.CoComp (completeCoercion ctx (Target.CoId (Target.TyArr a' b'))) c1
-  comp1 = queueToCoercion m (Target.CoComp c (Target.CoMP (Target.CoPr1 (Target.TyArr a' b') a') (Target.CoPr2 (Target.TyArr a' b') a'))) (TyArr a b) a
-  in Target.CoComp comp1 comp2
-completeCoercion (XCoAt t ctx) c = completeCoercion ctx (Target.CoAt c (elabType t))
-
 
 data BaseType
   = BaseNat
@@ -79,6 +48,45 @@ elabMono :: Monotype -> Target.Type
 elabMono TyNat = Target.TyNat
 elabMono TyTop = Target.TyTop
 
+-- * Coercion contexts
+-- ----------------------------------------------------------------------------
+
+data CoContext
+  = Hole
+  | XCoArr Target.Coercion CoContext
+  | XCoPr1 Type Type CoContext
+  | XCoPr2 Type Type CoContext
+  | XCoMP Queue Target.Coercion Type Type CoContext
+  | XCoAt Type CoContext
+  | XCoLabel Label CoContext
+
+
+completeCoercion :: CoContext -> Target.Coercion -> Target.Coercion
+completeCoercion Hole c = c
+completeCoercion (XCoArr c' ctx) c = completeCoercion ctx (Target.CoArr c' c)
+completeCoercion (XCoPr1 a b ctx) c = let
+  a' = elabType a
+  b' = elabType b
+  in completeCoercion ctx (Target.CoComp c (Target.CoPr1 a' b'))
+completeCoercion (XCoPr2 a b ctx) c =  let
+  a' = elabType a
+  b' = elabType b
+  in completeCoercion ctx (Target.CoComp c (Target.CoPr2 a' b'))
+completeCoercion (XCoMP m c1 a b ctx) c = let
+  a' = elabType a
+  b' = elabType b
+  pr1 = Target.CoPr1 (Target.TyArr a' b') a'
+  pr2 = Target.CoPr2 (Target.TyArr a' b') a'
+  mp = Target.CoMP pr1 pr2
+  comp1 = queueToCoercion m (Target.CoComp c mp) (TyArr a b) a
+  idc = Target.CoId (Target.TyArr a' b')
+  comp2 = Target.CoComp (completeCoercion ctx idc) c1
+  in Target.CoComp comp1 comp2
+completeCoercion (XCoAt t ctx) c = completeCoercion ctx (Target.CoAt c (elabType t))
+completeCoercion (XCoLabel l ctx) c = completeCoercion ctx (Target.CoRec l c)
+
+-- * Substitutions
+-- ----------------------------------------------------------------------------
 
 appendSubst :: Substitution -> Substitution -> Substitution
 appendSubst EmptySubst s    = s
@@ -86,90 +94,118 @@ appendSubst (SVar ap t f) s = (SVar ap t (appendSubst f s))
 appendSubst (SSub ap t f) s = (SSub ap t (appendSubst f s))
 
 
--- TODO: apply substitutions recursively
 substType :: Substitution -> Type -> Type
-substType EmptySubst t                       = t
+substType EmptySubst t = t
+substType sub@(SVar _ _ s) t = let t' = substType s t in goT sub t'
+substType sub@(SSub _ _ s) t = let t' = substType s t in goT sub t'
 
-substType sub@(SVar ap t s) (TyMono TyNat)   = TyMono TyNat
-substType sub@(SVar ap t s) (TyMono TyTop)   = TyMono TyTop
-substType sub@(SVar ap t s) (TyMono (TyVar v))
+goT sub@(SVar ap t s) (TyMono TyNat)   = TyMono TyNat
+goT sub@(SVar ap t s) (TyMono TyTop)   = TyMono TyTop
+goT sub@(SVar ap t s) (TyMono (TyVar v))
   | ap == v = TyMono t
   | otherwise = (TyMono (TyVar v))
-substType sub@(SVar ap t s) (TyMono (TySubstVar ap')) = TyMono (TySubstVar ap')
-substType sub@(SVar ap t s) (TyArr a b)      = TyArr (substType sub a) (substType sub b)
-substType sub@(SVar ap t s) (TyIs a b)       = TyIs (substType sub a) (substType sub b)
-substType sub@(SVar ap t s) (TyAbs ap' a b)  = TyAbs ap' (substType sub a) (substType sub b)
-substType sub@(SVar ap t s) (TyRec l a)      = TyRec l (substType sub a)
+goT sub@(SVar ap t s) (TyMono (TySubstVar ap')) = TyMono (TySubstVar ap')
+goT sub@(SVar ap t s) (TyArr a b)      = TyArr (goT sub a) (goT sub b)
+goT sub@(SVar ap t s) (TyIs a b)       = TyIs (goT sub a) (goT sub b)
+goT sub@(SVar ap t s) (TyAbs ap' a b)  = TyAbs ap' (goT sub a) (goT sub b)
+goT sub@(SVar ap t s) (TyRec l a)      = TyRec l (goT sub a)
 
-substType sub@(SSub ap t s) (TyMono TyNat)   = TyMono TyNat
-substType sub@(SSub ap t s) (TyMono TyTop)   = TyMono TyTop
-substType sub@(SSub ap t s) (TyMono (TyVar v)) = TyMono (TyVar v)
-substType sub@(SSub ap t s) (TyMono (TySubstVar ap'))
+goT sub@(SSub ap t s) (TyMono TyNat)   = TyMono TyNat
+goT sub@(SSub ap t s) (TyMono TyTop)   = TyMono TyTop
+goT sub@(SSub ap t s) (TyMono (TyVar v)) = TyMono (TyVar v)
+goT sub@(SSub ap t s) (TyMono (TySubstVar ap'))
   | ap == ap' = TyMono t
   | otherwise = TyMono (TySubstVar ap')
-substType sub@(SSub ap t s) (TyArr a b)      = TyArr (substType sub a) (substType sub b)
-substType sub@(SSub ap t s) (TyIs a b)       = TyIs (substType sub a) (substType sub b)
-substType sub@(SSub ap t s) (TyAbs ap' a b)  = TyAbs ap' (substType sub a) (substType sub b)
-substType sub@(SSub ap t s) (TyRec l a)      = TyRec l (substType sub a)
+goT sub@(SSub ap t s) (TyArr a b)      = TyArr (goT sub a) (goT sub b)
+goT sub@(SSub ap t s) (TyIs a b)       = TyIs (goT sub a) (goT sub b)
+goT sub@(SSub ap t s) (TyAbs ap' a b)  = TyAbs ap' (goT sub a) (goT sub b)
+goT sub@(SSub ap t s) (TyRec l a)      = TyRec l (goT sub a)
 
 
 substExpr :: Substitution -> Expression -> Expression
 substExpr EmptySubst e = e
+substExpr sub@(SVar _ _ s) e = let e' = substExpr s e in goE sub e'
+substExpr sub@(SSub _ _ s) e = let e' = substExpr s e in goE sub e'
 
-substExpr sub@(SVar ap t s) (ExLit i)         = ExLit i
-substExpr sub@(SVar ap t s) (ExTop)           = ExTop
-substExpr sub@(SVar ap t s) (ExTrue)          = ExTrue
-substExpr sub@(SVar ap t s) (ExFalse)         = ExFalse
-substExpr sub@(SVar ap t s) (ExVar x)         = ExVar x
-substExpr sub@(SVar ap t s) (ExAbs x e)       = ExAbs x (substExpr sub e)
-substExpr sub@(SVar ap t s) (ExApp e1 e2)     = ExApp (substExpr sub e1) (substExpr sub e2)
-substExpr sub@(SVar ap t s) (ExMerge e1 e2)   = ExMerge (substExpr sub e1) (substExpr sub e2)
-substExpr sub@(SVar ap t s) (ExAnn e a)       = ExAnn (substExpr sub e) (substType sub a)
-substExpr sub@(SVar ap t s) (ExTyAbs ap' a e) = ExTyAbs ap' (substType sub a) (substExpr sub e)
-substExpr sub@(SVar ap t s) (ExTyApp e a)     = ExTyApp (substExpr sub e) (substType sub a)
-substExpr sub@(SVar ap t s) (ExRec l e)       = ExRec l (substExpr sub e)
-substExpr sub@(SVar ap t s) (ExRecFld e l)    = ExRecFld (substExpr sub e) l
+goE sub@(SVar ap t s) (ExLit i)         = ExLit i
+goE sub@(SVar ap t s) (ExTop)           = ExTop
+goE sub@(SVar ap t s) (ExTrue)          = ExTrue
+goE sub@(SVar ap t s) (ExFalse)         = ExFalse
+goE sub@(SVar ap t s) (ExVar x)         = ExVar x
+goE sub@(SVar ap t s) (ExAbs x e)       = ExAbs x (goE sub e)
+goE sub@(SVar ap t s) (ExApp e1 e2)     = ExApp (goE sub e1) (goE sub e2)
+goE sub@(SVar ap t s) (ExMerge e1 e2)   = ExMerge (goE sub e1) (goE sub e2)
+goE sub@(SVar ap t s) (ExAnn e a)       = ExAnn (goE sub e) (substType sub a)
+goE sub@(SVar ap t s) (ExTyAbs ap' a e) = ExTyAbs ap' (substType sub a) (goE sub e)
+goE sub@(SVar ap t s) (ExTyApp e a)     = ExTyApp (goE sub e) (substType sub a)
+goE sub@(SVar ap t s) (ExRec l e)       = ExRec l (goE sub e)
+goE sub@(SVar ap t s) (ExRecFld e l)    = ExRecFld (goE sub e) l
 
-substExpr sub@(SSub ap t s) (ExLit i)         = ExLit i
-substExpr sub@(SSub ap t s) (ExTop)           = ExTop
-substExpr sub@(SSub ap t s) (ExTrue)          = ExTrue
-substExpr sub@(SSub ap t s) (ExFalse)         = ExFalse
-substExpr sub@(SSub ap t s) (ExVar x)         = ExVar x
-substExpr sub@(SSub ap t s) (ExAbs x e)       = ExAbs x (substExpr sub e)
-substExpr sub@(SSub ap t s) (ExApp e1 e2)     = ExApp (substExpr sub e1) (substExpr sub e2)
-substExpr sub@(SSub ap t s) (ExMerge e1 e2)   = ExMerge (substExpr sub e1) (substExpr sub e2)
-substExpr sub@(SSub ap t s) (ExAnn e a)       = ExAnn (substExpr sub e) (substType sub a)
-substExpr sub@(SSub ap t s) (ExTyAbs ap' a e) = ExTyAbs ap' (substType sub a) (substExpr sub e)
-substExpr sub@(SSub ap t s) (ExTyApp e a)     = ExTyApp (substExpr sub e) (substType sub a)
-substExpr sub@(SSub ap t s) (ExRec l e)       = ExRec l (substExpr sub e)
-substExpr sub@(SSub ap t s) (ExRecFld e l)    = ExRecFld (substExpr sub e) l
+goE sub@(SSub ap t s) (ExLit i)         = ExLit i
+goE sub@(SSub ap t s) (ExTop)           = ExTop
+goE sub@(SSub ap t s) (ExTrue)          = ExTrue
+goE sub@(SSub ap t s) (ExFalse)         = ExFalse
+goE sub@(SSub ap t s) (ExVar x)         = ExVar x
+goE sub@(SSub ap t s) (ExAbs x e)       = ExAbs x (goE sub e)
+goE sub@(SSub ap t s) (ExApp e1 e2)     = ExApp (goE sub e1) (goE sub e2)
+goE sub@(SSub ap t s) (ExMerge e1 e2)   = ExMerge (goE sub e1) (goE sub e2)
+goE sub@(SSub ap t s) (ExAnn e a)       = ExAnn (goE sub e) (substType sub a)
+goE sub@(SSub ap t s) (ExTyAbs ap' a e) = ExTyAbs ap' (substType sub a) (goE sub e)
+goE sub@(SSub ap t s) (ExTyApp e a)     = ExTyApp (goE sub e) (substType sub a)
+goE sub@(SSub ap t s) (ExRec l e)       = ExRec l (goE sub e)
+goE sub@(SSub ap t s) (ExRecFld e l)    = ExRecFld (goE sub e) l
 
 
 substContext :: Substitution -> TypeContext -> TypeContext
 substContext EmptySubst c = c
+substContext sub@(SVar _ _ s) c = let c' = substContext s c in goC sub c'
+substContext sub@(SSub _ _ s) c = let c' = substContext s c in goC sub c'
 
-substContext sub@(SVar ap t s) EmptyCtx                 = EmptyCtx
-substContext sub@(SVar ap t s) (CVar ctx ap' a)
-  | ap == ap' = substContext sub ctx
-  | otherwise = (CVar (substContext sub ctx) ap' (substType sub a))
-substContext sub@(SVar ap t s) (CSub ctx ap' a) = (CVar (substContext sub ctx) ap' (substType sub a))
+goC sub@(SVar ap t s) EmptyCtx                 = EmptyCtx
+goC sub@(SVar ap t s) (CVar ctx ap' a)
+  | ap == ap' = goC sub ctx
+  | otherwise = (CVar (goC sub ctx) ap' (substType sub a))
+goC sub@(SVar ap t s) (CSub ctx ap' a) = (CVar (goC sub ctx) ap' (substType sub a))
 
-substContext sub@(SSub ap t s) EmptyCtx                 = EmptyCtx
-substContext sub@(SSub ap t s) (CVar ctx ap' a)   = (CVar (substContext sub ctx) ap' (substType sub a))
-substContext sub@(SSub ap t s) (CSub ctx ap' a)
-  | ap == ap' = substContext sub ctx
-  | otherwise = (CVar (substContext sub ctx) ap' (substType sub a))
+goC sub@(SSub ap t s) EmptyCtx                 = EmptyCtx
+goC sub@(SSub ap t s) (CVar ctx ap' a)   = (CVar (goC sub ctx) ap' (substType sub a))
+goC sub@(SSub ap t s) (CSub ctx ap' a)
+  | ap == ap' = goC sub ctx
+  | otherwise = (CVar (goC sub ctx) ap' (substType sub a))
 
 
 substQueue :: Substitution -> Queue -> Queue
 substQueue EmptySubst q = q
+substQueue sub@(SVar _ _ s) q = let q' = substQueue s q in goQ sub q'
+substQueue sub@(SSub _ _ s) q = let q' = substQueue s q in goQ sub q'
 
-substQueue sub@(SVar ap t s) Null = Null
-substQueue sub@(SVar ap t s) (ExtraType m a) = ExtraType (substQueue sub m) (substType sub a)
+goQ sub@(SVar ap t s) Null = Null
+goQ sub@(SVar ap t s) (ExtraType m a) = ExtraType (goQ sub m) (substType sub a)
+goQ sub@(SVar ap t s) (ExtraLabel m l) = ExtraLabel (goQ sub m) l
 
-substQueue sub@(SSub ap t s) Null = Null
-substQueue sub@(SSub ap t s) (ExtraType m a) = ExtraType (substQueue sub m) (substType sub a)
+goQ sub@(SSub ap t s) Null = Null
+goQ sub@(SSub ap t s) (ExtraType m a) = ExtraType (goQ sub m) (substType sub a)
+goQ sub@(SSub ap t s) (ExtraLabel m l) = ExtraLabel (goQ sub m) l
 
+
+substCoercion = undefined
+
+
+substCoCtx :: Substitution -> CoContext -> CoContext
+substCoCtx EmptySubst cx = cx
+substCoCtx sub@(SVar _ _ s) cx = let cx' = substCoCtx s cx in goCx sub cx'
+substCoCtx sub@(SSub _ _ s) cx = let cx' = substCoCtx s cx in goCx sub cx'
+
+goCx sub@(SVar ap t s) Hole = Hole
+goCx sub@(SVar ap t s) (XCoArr c ctx) = XCoArr (substCoercion sub c) (substCoCtx sub ctx)
+goCx sub@(SVar ap t s) (XCoPr1 a b ctx) = XCoPr1 (substType sub a) (substType sub b) (substCoCtx sub ctx)
+goCx sub@(SVar ap t s) (XCoPr2 a b ctx) = XCoPr2 (substType sub a) (substType sub b) (substCoCtx sub ctx)
+goCx sub@(SVar ap t s) (XCoMP m c1 a b ctx) = XCoMP (substQueue sub m) (substCoercion sub c1) (substType sub a) (substType sub b) (substCoCtx sub ctx)
+goCx sub@(SVar ap t s) (XCoAt t' ctx) = undefined
+goCx sub@(SVar ap t s) (XCoLabel l ctx) = undefined
+
+-- * Well-formedness
+-- ----------------------------------------------------------------------------
 
 wellFormedSubst :: TypeContext -> Substitution -> Maybe Substitution
 -- WFS-nil
