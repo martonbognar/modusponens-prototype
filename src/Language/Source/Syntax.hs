@@ -21,10 +21,18 @@ data Monotype
   | TySubstVar Variable  -- should only be used during typechecking
   | TyMonoArr Monotype Monotype
   | TyMonoIs Monotype Monotype
+  | TyMonoRec Label Monotype
 
 instance Eq Monotype where
-  TyNat == TyNat  = True
-  TyTop == TyTop  = True
+  TyNat           == TyNat            = True
+  TyTop           == TyTop            = True
+  TyBool          == TyBool           = True
+  TyVar v         == TyVar v'         = v == v'
+  TySubstVar v    == TySubstVar v'    = v == v'
+  TyMonoArr a1 a2 == TyMonoArr b1 b2  = a1 == b1 && a2 == b2
+  TyMonoIs a1 a2  == TyMonoIs b1 b2   = a1 == b1 && a2 == b2
+  TyMonoRec l a   == TyMonoRec l' b   = l == l' && a == b
+  _               == _                = False
 
 data Type
   = TyMono Monotype
@@ -34,10 +42,12 @@ data Type
   | TyRec Label Type
 
 instance Eq Type where
-  (TyMono m1)   == (TyMono m2) = m1 == m2
-  (TyArr t1 t2) == (TyArr t1' t2') = t1 == t1' && t2 == t2'
-  (TyIs t1 t2)  == (TyIs t1' t2') = t1 == t1' && t2 == t2'
-  _             == _ = False
+  TyMono m1     == TyMono m2      = m1 == m2
+  TyArr t1 t2   == TyArr t1' t2'  = t1 == t1' && t2 == t2'
+  TyIs t1 t2    == TyIs t1' t2'   = t1 == t1' && t2 == t2'
+  TyAbs v a1 a2 == TyAbs v' b1 b2 = v == v' && a1 == b1 && a2 == b2
+  TyRec l a     == TyRec l' b     = l == l' && a == b
+  _             == _              = False
 
 data Expression
   = ExLit Integer
@@ -49,10 +59,10 @@ data Expression
   | ExApp Expression Expression
   | ExMerge Expression Expression
   | ExAnn Expression Type
-  | ExTyAbs Variable Type Expression
-  | ExTyApp Expression Type
   | ExRec Label Expression
   | ExRecFld Expression Label
+  | ExTyAbs Variable Type Expression
+  | ExTyApp Expression Type
 
 -- data SubstitutionVariable = SubstVar Variable
 

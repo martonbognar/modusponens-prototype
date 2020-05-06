@@ -26,6 +26,14 @@ data Type
   | TyAll Variable Type
   | TyRec Label Type
 
+instance Eq Type where
+  TyNat       == TyNat       = True
+  TyTop       == TyTop       = True
+  TyTup t1 t2 == TyTup t3 t4 = t1 == t3 && t2 == t4
+  TyArr t1 t2 == TyArr t3 t4 = t1 == t3 && t2 == t4
+  TyRec l1 t1 == TyRec l2 t2 = t1 == t2 && l1 == l2
+  _           == _           = False
+
 -- | Target terms
 data Expression
   = ExLit Integer
@@ -47,15 +55,16 @@ data Coercion
   | CoTopArr
   | CoTopAll
   | CoDistArr Type Type Type
-  | CoDistAll Type Type Type
+  | CoDistLabel Label Type Type
   | CoPr1 Type Type
   | CoPr2 Type Type
+  | CoMP Coercion Coercion
   | CoComp Coercion Coercion
   | CoPair Coercion Coercion
   | CoArr Coercion Coercion
   | CoAt Coercion Type
-  | CoMP Coercion Coercion
   | CoTyAbs Variable Coercion
+  | CoRec Label Coercion
 
 
 data TermContext
@@ -65,15 +74,6 @@ data TermContext
 data TypeContext
   = TypeEmpty
   | TypeSnoc TypeContext Variable
-
--- | Determine equality between two types.
-eqTypes :: Type -> Type -> Bool
-eqTypes TyNat  TyNat                = True
-eqTypes TyTop  TyTop                = True
-eqTypes (TyTup t1 t2) (TyTup t3 t4) = eqTypes t1 t3 && eqTypes t2 t4
-eqTypes (TyArr t1 t2) (TyArr t3 t4) = eqTypes t1 t3 && eqTypes t2 t4
-eqTypes (TyRec l1 t1) (TyRec l2 t2) = eqTypes t1 t2 && l1 == l2
-eqTypes _ _                         = False
 
 -- * Pretty Printing
 -- ----------------------------------------------------------------------------
@@ -107,11 +107,6 @@ instance PrettyPrint Coercion where
   ppr CoTopAll             = ppr "top" <> ppr "\\/"
   ppr (CoDistArr t1 t2 t3)
     = hcat [ppr "dist" <> arrow, parensList [
-        hcat [ppr t1, arrow, ppr t2],
-        hcat [ppr t1, arrow, ppr t3]
-      ]]
-  ppr (CoDistAll t1 t2 t3)
-    = hcat [ppr "dist" <> ppr "\\/", parensList [
         hcat [ppr t1, arrow, ppr t2],
         hcat [ppr t1, arrow, ppr t3]
       ]]
@@ -377,7 +372,7 @@ tcTerm = go TermEmpty
     go c (ExApp e1 e2) = do
       (TyArr t1 t2) <- go c e1
       t3            <- go c e2
-      guard (eqTypes t1 t3)
+      guard (t1 == t3)
       return t2
     -- TYP-PAIR
     go c (ExMerge e1 e2) = do
@@ -388,7 +383,7 @@ tcTerm = go TermEmpty
     go c (ExCoApp co e) = do
       t         <- go c e
       (t1, t1') <- tcCoercion co
-      guard (eqTypes t t1)
+      guard (t == t1)
       return t1'
     -- TYP-RCD
     go c (ExRec l e) = do
@@ -410,7 +405,7 @@ tcCoercion (CoId t)
 tcCoercion (CoComp c1 c2)
   = do (t2, t3)  <- tcCoercion c1
        (t1, t2') <- tcCoercion c2
-       guard (eqTypes t2 t2')
+       guard (t2 == t2')
        return (t1, t3)
 -- COTYP-CoTop
 tcCoercion (CoTop t) = return (t, TyTop)
@@ -426,7 +421,7 @@ tcCoercion (CoArr c1 c2)
 tcCoercion (CoPair c1 c2)
   = do (t1, t2)  <- tcCoercion c1
        (t1', t3) <- tcCoercion c2
-       guard (eqTypes t1 t1')
+       guard (t1 == t1')
        return (t1, TyTup t2 t3)
 -- COTYP-PROJL
 tcCoercion (CoPr1 t1 t2)

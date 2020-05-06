@@ -351,7 +351,14 @@ subLeft ctx l m a0 c (TyArr a1 a2) e = arr ctx l m a0 c (TyArr a1 a2) e <|> mp c
       return (c', appendSubst sub sub1)
     mp ctx l m a0 c (TyArr a1 a2) e = do
       (c1, sub1) <- subRight ctx Null a0 (queueToType m a1)
-      (c', sub2) <- subLeft ctx l m a0 (XCoMP m c1 a1 a2 c) a2 e
+      (c', sub2) <- subLeft
+                      (substContext sub1 ctx)
+                      (substQueue sub1 l)
+                      (substQueue sub1 m)
+                      (substType sub1 a0)
+                      (substCoCtx sub1 (XCoMP m c1 a1 a2 c))
+                      (substType sub1 a2)
+                      (substType sub1 e)
       return (c', appendSubst sub2 sub1)
 -- AL-Forall
 subLeft ctx l m a0 c (TyAbs ap a b) e = do
