@@ -275,11 +275,9 @@ unify ctx (BaseVar ap) (BaseSubstVar ap')
 
 disjoint :: TypeContext -> Type -> Type -> Maybe Substitution
 -- AD-TopL
-disjoint ctx (TyMono TyTop)         a
-  = Just EmptySubst
+disjoint ctx (TyMono TyTop)         a              = Just EmptySubst
 -- AD-TopR
-disjoint ctx a                      (TyMono TyTop)
-  = Just EmptySubst
+disjoint ctx a                      (TyMono TyTop) = Just EmptySubst
 -- AD-VarL
 disjoint ctx (TyMono (TyVar ap))     b
   = do a <- typeFromContext ctx ap
@@ -290,6 +288,21 @@ disjoint ctx a                      (TyMono (TyVar bt))
   = do b <- typeFromContext ctx bt
        (c, s) <- subRight ctx Null b a
        return s
+-- AD-UVarL
+disjoint ctx (TyMono (TySubstVar ap)) b
+  = do a <- typeFromContext ctx ap  -- TODO: this might be wrong
+       (c, s) <- subRight ctx Null a b
+       return s
+-- AD-UVarR
+disjoint ctx a                      (TyMono (TySubstVar bt))
+  = do b <- typeFromContext ctx bt  -- TODO: same as above
+       (c, s) <- subRight ctx Null b a
+       return s
+disjoint ctx (TyRec l1 a) (TyRec l2 b)
+-- AD-Rcd
+  | l1 == l2 = disjoint ctx a b
+-- AD-Nrcd
+  | otherwise = Just EmptySubst
 -- AD-Arr
 disjoint ctx (TyArr a1 a2) (TyArr b1 b2)
   = disjoint ctx a2 b2
@@ -307,33 +320,56 @@ disjoint ctx (TyIs a1 a2)           b
   = do
     s1 <- disjoint ctx a1 b
     s2 <- disjoint ctx a2 b
-    if s1 == s2 then return s2 else Nothing
+    if s1 == s2 then return s2 else Nothing  -- TODO: ?
 -- AD-AndR
 disjoint ctx a                      (TyIs b1 b2)
   -- A not arrow type is implicitly covered by AD-ArrL
   = do
     s1 <- disjoint ctx a b1
     s2 <- disjoint ctx a b2
-    if s1 == s2 then return s2 else Nothing
+    if s1 == s2 then return s2 else Nothing  -- TODO: ?
 -- AD-All
 disjoint ctx (TyAbs ap a1 a2)        (TyAbs ap' b1 b2)
-  | ap == ap' = disjoint (CSub ctx ap (TyIs a1 b1)) (substType (SVar ap (TySubstVar ap) EmptySubst) a2) (substType (SVar ap (TySubstVar ap) EmptySubst) b2)
+  | ap == ap' = disjoint
+                  (CSub ctx ap (TyIs a1 b1))
+                  (substType (SVar ap (TySubstVar ap) EmptySubst) b1)
+                  (substType (SVar ap (TySubstVar ap) EmptySubst) b2)
+  | otherwise = Nothing  -- TODO: ?
 -- AD-AllL
 disjoint ctx (TyAbs ap a b1)        b2
-  = disjoint (CSub ctx ap a) (substType (SVar ap (TySubstVar ap) EmptySubst) b1) b2
+  = disjoint
+      (CSub ctx ap a)
+      (substType (SVar ap (TySubstVar ap) EmptySubst) b1)
+      b2
 -- AD-AllR
 disjoint ctx b1        (TyAbs ap a b2)
-  = disjoint (CSub ctx ap a) b1 (substType (SVar ap (TySubstVar ap) EmptySubst) b2)
+  = disjoint
+      (CSub ctx ap a)
+      b1
+      (substType (SVar ap (TySubstVar ap) EmptySubst) b2)
 -- AD-Ax
 disjoint ctx a                      b
   = if disjointAx a b then return EmptySubst else Nothing
 
 
 disjointAx :: Type -> Type -> Bool
+-- AX-NatBool
 disjointAx (TyMono TyNat) (TyMono TyBool) = True
+-- AX-BoolNat
 disjointAx (TyMono TyBool) (TyMono TyNat) = True
+-- AX-RcdNat
+disjointAx (TyRec l a) (TyMono TyNat) = True
+-- AX-NatRcd
+disjointAx (TyMono TyNat) (TyRec l a) = True
+-- AX-RcdBool
+disjointAx (TyRec l a) (TyMono TyBool) = True
+-- AX-BoolRcd
+disjointAx (TyMono TyBool) (TyRec l a) = True
+
 disjointAx _ _ = False
 
+-- * Subtyping
+-- ----------------------------------------------------------------------------
 
 subtyping :: Type -> Type -> Maybe (Target.Coercion, Substitution)
 subtyping = subRight EmptyCtx Null
