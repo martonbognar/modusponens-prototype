@@ -214,7 +214,7 @@ Rule \textsc{S-DistAll} of $F_{i}^{+}$ is subsumed by our rules:
     Expressions   & $E$      & $::=$ & $i~\mid~\True~\mid~\False~\mid~()~\mid~x~\mid~\abs{x}{E}~\mid~E_1\,E_2~\mid~E_1,,E_2~\mid$\vspace{0.1cm}\\
                   &          &       & $E : A~\mid~\textcolor{magenta}{\tabs{\alpha}{A}{E}}~\mid~\textcolor{magenta}{E\,A}~\mid\record{l}{E}~\mid~E.l$\vspace{0.3cm}\\
     Type context  & $\Delta$ & $::=$ & $\bullet~\mid~\Delta,\tentry{\alpha}{A}~\mid~\Delta,\tentry{\hat{\alpha}}{A}$\vspace{0.3cm}\\
-    Type queue    & $\mathcal{L},\mathcal{M}$ & $::=$ & $\bullet~\mid~\mathcal{L},A~\mid~\mathcal{L},l$\vspace{0.3cm}\\
+    Queue         & $\mathcal{L},\mathcal{M}$ & $::=$ & $\bullet~\mid~\mathcal{L},A~\mid~\mathcal{L},l$\vspace{0.3cm}\\
     Coercion context & $\mathcal{C}$ & $::=$ & $\bullet~\mid~\arrCC{\mathcal{C}}{c}~\mid~\projlCC{\mathcal{C}}{A}{B}~\mid~\projrCC{\mathcal{C}}{A}{B}~\mid~\mpCC{\mathcal{C}}{\mathcal{M}}{c_1}{A}{B}~\mid~\alllCC{\mathcal{C}}{\tau}~\mid~\recCC{\mathcal{C}}{l}$\vspace{0.3cm}\\
     Type variable substitutions & $\theta$ & $::=$ & $\bullet~\mid~\unification{\alpha}{A},\theta~\mid~\substitution{\alpha}{A},\theta$\vspace{0.3cm}
   \end{tabular}
@@ -247,7 +247,9 @@ Rule \textsc{S-DistAll} of $F_{i}^{+}$ is subsumed by our rules:
     [\unification{\alpha}{\tau}](E_1\,E_2) &= ([\unification{\alpha}{\tau}]E_1)\,([\unification{\alpha}{\tau}]E_2)\\
     [\unification{\alpha}{\tau}](E : A) &= [\unification{\alpha}{\tau}]E : [\unification{\alpha}{\tau}]A\\
     [\unification{\alpha}{\tau}]\tabs{\alpha}{A}{E} &= \tabs{\alpha}{[\unification{\alpha}{\tau}]A}{[\unification{\alpha}{\tau}]E}\\
-    [\unification{\alpha}{\tau}](E\,A) &= ([\unification{\alpha}{\tau}]E)\, ([\unification{\alpha}{\tau}]A)
+    [\unification{\alpha}{\tau}](E\,A) &= ([\unification{\alpha}{\tau}]E)\, ([\unification{\alpha}{\tau}]A)\\
+    [\unification{\alpha}{\tau}]\record{l}{E} &= \record{l}{[\unification{\alpha}{\tau}]E}\\
+    [\unification{\alpha}{\tau}](E.l) &= ([\unification{\alpha}{\tau}]E).l
   \end{align*}
 \end{minipage}\\
 
@@ -258,14 +260,15 @@ Rule \textsc{S-DistAll} of $F_{i}^{+}$ is subsumed by our rules:
     [\unification{\alpha}{\tau}]\bullet &= \bullet\\
     [\unification{\alpha}{\tau}](\Delta,\tentry{\alpha}{A}) &= [\unification{\alpha}{\tau}]\Delta,\tentry{\alpha}{[\unification{\alpha}{\tau}]A}\\
     [\unification{\alpha}{\tau}](\Delta,\tentry{\hat\alpha}{A}) &= [\unification{\alpha}{\tau}]\Delta\\
-    [\unification{\alpha}{\tau}](\Delta,\tentry{\hat\beta}{A}) &= [\unification{\alpha}{\tau}]\Delta,\tentry{\hat\beta}{[\unification{\alpha}{\tau}]A}\\
+    [\unification{\alpha}{\tau}](\Delta,\tentry{\hat\beta}{A}) &= [\unification{\alpha}{\tau}]\Delta,\tentry{\hat\beta}{[\unification{\alpha}{\tau}]A}
   \end{align*}
 \end{minipage}
 \begin{minipage}[t]{0.47\textwidth}
-    \mypar{{...on type queues}}
+    \mypar{{...on queues}}
   \begin{align*}
     [\unification{\alpha}{\tau}]\bullet &= \bullet\\
     [\unification{\alpha}{\tau}](\mathcal{M},A) &= [\unification{\alpha}{\tau}]\mathcal{M},([\unification{\alpha}{\tau}]A)\\
+    [\unification{\alpha}{\tau}](\mathcal{M},l) &= [\unification{\alpha}{\tau}]\mathcal{M},l
   \end{align*}
 \end{minipage}\vspace{3pt}
 
@@ -294,7 +297,9 @@ Rule \textsc{S-DistAll} of $F_{i}^{+}$ is subsumed by our rules:
     [\substitution{\alpha}{\tau}](E_1\,E_2) &= ([\substitution{\alpha}{\tau}]E_1)\,([\substitution{\alpha}{\tau}]E_2)\\
     [\substitution{\alpha}{\tau}](E : A) &= [\substitution{\alpha}{\tau}]E : [\substitution{\alpha}{\tau}]A\\
     [\substitution{\alpha}{\tau}]\tabs{\beta}{A}{E} &= \tabs{\beta}{[\substitution{\alpha}{\tau}]A}{[\substitution{\alpha}{\tau}]E}\\
-    [\substitution{\alpha}{\tau}](E\,A) &= ([\substitution{\alpha}{\tau}]E)\, ([\substitution{\alpha}{\tau}]A)
+    [\substitution{\alpha}{\tau}](E\,A) &= ([\substitution{\alpha}{\tau}]E)\, ([\substitution{\alpha}{\tau}]A)\\
+    [\substitution{\alpha}{\tau}]\record{l}{E} &= \record{l}{[\substitution{\alpha}{\tau}]E}\\
+    [\substitution{\alpha}{\tau}](E.l) &= ([\substitution{\alpha}{\tau}]E).l
   \end{align*}
 \end{minipage}\\
 
@@ -309,10 +314,11 @@ Rule \textsc{S-DistAll} of $F_{i}^{+}$ is subsumed by our rules:
   \end{align*}
 \end{minipage}
 \begin{minipage}[t]{0.47\textwidth}
-    \mypar{{...on type queues}}
+    \mypar{{...on queues}}
   \begin{align*}
     [\substitution{\alpha}{\tau}]\bullet &= \bullet\\
     [\substitution{\alpha}{\tau}](\mathcal{M},A) &= [\substitution{\alpha}{\tau}]\mathcal{M},([\substitution{\alpha}{\tau}]A)\\
+    [\substitution{\alpha}{\tau}](\mathcal{M},l) &= [\substitution{\alpha}{\tau}]\mathcal{M},l
   \end{align*}
 \end{minipage}%\vspace{3pt}
 \subsubsection{Coercion context completion}
