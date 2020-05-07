@@ -80,6 +80,18 @@ typeFromContext (CVar c v vt) x
   | otherwise = typeFromContext c x
 
 
+appendContext :: TypeContext -> TypeContext -> TypeContext
+appendContext EmptyCtx c = c
+appendContext (CVar ctx v t) c = appendContext ctx (CVar c v t)
+appendContext (CSub ctx v t) c = appendContext ctx (CSub c v t)
+
+slicesFromContext :: TypeContext -> Variable -> TypeContext -> Maybe (TypeContext, Type, TypeContext)
+slicesFromContext EmptyCtx _ _ = Nothing
+slicesFromContext (CVar c v vt) x acc
+  | v == x    = return (c, vt, acc)
+  | otherwise = slicesFromContext c x (CVar acc v vt)
+
+
 -- | The queue for implementing algorithmic subtyping rules.
 data Queue
   = Null

@@ -35,7 +35,6 @@ queueTop (ExtraLabel q l) = undefined  -- TODO: ?
 freshVar :: Maybe Variable
 freshVar = undefined
 
-
 -- * Algorithmic typing
 -- ----------------------------------------------------------------------------
 
@@ -451,11 +450,10 @@ subLeft ctx Null m a0 c e1@(TyMono (TySubstVar x)) e2 = do
 subLeft ctx (ExtraType l b1) m a0 c (TyMono (TySubstVar ap)) e = do
   ap1 <- freshVar
   ap2 <- freshVar
-  a <- typeFromContext ctx ap
-  (ctx1, ctx2) <- extractCtx ctx ap a
+  (ctx1, a, ctx2) <- slicesFromContext ctx ap EmptyCtx
   let sub = (SVar ap (TyMonoArr (TySubstVar ap1) (TySubstVar ap2)) EmptySubst) in do
     (c1, sub1) <- subRight
-                    (appendCtx (substContext sub ctx2) (CSub (CSub ctx1 ap1 (TyMono TyTop)) ap2 a))  -- TODO: probably incorrect
+                    (appendContext (substContext sub ctx2) (CSub (CSub ctx1 ap1 (TyMono TyTop)) ap2 a))  -- TODO: probably incorrect
                     Null
                     (substType sub b1)
                     (TyMono (TySubstVar ap1))
@@ -515,10 +513,6 @@ subLeft ctx l m a0 c (TyAbs ap a b) e = do
     (XCoAt (TyMono (TySubstVar ap')) c)
     (substType (SVar ap (TySubstVar ap') EmptySubst) b)
     e
-
-
-extractCtx = undefined
-appendCtx = undefined
 
 
 -- * Old code from here
