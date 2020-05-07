@@ -78,6 +78,9 @@ typeFromContext EmptyCtx _ = Nothing
 typeFromContext (CVar c v vt) x
   | v == x    = return vt
   | otherwise = typeFromContext c x
+typeFromContext (CSub c v vt) x  -- TODO: is this right?
+  | v == x    = return vt
+  | otherwise = typeFromContext c x
 
 
 appendContext :: TypeContext -> TypeContext -> TypeContext
@@ -90,6 +93,9 @@ slicesFromContext EmptyCtx _ _ = Nothing
 slicesFromContext (CVar c v vt) x acc
   | v == x    = return (c, vt, acc)
   | otherwise = slicesFromContext c x (CVar acc v vt)
+slicesFromContext (CSub c v vt) x acc  -- TODO: is this right?
+  | v == x    = return (c, vt, acc)
+  | otherwise = slicesFromContext c x (CSub acc v vt)
 
 
 -- | The queue for implementing algorithmic subtyping rules.
@@ -115,23 +121,23 @@ isNullQueue _    = False
 -- | Get the first element and the tail of the queue as a tuple.
 viewL :: Queue -> Maybe (Either Label Type, Queue)
 viewL Null = Nothing
--- viewL (ExtraLabel q l)
---   | isNullQueue q = return (Left l, Null)
---   | otherwise     = do (res, queue) <- viewL q
---                        return (res, ExtraLabel queue l)
+viewL (ExtraLabel q l)
+  | isNullQueue q = return (Left l, Null)
+  | otherwise     = do (res, queue) <- viewL q
+                       return (res, ExtraLabel queue l)
 viewL (ExtraType q t)
   | isNullQueue q = return (Right t, Null)
   | otherwise     = do (res, queue) <- viewL q
                        return (res, ExtraType queue t)
 
--- appendLabel :: Queue -> Label -> Queue
--- appendLabel Null l = ExtraLabel Null l
--- appendLabel (ExtraLabel q l') l = ExtraLabel (appendLabel q l) l'
--- appendLabel (ExtraType q t) l = ExtraType (appendLabel q l) t
+appendLabel :: Queue -> Label -> Queue
+appendLabel Null l = ExtraLabel Null l
+appendLabel (ExtraLabel q l') l = ExtraLabel (appendLabel q l) l'
+appendLabel (ExtraType q t) l = ExtraType (appendLabel q l) t
 
 appendType :: Queue -> Type -> Queue
 appendType Null t = ExtraType Null t
--- appendType (ExtraLabel q l) t = ExtraLabel (appendType q t) l
+appendType (ExtraLabel q l) t = ExtraLabel (appendType q t) l
 appendType (ExtraType q t') t = ExtraType (appendType q t) t'
 
 -- * Pretty Printing
@@ -140,9 +146,12 @@ appendType (ExtraType q t') t = ExtraType (appendType q t) t'
 instance PrettyPrint Monotype where
   ppr TyNat             = ppr "Nat"
   ppr TyTop             = ppr "Top"
+  ppr TyBool            = ppr "Bool"
   ppr (TyVar v)         = ppr v
+  ppr (TySubstVar v)    = hcat [ppr v, ppr "^"]
   ppr (TyMonoArr t1 t2) = parens $ hsep [ppr t1, arrow, ppr t2]
   ppr (TyMonoIs t1 t2)  = parens $ hsep [ppr t1, ppr "&", ppr t2]
+  ppr (TyMonoRec l t)   = braces (hsep [ppr l, colon, ppr t])
 
 instance PrettyPrint Type where
   ppr (TyMono t)      = ppr t
@@ -154,6 +163,8 @@ instance PrettyPrint Type where
 instance PrettyPrint Expression where
   ppr (ExLit i)       = ppr i
   ppr ExTop           = parens empty
+  ppr ExTrue          = ppr "True"
+  ppr ExFalse         = ppr "False"
   ppr (ExVar v)       = ppr v
   ppr (ExAbs v e)     = parens $ hcat [ppr "\\", ppr v, dot, ppr e]
   ppr (ExApp e1 e2)   = parens $ hsep [ppr e1, ppr e2]
@@ -167,6 +178,7 @@ instance PrettyPrint Expression where
 instance PrettyPrint TypeContext where
   ppr EmptyCtx     = ppr "•"
   ppr (CVar c v t) = hcat [ppr c, comma, ppr v, colon, ppr t]
+  ppr (CSub c v t) = hcat [ppr c, comma, ppr v, ppr "^", colon, ppr t]
 
 instance Show Type where
   show = render . ppr

@@ -20,6 +20,7 @@ import PrettyPrinter
 data Type
   = TyNat
   | TyTop
+  | TyBool
   | TyArr Type Type
   | TyTup Type Type
   | TyVar Variable
@@ -29,6 +30,7 @@ data Type
 instance Eq Type where
   TyNat       == TyNat       = True
   TyTop       == TyTop       = True
+  TyBool      == TyBool      = True
   TyTup t1 t2 == TyTup t3 t4 = t1 == t3 && t2 == t4
   TyArr t1 t2 == TyArr t3 t4 = t1 == t3 && t2 == t4
   TyRec l1 t1 == TyRec l2 t2 = t1 == t2 && l1 == l2
@@ -81,6 +83,7 @@ data TypeContext
 instance PrettyPrint Type where
   ppr TyNat         = ppr "Nat"
   ppr TyTop         = ppr "Top"
+  ppr TyBool        = ppr "Bool"
   ppr (TyArr t1 t2) = parens $ hsep [ppr t1, arrow, ppr t2]
   ppr (TyTup t1 t2) = parens $ hsep [ppr t1, ppr "✕", ppr t2]
   ppr (TyVar v)     = ppr v
@@ -110,13 +113,16 @@ instance PrettyPrint Coercion where
         hcat [ppr t1, arrow, ppr t2],
         hcat [ppr t1, arrow, ppr t3]
       ]]
+  ppr (CoDistLabel l t1 t2) = hcat [ppr "dist", braces (ppr l), parensList [ppr t1, ppr t2]]
   ppr (CoPr1 t1 t2)       = hcat [ppr "π₁", parensList [ppr t1, ppr t2]]
   ppr (CoPr2 t1 t2)      = hcat [ppr "π₂", parensList [ppr t1, ppr t2]]
+  ppr (CoMP c1 c2)      = hsep [ppr c1, ppr "MP", ppr c2]
   ppr (CoComp c1 c2)      = parens $ hsep [ppr c1, dot, ppr c2]
   ppr (CoPair c1 c2)       = parensList [ppr c1, ppr c2]
   ppr (CoArr c1 c2)        = parens $ hsep [ppr c1, arrow, ppr c2]
   ppr (CoAt c t) = hcat [ppr c, ppr "@", ppr t]
   ppr (CoTyAbs v c)   = parens $ hcat [ppr "/\\", ppr v, dot, ppr c]
+  ppr (CoRec l c) = braces (hsep [ppr l, colon, ppr c])
 
 instance PrettyPrint TypeContext where
   ppr TypeEmpty        = ppr "•"
@@ -190,6 +196,8 @@ refreshTerm = go EmptyRefreshEnv
       e1' <- go env e1
       e2' <- go env e2
       return (ExMerge e1' e2')
+    go _env (ExTyAbs _v _e) = undefined
+    go _env (ExTyApp _e _t) = undefined
     go env (ExRec l e) = do
       e' <- go env e
       return (ExRec l e')
@@ -223,6 +231,8 @@ subst orig var term
           e1' <- go e1 x v
           e2' <- go e2 x v
           return (ExMerge e1' e2')
+        ExTyAbs _v _e -> undefined
+        ExTyApp _e _t -> undefined
         ExRec l e   -> do
           e' <- go e x v
           return (ExRec l e')
@@ -295,6 +305,10 @@ step (ExRecFld (ExRec l v) l1)
   , isValue v
   = return (Just v)
 
+
+step (ExTyAbs _v _e) = undefined
+step (ExTyApp _e _t) = undefined
+
 -- STEP-RCD1
 step (ExRec l e) =
   step e >>= \case
@@ -340,7 +354,11 @@ step (ExCoApp c e) =
     Just e' -> return (Just (ExCoApp c e'))
     _       -> return Nothing
 
-step _ = return Nothing
+step (ExLit _) = return Nothing
+step ExTop = return Nothing
+step (ExVar _) = return Nothing
+step (ExAbs _ _ _) = return Nothing
+
 
 -- * Target Typing
 -- ----------------------------------------------------------------------------
@@ -385,6 +403,8 @@ tcTerm = go TermEmpty
       (t1, t1') <- tcCoercion co
       guard (t == t1)
       return t1'
+    go _c (ExTyAbs _v _e) = undefined
+    go _c (ExTyApp _e _t) = undefined
     -- TYP-RCD
     go c (ExRec l e) = do
       t <- go c e
@@ -401,34 +421,40 @@ tcCoercion :: Coercion -> Maybe (Type, Type)
 -- COTYP-REFL
 tcCoercion (CoId t)
   = return (t, t)
--- COTYP-TRANS
-tcCoercion (CoComp c1 c2)
-  = do (t2, t3)  <- tcCoercion c1
-       (t1, t2') <- tcCoercion c2
-       guard (t2 == t2')
-       return (t1, t3)
 -- COTYP-CoTop
 tcCoercion (CoTop t) = return (t, TyTop)
 -- COTYP-TOPARR
 tcCoercion CoTopArr
   = return (TyTop, TyArr TyTop TyTop)
--- COTYP-ARR
-tcCoercion (CoArr c1 c2)
-  = do (t1', t1) <- tcCoercion c1
-       (t2, t2') <- tcCoercion c2
-       return (TyArr t1 t2, TyArr t1' t2')
--- COTYP-PAIR
-tcCoercion (CoPair c1 c2)
-  = do (t1, t2)  <- tcCoercion c1
-       (t1', t3) <- tcCoercion c2
-       guard (t1 == t1')
-       return (t1, TyTup t2 t3)
+tcCoercion CoTopAll = undefined
+-- COTYP-DISTARR
+tcCoercion (CoDistArr t1 t2 t3)
+  = return (TyTup (TyArr t1 t2) (TyArr t1 t3), TyArr t1 (TyTup t2 t3))
+tcCoercion (CoDistLabel _l _t1 _t2) = undefined
 -- COTYP-PROJL
 tcCoercion (CoPr1 t1 t2)
   = return (TyTup t1 t2, t1)
 -- COTYP-PROJR
 tcCoercion (CoPr2 t1 t2)
   = return (TyTup t1 t2, t2)
--- COTYP-DISTARR
-tcCoercion (CoDistArr t1 t2 t3)
-  = return (TyTup (TyArr t1 t2) (TyArr t1 t3), TyArr t1 (TyTup t2 t3))
+tcCoercion (CoMP _c1 _c2) = undefined
+-- COTYP-TRANS
+tcCoercion (CoComp c1 c2)
+  = do (t2, t3)  <- tcCoercion c1
+       (t1, t2') <- tcCoercion c2
+       guard (t2 == t2')
+       return (t1, t3)
+-- COTYP-PAIR
+tcCoercion (CoPair c1 c2)
+  = do (t1, t2)  <- tcCoercion c1
+       (t1', t3) <- tcCoercion c2
+       guard (t1 == t1')
+       return (t1, TyTup t2 t3)
+-- COTYP-ARR
+tcCoercion (CoArr c1 c2)
+  = do (t1', t1) <- tcCoercion c1
+       (t2, t2') <- tcCoercion c2
+       return (TyArr t1 t2, TyArr t1' t2')
+tcCoercion (CoAt _c _t) = undefined
+tcCoercion (CoTyAbs _v _c) = undefined
+tcCoercion (CoRec _l _c) = undefined
