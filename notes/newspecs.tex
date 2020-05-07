@@ -13,7 +13,7 @@
 
 
 \input{macros}
-\newcommand{\mypar}[1]{\vspace{0.2cm}\paragraph{#1:} \hfill\\\vspace{0.1cm}}
+\newcommand{\mypar}[1]{\vspace{0.2cm}\paragraph{#1:} \hfill\vspace{0.1cm}}
 
 \newtheorem{theorem}{Theorem}
 
@@ -221,6 +221,19 @@ Rule \textsc{S-DistAll} of $F_{i}^{+}$ is subsumed by our rules:
   \caption{The language of the algorithm}
 \end{table}
 
+\subsubsection{Coercion context completion}
+\begin{minipage}[t]{0.7\textwidth}
+\begin{align*}
+  \bullet [c] &= c\\
+  (\arrCC{\mathcal{C}}{c'})[c] &= \mathcal{C}[c'\to c]\\
+  \projlCC{\mathcal{C}}{A}{B}[c] &= \mathcal{C}[\compC{c}{\projlC{\toTarget{A}}{\toTarget{B}}}]\\
+  \projrCC{\mathcal{C}}{A}{B}[c] &= \mathcal{C}[\compC{c}{\projrC{\toTarget{A}}{\toTarget{B}}}]\\
+  \mpCC{\mathcal{C}}{\mathcal{M}}{c_1}{A}{B}[c] &= \compC{\distarrowqueueC{\mathcal{M}}{\left(\compC{c}{(\mpC{\projlC{\toTarget{A\to B}}{\toTarget{A}}}{\projrC{\toTarget{A\to B}}{\toTarget{A}}})}\right)}{\toTarget{A\to B}}{\toTarget{A}}}{\pairC{\mathcal{C}[\idC{\toTarget{A\to B}}]}{c_1}}\\
+  \alllCC{\mathcal{C}}{\tau}[c] &= \mathcal{C}[\alllC{c}{\toTarget{\tau}}]\\
+  \recCC{\mathcal{C}}{l}[c] &= \mathcal{C}[\trecord{l}{c}]
+\end{align*}
+\end{minipage}
+
 \subsection{Substitutions}
 \subsubsection{Applying unification variable substitution...}
 \begin{minipage}[t]{0.5\textwidth}
@@ -270,7 +283,41 @@ Rule \textsc{S-DistAll} of $F_{i}^{+}$ is subsumed by our rules:
     [\unification{\alpha}{\tau}](\mathcal{M},A) &= [\unification{\alpha}{\tau}]\mathcal{M},([\unification{\alpha}{\tau}]A)\\
     [\unification{\alpha}{\tau}](\mathcal{M},l) &= [\unification{\alpha}{\tau}]\mathcal{M},l
   \end{align*}
-\end{minipage}\vspace{3pt}
+\end{minipage}\\
+
+\noindent
+\begin{minipage}[t]{0.49\textwidth}
+  \mypar{...on coercions}
+\begin{align*}
+  [\unification{\alpha}{\rho}]\idC{\rho'} &= \idC{[\unification{\alpha}{\rho}]\rho}\\
+  [\unification{\alpha}{\rho}]\topC{\rho'} &= \topC{[\unification{\alpha}{\rho}]\rho'}\\
+  [\unification{\alpha}{\rho}]\topArrC &= \topArrC\\
+  [\unification{\alpha}{\rho}]\topAllC &= \topAllC\\
+  [\unification{\alpha}{\rho}]\distArrC{\rho_1}{\rho_2}{\rho_3} &= \distArrC{[\unification{\alpha}{\rho}]\rho_1}{[\unification{\alpha}{\rho}]\rho_2}{[\unification{\alpha}{\rho}]\rho_3}\\
+  [\unification{\alpha}{\rho}]\distRecC{l}{\rho_1}{\rho_2} &= \distRecC{l}{[\unification{\alpha}{\rho}]\rho_1}{[\unification{\alpha}{\rho}]\rho_2}\\
+  [\unification{\alpha}{\rho}]\projlC{\rho_1}{\rho_2} &= \projlC{[\unification{\alpha}{\rho}]\rho_1}{[\unification{\alpha}{\rho}]\rho_2}\\
+  [\unification{\alpha}{\rho}]\projrC{\rho_1}{\rho_2} &= \projrC{[\unification{\alpha}{\rho}]\rho_1}{[\unification{\alpha}{\rho}]\rho_2}\\
+  [\unification{\alpha}{\rho}](\mpC{c_1}{c_2}) &= \mpC{([\unification{\alpha}{\rho}]c_1)}{([\unification{\alpha}{\rho}]c_2)}\\
+  [\unification{\alpha}{\rho}](\compC{c_1}{c_2}) &= \compC{([\unification{\alpha}{\rho}]c_1)}{([\unification{\alpha}{\rho}]c_2)}\\
+  [\unification{\alpha}{\rho}]\pairC{c_1}{c_2} &= \pairC{[\unification{\alpha}{\rho}]c_1}{[\unification{\alpha}{\rho}]c_2}\\
+  [\unification{\alpha}{\rho}](\arrC{c_1}{c_2}) &= \arrC{([\unification{\alpha}{\rho}]c_1)}{([\unification{\alpha}{\rho}]c_2)}\\
+  [\unification{\alpha}{\rho}](\alllC{c}{\rho'}) &= \alllC{([\unification{\alpha}{\rho}]c)}{([\unification{\alpha}{\rho}]\rho')}\\
+  [\unification{\alpha}{\rho}](\allrC{\alpha}{c}) &= \allrC{\alpha}{[\unification{\alpha}{\rho}]c}\\
+  [\unification{\alpha}{\rho}]\trecord{l}{c} &= \trecord{l}{[\unification{\alpha}{\rho}]c}
+\end{align*}
+\end{minipage}
+\begin{minipage}[t]{0.49\textwidth}
+  \mypar{...on coercion contexts}
+\begin{align*}
+  [\unification{\alpha}{\tau}]\bullet                       &= \bullet\\
+  [\unification{\alpha}{\tau}](\arrCC{\mathcal{C}}{c'})     &= \arrCC{([\unification{\alpha}{\tau}]\mathcal{C})}{[\unification{\alpha}{\tau}]c'}\\
+  [\unification{\alpha}{\tau}](\projlCC{\mathcal{C}}{A}{B}) &= \projlCC{([\unification{\alpha}{\tau}]\mathcal{C})}{[\unification{\alpha}{\tau}]A}{[\unification{\alpha}{\tau}]B}\\
+  [\unification{\alpha}{\tau}](\projrCC{\mathcal{C}}{A}{B}) &= \projrCC{([\unification{\alpha}{\tau}]\mathcal{C})}{[\unification{\alpha}{\tau}]A}{[\unification{\alpha}{\tau}]B}\\
+  [\unification{\alpha}{\tau}](\mpCC{\mathcal{C}}{\mathcal{M}}{c_1}{A}{B}) &= \mpCC{([\unification{\alpha}{\tau}]\mathcal{C})}{([\unification{\alpha}{\tau}]\mathcal{M})}{[\unification{\alpha}{\tau}]c_1}{[\unification{\alpha}{\tau}]A}{[\unification{\alpha}{\tau}]B}\\
+  [\unification{\alpha}{\tau}](\alllCC{\mathcal{C}}{\tau'}) &= \alllCC{([\unification{\alpha}{\tau}]\mathcal{C})}{[\unification{\alpha}{\tau}]\tau'}\\
+  [\unification{\alpha}{\tau}](\recCC{\mathcal{C}}{l})     &= \recCC{([\unification{\alpha}{\tau}]\mathcal{C})}{l}
+\end{align*}
+\end{minipage}
 
 \subsubsection{Applying type variable substitution...}
 \begin{minipage}[t]{0.5\textwidth}
@@ -320,22 +367,31 @@ Rule \textsc{S-DistAll} of $F_{i}^{+}$ is subsumed by our rules:
     [\substitution{\alpha}{\tau}](\mathcal{M},A) &= [\substitution{\alpha}{\tau}]\mathcal{M},([\substitution{\alpha}{\tau}]A)\\
     [\substitution{\alpha}{\tau}](\mathcal{M},l) &= [\substitution{\alpha}{\tau}]\mathcal{M},l
   \end{align*}
-\end{minipage}%\vspace{3pt}
-\subsubsection{Coercion context completion}
-\begin{minipage}[t]{0.7\textwidth}
+\end{minipage}\\%\vspace{3pt}
+
+\noindent
+\begin{minipage}[t]{0.49\textwidth}
+  \mypar{...on coercions}
 \begin{align*}
-  \bullet [c] &= c\\
-  (\arrCC{\mathcal{C}}{c'})[c] &= \mathcal{C}[c'\to c]\\
-  \projlCC{\mathcal{C}}{A}{B}[c] &= \mathcal{C}[\compC{c}{\projlC{\toTarget{A}}{\toTarget{B}}}]\\
-  \projrCC{\mathcal{C}}{A}{B}[c] &= \mathcal{C}[\compC{c}{\projrC{\toTarget{A}}{\toTarget{B}}}]\\
-  \mpCC{\mathcal{C}}{\mathcal{M}}{c_1}{A}{B}[c] &= \compC{\distarrowqueueC{\mathcal{M}}{\left(\compC{c}{(\mpC{\projlC{\toTarget{A\to B}}{\toTarget{A}}}{\projrC{\toTarget{A\to B}}{\toTarget{A}}})}\right)}{\toTarget{A\to B}}{\toTarget{A}}}{\pairC{\mathcal{C}[\idC{\toTarget{A\to B}}]}{c_1}}\\
-  \alllCC{\mathcal{C}}{\tau}[c] &= \mathcal{C}[\alllC{c}{\toTarget{\tau}}]\\
-  \recCC{\mathcal{C}}{l}[c] &= \mathcal{C}[\trecord{l}{c}]
+  [\substitution{\alpha}{\rho}]\idC{\rho'} &= \idC{[\substitution{\alpha}{\rho}]\rho}\\
+  [\substitution{\alpha}{\rho}]\topC{\rho'} &= \topC{[\substitution{\alpha}{\rho}]\rho'}\\
+  [\substitution{\alpha}{\rho}]\topArrC &= \topArrC\\
+  [\substitution{\alpha}{\rho}]\topAllC &= \topAllC\\
+  [\substitution{\alpha}{\rho}]\distArrC{\rho_1}{\rho_2}{\rho_3} &= \distArrC{[\substitution{\alpha}{\rho}]\rho_1}{[\substitution{\alpha}{\rho}]\rho_2}{[\substitution{\alpha}{\rho}]\rho_3}\\
+  [\substitution{\alpha}{\rho}]\distRecC{l}{\rho_1}{\rho_2} &= \distRecC{l}{[\substitution{\alpha}{\rho}]\rho_1}{[\substitution{\alpha}{\rho}]\rho_2}\\
+  [\substitution{\alpha}{\rho}]\projlC{\rho_1}{\rho_2} &= \projlC{[\substitution{\alpha}{\rho}]\rho_1}{[\substitution{\alpha}{\rho}]\rho_2}\\
+  [\substitution{\alpha}{\rho}]\projrC{\rho_1}{\rho_2} &= \projrC{[\substitution{\alpha}{\rho}]\rho_1}{[\substitution{\alpha}{\rho}]\rho_2}\\
+  [\substitution{\alpha}{\rho}](\mpC{c_1}{c_2}) &= \mpC{([\substitution{\alpha}{\rho}]c_1)}{([\substitution{\alpha}{\rho}]c_2)}\\
+  [\substitution{\alpha}{\rho}](\compC{c_1}{c_2}) &= \compC{([\substitution{\alpha}{\rho}]c_1)}{([\substitution{\alpha}{\rho}]c_2)}\\
+  [\substitution{\alpha}{\rho}]\pairC{c_1}{c_2} &= \pairC{[\substitution{\alpha}{\rho}]c_1}{[\substitution{\alpha}{\rho}]c_2}\\
+  [\substitution{\alpha}{\rho}](\arrC{c_1}{c_2}) &= \arrC{([\substitution{\alpha}{\rho}]c_1)}{([\substitution{\alpha}{\rho}]c_2)}\\
+  [\substitution{\alpha}{\rho}](\alllC{c}{\rho'}) &= \alllC{([\substitution{\alpha}{\rho}]c)}{([\substitution{\alpha}{\rho}]\rho')}\\
+  [\substitution{\alpha}{\rho}](\allrC{\alpha}{c}) &= \allrC{\alpha}{[\substitution{\alpha}{\rho}]c}\\
+  [\substitution{\alpha}{\rho}]\trecord{l}{c} &= \trecord{l}{[\substitution{\alpha}{\rho}]c}
 \end{align*}
 \end{minipage}
-
-\subsubsection{Coercion context substitution}
 \begin{minipage}[t]{0.49\textwidth}
+  \mypar{{...on coecion contexts}}
 \begin{align*}
   [\substitution{\alpha}{\tau}]\bullet                       &= \bullet\\
   [\substitution{\alpha}{\tau}](\arrCC{\mathcal{C}}{c'})     &= \arrCC{([\substitution{\alpha}{\tau}]\mathcal{C})}{[\substitution{\alpha}{\tau}]c'}\\
@@ -346,20 +402,8 @@ Rule \textsc{S-DistAll} of $F_{i}^{+}$ is subsumed by our rules:
   [\substitution{\alpha}{\tau}](\recCC{\mathcal{C}}{l})     &= \recCC{([\substitution{\alpha}{\tau}]\mathcal{C})}{l}
 \end{align*}
 \end{minipage}
-\begin{minipage}[t]{0.49\textwidth}
-\begin{align*}
-  [\unification{\alpha}{\tau}]\bullet                       &= \bullet\\
-  [\unification{\alpha}{\tau}](\arrCC{\mathcal{C}}{c'})     &= \arrCC{([\unification{\alpha}{\tau}]\mathcal{C})}{[\unification{\alpha}{\tau}]c'}\\
-  [\unification{\alpha}{\tau}](\projlCC{\mathcal{C}}{A}{B}) &= \projlCC{([\unification{\alpha}{\tau}]\mathcal{C})}{[\unification{\alpha}{\tau}]A}{[\unification{\alpha}{\tau}]B}\\
-  [\unification{\alpha}{\tau}](\projrCC{\mathcal{C}}{A}{B}) &= \projrCC{([\unification{\alpha}{\tau}]\mathcal{C})}{[\unification{\alpha}{\tau}]A}{[\unification{\alpha}{\tau}]B}\\
-  [\unification{\alpha}{\tau}](\mpCC{\mathcal{C}}{\mathcal{M}}{c_1}{A}{B}) &= \mpCC{([\unification{\alpha}{\tau}]\mathcal{C})}{([\unification{\alpha}{\tau}]\mathcal{M})}{[\unification{\alpha}{\tau}]c_1}{[\unification{\alpha}{\tau}]A}{[\unification{\alpha}{\tau}]B}\\
-  [\unification{\alpha}{\tau}](\alllCC{\mathcal{C}}{\tau'}) &= \alllCC{([\unification{\alpha}{\tau}]\mathcal{C})}{[\unification{\alpha}{\tau}]\tau'}\\
-  [\unification{\alpha}{\tau}](\recCC{\mathcal{C}}{l})     &= \recCC{([\unification{\alpha}{\tau}]\mathcal{C})}{l}
-\end{align*}
-\end{minipage}
 
 \subsection{Judgments}
-
 \mypar{Well-formed substitution (algorithmic)}
 \fbox{
 \begin{mathpar}
