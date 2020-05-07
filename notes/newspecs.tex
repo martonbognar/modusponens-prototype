@@ -337,22 +337,24 @@ Rule \textsc{S-DistAll} of $F_{i}^{+}$ is subsumed by our rules:
 \subsubsection{Coercion context substitution}
 \begin{minipage}[t]{0.49\textwidth}
 \begin{align*}
-  [\substitution{\alpha}{\tau}](\bullet)                   &= \bullet\\
-  [\substitution{\alpha}{\tau}]\arrCC{\mathcal{C}}{c'}     &= \arrCC{([\substitution{\alpha}{\tau}]\mathcal{C})}{[\substitution{\alpha}{\tau}]c'}\\
-  [\substitution{\alpha}{\tau}]\projlCC{\mathcal{C}}{A}{B} &= \projlCC{([\substitution{\alpha}{\tau}]\mathcal{C})}{[\substitution{\alpha}{\tau}]A}{[\substitution{\alpha}{\tau}]B}\\
-  [\substitution{\alpha}{\tau}]\projrCC{\mathcal{C}}{A}{B} &= \projrCC{([\substitution{\alpha}{\tau}]\mathcal{C})}{[\substitution{\alpha}{\tau}]A}{[\substitution{\alpha}{\tau}]B}\\
-  [\substitution{\alpha}{\tau}]\mpCC{\mathcal{C}}{\mathcal{M}}{c_1}{A}{B} &= \mpCC{([\substitution{\alpha}{\tau}]\mathcal{C})}{([\substitution{\alpha}{\tau}]\mathcal{M})}{[\substitution{\alpha}{\tau}]c_1}{[\substitution{\alpha}{\tau}]A}{[\substitution{\alpha}{\tau}]B}\\
-  [\substitution{\alpha}{\tau}]\alllCC{\mathcal{C}}{\tau}[c] &= \mathcal{C}[\alllC{c}{\tau}]
+  [\substitution{\alpha}{\tau}]\bullet                       &= \bullet\\
+  [\substitution{\alpha}{\tau}](\arrCC{\mathcal{C}}{c'})     &= \arrCC{([\substitution{\alpha}{\tau}]\mathcal{C})}{[\substitution{\alpha}{\tau}]c'}\\
+  [\substitution{\alpha}{\tau}](\projlCC{\mathcal{C}}{A}{B}) &= \projlCC{([\substitution{\alpha}{\tau}]\mathcal{C})}{[\substitution{\alpha}{\tau}]A}{[\substitution{\alpha}{\tau}]B}\\
+  [\substitution{\alpha}{\tau}](\projrCC{\mathcal{C}}{A}{B}) &= \projrCC{([\substitution{\alpha}{\tau}]\mathcal{C})}{[\substitution{\alpha}{\tau}]A}{[\substitution{\alpha}{\tau}]B}\\
+  [\substitution{\alpha}{\tau}](\mpCC{\mathcal{C}}{\mathcal{M}}{c_1}{A}{B}) &= \mpCC{([\substitution{\alpha}{\tau}]\mathcal{C})}{([\substitution{\alpha}{\tau}]\mathcal{M})}{[\substitution{\alpha}{\tau}]c_1}{[\substitution{\alpha}{\tau}]A}{[\substitution{\alpha}{\tau}]B}\\
+  [\substitution{\alpha}{\tau}](\alllCC{\mathcal{C}}{\tau'}) &= \alllCC{([\substitution{\alpha}{\tau}]\mathcal{C})}{[\substitution{\alpha}{\tau}]\tau'}\\
+  [\substitution{\alpha}{\tau}](\recCC{\mathcal{C}}{l})     &= \recCC{([\substitution{\alpha}{\tau}]\mathcal{C})}{l}
 \end{align*}
 \end{minipage}
 \begin{minipage}[t]{0.49\textwidth}
 \begin{align*}
-  [\unification{\alpha}{\tau}](\bullet)                   &= \bullet\\
-  [\unification{\alpha}{\tau}]\arrCC{\mathcal{C}}{c'}     &= \arrCC{([\unification{\alpha}{\tau}]\mathcal{C})}{[\unification{\alpha}{\tau}]c'}\\
-  [\unification{\alpha}{\tau}]\projlCC{\mathcal{C}}{A}{B} &= \projlCC{([\unification{\alpha}{\tau}]\mathcal{C})}{[\unification{\alpha}{\tau}]A}{[\unification{\alpha}{\tau}]B}\\
-  [\unification{\alpha}{\tau}]\projrCC{\mathcal{C}}{A}{B} &= \projrCC{([\unification{\alpha}{\tau}]\mathcal{C})}{[\unification{\alpha}{\tau}]A}{[\unification{\alpha}{\tau}]B}\\
-  [\unification{\alpha}{\tau}]\mpCC{\mathcal{C}}{\mathcal{M}}{c_1}{A}{B} &= \mpCC{([\unification{\alpha}{\tau}]\mathcal{C})}{([\unification{\alpha}{\tau}]\mathcal{M})}{[\unification{\alpha}{\tau}]c_1}{[\unification{\alpha}{\tau}]A}{[\unification{\alpha}{\tau}]B}\\
-  [\unification{\alpha}{\tau}]\alllCC{\mathcal{C}}{\tau}[c] &= \mathcal{C}[\alllC{c}{\tau}]
+  [\unification{\alpha}{\tau}]\bullet                       &= \bullet\\
+  [\unification{\alpha}{\tau}](\arrCC{\mathcal{C}}{c'})     &= \arrCC{([\unification{\alpha}{\tau}]\mathcal{C})}{[\unification{\alpha}{\tau}]c'}\\
+  [\unification{\alpha}{\tau}](\projlCC{\mathcal{C}}{A}{B}) &= \projlCC{([\unification{\alpha}{\tau}]\mathcal{C})}{[\unification{\alpha}{\tau}]A}{[\unification{\alpha}{\tau}]B}\\
+  [\unification{\alpha}{\tau}](\projrCC{\mathcal{C}}{A}{B}) &= \projrCC{([\unification{\alpha}{\tau}]\mathcal{C})}{[\unification{\alpha}{\tau}]A}{[\unification{\alpha}{\tau}]B}\\
+  [\unification{\alpha}{\tau}](\mpCC{\mathcal{C}}{\mathcal{M}}{c_1}{A}{B}) &= \mpCC{([\unification{\alpha}{\tau}]\mathcal{C})}{([\unification{\alpha}{\tau}]\mathcal{M})}{[\unification{\alpha}{\tau}]c_1}{[\unification{\alpha}{\tau}]A}{[\unification{\alpha}{\tau}]B}\\
+  [\unification{\alpha}{\tau}](\alllCC{\mathcal{C}}{\tau'}) &= \alllCC{([\unification{\alpha}{\tau}]\mathcal{C})}{[\unification{\alpha}{\tau}]\tau'}\\
+  [\unification{\alpha}{\tau}](\recCC{\mathcal{C}}{l})     &= \recCC{([\unification{\alpha}{\tau}]\mathcal{C})}{l}
 \end{align*}
 \end{minipage}
 
