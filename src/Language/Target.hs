@@ -175,10 +175,10 @@ rnLookup v (SnocRnEnv env v' x)
 
 
 -- | Replace a variable in a term with a fresh one.
-refreshTerm :: Expression -> RnM Expression
+refreshTerm :: Expression -> SubM Expression
 refreshTerm = go EmptyRefreshEnv
   where
-    go :: RefreshEnv -> Expression -> RnM Expression
+    go :: RefreshEnv -> Expression -> SubM Expression
     go _ (ExLit i)  = return (ExLit i)
     go _ ExTop      = return ExTop
     go env (ExVar x) = case rnLookup x env of
@@ -209,12 +209,12 @@ refreshTerm = go EmptyRefreshEnv
       return (ExCoApp c e')
 
 
-subst :: Expression -> Variable -> Expression -> RnM Expression
+subst :: Expression -> Variable -> Expression -> SubM Expression
 subst orig var term
   = do term' <- refreshTerm term
        go orig var term'
     where
-      go :: Expression -> Variable -> Expression -> RnM Expression
+      go :: Expression -> Variable -> Expression -> SubM Expression
       go expr x v = case expr of
         ExVar x' | x' == x   -> return v
                  | otherwise -> return (ExVar x')
@@ -245,19 +245,19 @@ subst orig var term
 
 
 -- | Evaluate a term given the current maximal variable.
-eval :: Integer -> Expression -> (Expression, Integer)
+eval :: Integer -> Expression -> Eith (Expression, Integer)
 eval state0 t = runState (evalM t) state0
 
 
 -- | Fully evaluate a term in signle steps.
-evalM :: Expression -> RnM Expression
+evalM :: Expression -> SubM Expression
 evalM t = step t >>= \case
   Just st -> evalM st
   Nothing -> return t
 
 
 -- | Execute small-step reduction on a term.
-step :: Expression -> RnM (Maybe Expression)
+step :: Expression -> SubM (Maybe Expression)
 -- STEP-TOPARR
 step (ExApp (ExCoApp CoTopArr ExTop) ExTop) = return (Just ExTop)
 -- STEP-ARR

@@ -7,6 +7,8 @@ import Prelude hiding ((<>))
 import Data.Label
 import Data.Variable
 import Text.PrettyPrint
+import Control.Monad.Renamer
+import Control.Monad.Except
 
 import PrettyPrinter
 
@@ -73,8 +75,8 @@ data TypeContext
 
 
 -- | Get the type of a variable from a context.
-typeFromContext :: TypeContext -> Variable -> Maybe Type
-typeFromContext EmptyCtx _ = Nothing
+typeFromContext :: TypeContext -> Variable -> SubM Type
+typeFromContext EmptyCtx _ = throwError ""
 typeFromContext (CVar c v vt) x
   | v == x    = return vt
   | otherwise = typeFromContext c x
@@ -88,8 +90,8 @@ appendContext EmptyCtx c = c
 appendContext (CVar ctx v t) c = appendContext ctx (CVar c v t)
 appendContext (CSub ctx v t) c = appendContext ctx (CSub c v t)
 
-slicesFromContext :: TypeContext -> Variable -> TypeContext -> Maybe (TypeContext, Type, TypeContext)
-slicesFromContext EmptyCtx _ _ = Nothing
+slicesFromContext :: TypeContext -> Variable -> TypeContext -> SubM (TypeContext, Type, TypeContext)
+slicesFromContext EmptyCtx _ _ = throwError ""
 slicesFromContext (CVar c v vt) x acc
   | v == x    = return (c, vt, acc)
   | otherwise = slicesFromContext c x (CVar acc v vt)

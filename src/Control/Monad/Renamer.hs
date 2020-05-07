@@ -3,14 +3,17 @@
 module Control.Monad.Renamer where
 
 import qualified Control.Monad.State.Lazy as SM
+import qualified Control.Monad.Except as EM
 
 import Data.Variable
 
-type RnM a = SM.State Integer a
+type Eith = EM.Except String
+
+type SubM = SM.StateT Integer Eith
 
 -- | Generate a new, fresh variable.
-freshVar :: RnM Variable
+freshVar :: SubM Variable
 freshVar = SM.state (\s -> (MkVar s, s + 1))
 
-runState :: RnM a -> Integer -> (a, Integer)
-runState = SM.runState
+runState :: SubM a -> Integer -> Eith(a, Integer)
+runState = SM.runStateT

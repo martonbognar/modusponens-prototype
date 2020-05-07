@@ -29,11 +29,11 @@ rnLookup v (SnocRnEnv env v' x)
 
 -- | Covert a full expression from raw syntax to Source syntax
 -- given an initial stack and state.
-rnExpr :: Raw.Expression -> (Expression, Integer)
+rnExpr :: Raw.Expression -> Eith (Expression, Integer)
 rnExpr ex = runState (rnExprM EmptyRnEnv ex) 0
 
 -- | Convert a raw expression to Source syntax.
-rnExprM :: RnEnv -> Raw.Expression -> RnM Expression
+rnExprM :: RnEnv -> Raw.Expression -> SubM Expression
 rnExprM _ (Raw.ExLit i)  = return (ExLit i)
 rnExprM _ Raw.ExTop      = return ExTop
 rnExprM env (Raw.ExVar x) = case rnLookup x env of
