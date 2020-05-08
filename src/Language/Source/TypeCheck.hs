@@ -311,6 +311,16 @@ disjoint :: TypeContext -> Type -> Type -> SubM Substitution
 disjoint _ctx (TyMono TyTop)         _a              = return EmptySubst
 -- AD-TopR
 disjoint _ctx _a                      (TyMono TyTop) = return EmptySubst
+-- AD-VarVar
+disjoint ctx (TyMono (TyVar ap))     (TyMono (TyVar bt)) = varL <|> varR where
+  varL = do
+    a <- typeFromContext ctx ap
+    (_c, s) <- subRight ctx Null a (TyMono (TyVar bt))
+    return s
+  varR = do
+    b <- typeFromContext ctx bt
+    (_c, s) <- subRight ctx Null b (TyMono (TyVar ap))
+    return s
 -- AD-VarL
 disjoint ctx (TyMono (TyVar ap))     b
   = do a <- typeFromContext ctx ap
