@@ -166,9 +166,9 @@ goE _sub@(SVar _ap _t _s) (ExVar x)         = ExVar x
 goE sub@(SVar _ap _t _s) (ExAbs x e)       = ExAbs x (goE sub e)
 goE sub@(SVar _ap _t _s) (ExApp e1 e2)     = ExApp (goE sub e1) (goE sub e2)
 goE sub@(SVar _ap _t _s) (ExMerge e1 e2)   = ExMerge (goE sub e1) (goE sub e2)
-goE sub@(SVar _ap _t _s) (ExAnn e a)       = ExAnn (goE sub e) (substType sub a)
-goE sub@(SVar _ap _t _s) (ExTyAbs ap' a e) = ExTyAbs ap' (substType sub a) (goE sub e)
-goE sub@(SVar _ap _t _s) (ExTyApp e a)     = ExTyApp (goE sub e) (substType sub a)
+goE sub@(SVar _ap _t _s) (ExAnn e a)       = ExAnn (goE sub e) (goT sub a)
+goE sub@(SVar _ap _t _s) (ExTyAbs ap' a e) = ExTyAbs ap' (goT sub a) (goE sub e)
+goE sub@(SVar _ap _t _s) (ExTyApp e a)     = ExTyApp (goE sub e) (goT sub a)
 goE sub@(SVar _ap _t _s) (ExRec l e)       = ExRec l (goE sub e)
 goE sub@(SVar _ap _t _s) (ExRecFld e l)    = ExRecFld (goE sub e) l
 
@@ -180,9 +180,9 @@ goE _sub@(SSub _ap _t _s) (ExVar x)         = ExVar x
 goE sub@(SSub _ap _t _s) (ExAbs x e)       = ExAbs x (goE sub e)
 goE sub@(SSub _ap _t _s) (ExApp e1 e2)     = ExApp (goE sub e1) (goE sub e2)
 goE sub@(SSub _ap _t _s) (ExMerge e1 e2)   = ExMerge (goE sub e1) (goE sub e2)
-goE sub@(SSub _ap _t _s) (ExAnn e a)       = ExAnn (goE sub e) (substType sub a)
-goE sub@(SSub _ap _t _s) (ExTyAbs ap' a e) = ExTyAbs ap' (substType sub a) (goE sub e)
-goE sub@(SSub _ap _t _s) (ExTyApp e a)     = ExTyApp (goE sub e) (substType sub a)
+goE sub@(SSub _ap _t _s) (ExAnn e a)       = ExAnn (goE sub e) (goT sub a)
+goE sub@(SSub _ap _t _s) (ExTyAbs ap' a e) = ExTyAbs ap' (goT sub a) (goE sub e)
+goE sub@(SSub _ap _t _s) (ExTyApp e a)     = ExTyApp (goE sub e) (goT sub a)
 goE sub@(SSub _ap _t _s) (ExRec l e)       = ExRec l (goE sub e)
 goE sub@(SSub _ap _t _s) (ExRecFld e l)    = ExRecFld (goE sub e) l
 
@@ -196,14 +196,14 @@ goC :: Substitution -> TypeContext -> TypeContext
 goC _sub@(SVar _ap _t _s) EmptyCtx                 = EmptyCtx
 goC sub@(SVar ap _t _s) (CVar ctx ap' a)
   | ap == ap' = goC sub ctx
-  | otherwise = (CVar (goC sub ctx) ap' (substType sub a))
-goC sub@(SVar _ap _t _s) (CSub ctx ap' a) = (CVar (goC sub ctx) ap' (substType sub a))
+  | otherwise = (CVar (goC sub ctx) ap' (goT sub a))
+goC sub@(SVar _ap _t _s) (CSub ctx ap' a) = (CVar (goC sub ctx) ap' (goT sub a))
 
 goC _sub@(SSub _ap _t _s) EmptyCtx                 = EmptyCtx
-goC sub@(SSub _ap _t _s) (CVar ctx ap' a)   = (CVar (goC sub ctx) ap' (substType sub a))
+goC sub@(SSub _ap _t _s) (CVar ctx ap' a)   = (CVar (goC sub ctx) ap' (goT sub a))
 goC sub@(SSub ap _t _s) (CSub ctx ap' a)
   | ap == ap' = goC sub ctx
-  | otherwise = (CVar (goC sub ctx) ap' (substType sub a))
+  | otherwise = (CVar (goC sub ctx) ap' (goT sub a))
 
 
 substQueue :: Substitution -> Queue -> Queue
@@ -213,11 +213,11 @@ substQueue sub@(SSub _ _ s) q = let q' = substQueue s q in goQ sub q'
 
 goQ :: Substitution -> Queue -> Queue
 goQ _sub@(SVar _ap _t _s) Null = Null
-goQ sub@(SVar _ap _t _s) (ExtraType m a) = ExtraType (goQ sub m) (substType sub a)
+goQ sub@(SVar _ap _t _s) (ExtraType m a) = ExtraType (goQ sub m) (goT sub a)
 goQ sub@(SVar _ap _t _s) (ExtraLabel m l) = ExtraLabel (goQ sub m) l
 
 goQ _sub@(SSub _ap _t _s) Null = Null
-goQ sub@(SSub _ap _t _s) (ExtraType m a) = ExtraType (goQ sub m) (substType sub a)
+goQ sub@(SSub _ap _t _s) (ExtraType m a) = ExtraType (goQ sub m) (goT sub a)
 goQ sub@(SSub _ap _t _s) (ExtraLabel m l) = ExtraLabel (goQ sub m) l
 
 
@@ -231,10 +231,10 @@ substCoCtx sub@(SSub _ _ s) cx = let cx' = substCoCtx s cx in goCx sub cx'
 
 goCx :: Substitution -> CoContext -> CoContext
 goCx _sub@(SVar _ap _t _s) Hole = Hole
-goCx sub@(SVar _ap _t _s) (XCoArr c ctx) = XCoArr (substCoercion sub c) (substCoCtx sub ctx)
-goCx sub@(SVar _ap _t _s) (XCoPr1 a b ctx) = XCoPr1 (substType sub a) (substType sub b) (substCoCtx sub ctx)
-goCx sub@(SVar _ap _t _s) (XCoPr2 a b ctx) = XCoPr2 (substType sub a) (substType sub b) (substCoCtx sub ctx)
-goCx sub@(SVar _ap _t _s) (XCoMP m c1 a b ctx) = XCoMP (substQueue sub m) (substCoercion sub c1) (substType sub a) (substType sub b) (substCoCtx sub ctx)
+goCx sub@(SVar _ap _t _s) (XCoArr c ctx) = XCoArr (substCoercion sub c) (goCx sub ctx)
+goCx sub@(SVar _ap _t _s) (XCoPr1 a b ctx) = XCoPr1 (goT sub a) (goT sub b) (goCx sub ctx)
+goCx sub@(SVar _ap _t _s) (XCoPr2 a b ctx) = XCoPr2 (goT sub a) (goT sub b) (goCx sub ctx)
+goCx sub@(SVar _ap _t _s) (XCoMP m c1 a b ctx) = XCoMP (goQ sub m) (substCoercion sub c1) (goT sub a) (goT sub b) (goCx sub ctx)
 goCx _sub@(SVar _ap _t _s) (XCoAt _t' _ctx) = undefined
 goCx _sub@(SVar _ap _t _s) (XCoLabel _l _ctx) = undefined
 
@@ -400,6 +400,34 @@ disjointAx (TyRec _l _a) (TyMono TyBool) = True
 disjointAx (TyMono TyBool) (TyRec _l _a) = True
 
 disjointAx _ _ = False
+
+disjointI :: TypeContext -> Type -> SubM Substitution
+-- UD-Nat
+disjointI ctx (TyMono TyNat) = return EmptySubst
+-- UD-Bool
+disjointI ctx (TyMono TyBool) = return EmptySubst
+-- UD-Top
+disjointI ctx (TyMono TyTop) = return EmptySubst
+-- UD-Var
+disjointI ctx (TyMono (TyVar v)) = do
+  t <- typeFromContext ctx v
+  return EmptySubst
+-- UD-UVar
+disjointI ctx (TyMono (TySubstVar v)) = do
+  t <- typeFromContext ctx v
+  return EmptySubst
+-- UD-Rcd
+disjointI ctx (TyRec l a) = disjointI ctx a
+-- UD-Arr
+disjointI ctx (TyArr a b) = disjointI ctx b
+-- UD-And
+disjointI ctx (TyIs a b) = do
+  sub <- disjoint ctx a b
+  sub1 <- disjointI (substContext sub ctx) (substType sub a)
+  sub2 <- disjointI (substContext sub ctx) (substType sub b)
+  return $ appendSubst sub1 (appendSubst sub2 sub)
+-- UD-All
+disjointI ctx (TyAbs ap a b) = disjointI (CVar ctx ap a) b
 
 -- * Subtyping
 -- ----------------------------------------------------------------------------
