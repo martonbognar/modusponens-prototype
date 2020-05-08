@@ -447,8 +447,8 @@ Formula $\notarrow{A}$, in the rules below, means that $A$ is not a function typ
   \inferrule*[right=AD-Arr]{\algdisjoint{\Delta}{A_2}{B_2}{\theta}}{\algdisjoint{\Delta}{A_1\to A_2}{B_1\to B_2}{\theta}} \and
   \inferrule*[right=AD-ArrL]{\algdisjoint{\Delta}{A_2}{B}{\theta} \\ \notarrow{B}}{\algdisjoint{\Delta}{A_1\to A_2}{B}{\theta}} \and
   \inferrule*[right=AD-ArrR]{\algdisjoint{\Delta}{A}{B_2}{\theta} \\ \notarrow{A}}{\algdisjoint{\Delta}{A}{B_1\to B_2}{\theta}} \and
-  \inferrule*[right=AD-AndL]{\algdisjoint{\Delta}{A_1}{B}{\theta} \\ \algdisjoint{\Delta}{A_2}{B}{\theta} \\ \notarrow{B}}{\algdisjoint{\Delta}{A_1\& A_2}{B}{\theta}} \and
-  \inferrule*[right=AD-AndR]{\algdisjoint{\Delta}{A}{B_1}{\theta} \\ \algdisjoint{\Delta}{A}{B_2}{\theta} \\ \notarrow{A}}{\algdisjoint{\Delta}{A}{B_1\& B_2}{\theta}} \and
+  \inferrule*[right=AD-AndL]{\algdisjoint{\Delta}{A_1}{B}{\theta_1} \\ \theta_1(\algdisjoint{\Delta}{A_2}{B)}{\theta_2} \\ \notarrow{B}}{\algdisjoint{\Delta}{A_1\& A_2}{B}{\theta_2\circ\theta_1}} \and
+  \inferrule*[right=AD-AndR]{\algdisjoint{\Delta}{A}{B_1}{\theta_1} \\ \theta_1(\algdisjoint{\Delta}{A}{B_2)}{\theta_2} \\ \notarrow{A}}{\algdisjoint{\Delta}{A}{B_1\& B_2}{\theta_2\circ\theta_1}} \and
   \inferrule*[right=AD-All]{\algdisjoint{\Delta,\tentry{\hat\alpha}{A_1\& B_1}}{[\alpha\mapsto\hat\alpha]B_1}{[\alpha\mapsto\hat\alpha]B_2}{\theta}}{\algdisjoint{\Delta}{\Tabs{\alpha}{A_1}{A_2}}{\Tabs{\alpha}{B_1}{B_2}}{\theta}}\and
   \inferrule*[right=AD-AllL]{\algdisjoint{\Delta,\tentry{\hat\alpha}{A}}{[\alpha\mapsto\hat\alpha]B_1}{B_2}{\theta}}{\algdisjoint{\Delta}{\Tabs{\alpha}{A}{B_1}}{B_2}{\theta}}\and
   \inferrule*[right=AD-AllR]{\algdisjoint{\Delta,\tentry{\hat\alpha}{A}}{B_1}{[\alpha\mapsto\hat\alpha]B_2}{\theta}}{\algdisjoint{\Delta}{B_1}{\Tabs{\alpha}{A}{B_2}}{\theta}}\and
