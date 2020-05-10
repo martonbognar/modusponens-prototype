@@ -10,6 +10,7 @@ import Control.Monad.Renamer
 import Data.Label
 import Data.Variable
 import Text.PrettyPrint
+import qualified Unbound.Generics.LocallyNameless as LN 
 
 import PrettyPrinter
 
