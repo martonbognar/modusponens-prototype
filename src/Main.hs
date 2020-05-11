@@ -13,7 +13,8 @@ main = do
   input <- getLine
   case runExcept $ rnExpr $ parseExpr input of
     Left err -> print err
-    Right (renamed, maxVar) ->
+    Right (renamed, maxVar) -> do
+      print renamed
       case runExcept $ inference renamed maxVar of
         Left err -> print err
         Right ((ty, term), maxVar') -> do

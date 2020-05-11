@@ -30,7 +30,7 @@ languageDef =
              -- Reserved names and operators
            , Token.reservedNames   = ["T", "Nat", "Bool", "true", "false"]
            , Token.reservedOpNames = [
-               ".", "\\", ",,", ":", "->", "&"
+               ".", "\\", ",,", ":", "->", "&", "\\/", "/\\"
            ]
 
              -- Case sensitive
@@ -66,16 +66,20 @@ integer :: Parser Integer
 integer    = Token.integer    lexer
 
 -- | Create a parser for booleans in the language.
-bool :: Parser Bool
-bool =   (reserved "true"  *> pure True)
-     <|> (reserved "false" *> pure False)
+bool :: Parser NC.Expression
+bool =   (reserved "true"  *> pure NC.ExTrue)
+     <|> (reserved "false" *> pure NC.ExFalse)
+
+pRawVar :: Parser NC.RawVariable
+pRawVar = NC.MkRawVar <$> identifier
 
 -- | Parse a type (highest priority).
 pPrimTy :: Parser NC.Type
 pPrimTy =   tyNat
         <|> tyBool
         <|> tyTop
-        -- <|> tyRec
+        <|> tyRec
+        <|> tyAbs
         <|> parens pType
 
 -- | Parse a type (lowest priority).
@@ -98,13 +102,26 @@ tyBool = reserved "Bool" *> pure NC.TyBool
 tyTop :: Parser NC.Type
 tyTop = reserved "T" *> pure NC.TyTop
 
--- -- | Parse a record type.
--- tyRec :: Parser NC.Type
--- tyRec = braces $ do
---     l <- pLabel
---     reservedOp ":"
---     a <- pPrimTy
---     return (NC.TyRec l a)
+-- | Parse a record type.
+tyRec :: Parser NC.Type
+tyRec = braces $ do
+    l <- pLabel
+    reservedOp ":"
+    a <- pPrimTy
+    return (NC.TyRec l a)
+
+tyAbs :: Parser NC.Type
+tyAbs = do
+    reservedOp "\\/"
+    (x, a) <- (parens $ do
+      x <- pRawVar
+      reservedOp "*"
+      a <- pPrimTy
+      return (x, a)
+      )
+    reservedOp "."
+    b <- pPrimTy
+    return (NC.TyAbs x a b)
 
 -- ----------------------------------------------------------------------------
 
@@ -114,7 +131,7 @@ pPrimExpr =   exLit
           <|> exBool
           <|> exTop
           <|> exVar
-          -- <|> exRec
+          <|> exRec
           <|> parens pExpr
 
 -- | Parse a term variable.
@@ -127,19 +144,19 @@ exLit = NC.ExLit . fromIntegral <$> integer
 
 -- | Parse a boolean value.
 exBool :: Parser NC.Expression
-exBool = NC.ExBool <$> bool
+exBool = bool
 
 -- | Parse the top expression.
 exTop :: Parser NC.Expression
 exTop = reserved "T" *> pure NC.ExTop
 
--- -- | Parse a record.
--- exRec :: Parser NC.Expression
--- exRec = braces $ do
---     l <- identifier
---     reservedOp "="
---     e <- pExpr
---     return (NC.ExRec (MkLabel l) e)
+-- | Parse a record.
+exRec :: Parser NC.Expression
+exRec = braces $ do
+    l <- identifier
+    reservedOp "="
+    e <- pExpr
+    return (NC.ExRec (MkLabel l) e)
 
 -- ----------------------------------------------------------------------------
 
@@ -147,17 +164,16 @@ exTop = reserved "T" *> pure NC.ExTop
 -- primitive terms  0
 -- record selection 1
 -- application      2
--- merge            3
--- annotation       4
--- lambda           5
+-- type application 3
+-- merge            4
+-- annotation       5
+-- lambda           6
+-- type abstraction 7
 
 -- | Parse a term (lowest priority).
 pExpr :: Parser NC.Expression
-pExpr = pExAbs <|> pExpr4
+pExpr = pExAbs <|> pExprTyAbs <|> pExprAnn
   where
-    pRawVar :: Parser NC.RawVariable
-    pRawVar = NC.MkRawVar <$> identifier
-
     pExAbs :: Parser NC.Expression
     pExAbs = do
       reservedOp "\\"
@@ -166,18 +182,34 @@ pExpr = pExAbs <|> pExpr4
       e <- pExpr
       return (NC.ExAbs x e)
 
-    -- pExpr1 :: Parser NC.Expression
-    -- pExpr1 = hetChainl1 pPrimExpr pLabel (NC.ExRecFld <$ reservedOp ".")
+    pExprTyAbs :: Parser NC.Expression
+    pExprTyAbs = do
+        reservedOp "/\\"
+        (x, a) <- (parens $ do
+          x <- pRawVar
+          reservedOp "*"
+          a <- pPrimTy
+          return (x, a)
+          )
+        reservedOp "."
+        b <- pExpr
+        return (NC.ExTyAbs x a b)
 
-    pExpr2 :: Parser NC.Expression
-    -- pExpr2 = chainl1 pExpr1 (pure NC.ExApp)
-    pExpr2 = chainl1 pPrimExpr (pure NC.ExApp)
+    pExprRecFld :: Parser NC.Expression
+    pExprRecFld = hetChainl1 pPrimExpr pLabel (NC.ExRecFld <$ reservedOp ".")
 
-    pExpr3 :: Parser NC.Expression
-    pExpr3 = chainl1 pExpr2 (NC.ExMerge <$ reservedOp ",,")
+    pExprApp :: Parser NC.Expression
+    pExprApp = chainl1 pExprRecFld (pure NC.ExApp)
+    -- pExprApp = chainl1 pPrimExpr (pure NC.ExApp)
 
-    pExpr4 :: Parser NC.Expression
-    pExpr4 = hetChainl1 pExpr3 pType (NC.ExAnn <$ reservedOp ":")
+    pExprTyApp :: Parser NC.Expression
+    pExprTyApp = hetChainl1 pExprApp pType (pure NC.ExTyApp)
+
+    pExprMerge :: Parser NC.Expression
+    pExprMerge = chainl1 pExprTyApp (NC.ExMerge <$ reservedOp ",,")
+
+    pExprAnn :: Parser NC.Expression
+    pExprAnn = hetChainl1 pExprMerge pType (NC.ExAnn <$ reservedOp ":")
 
 -- | Parse a chain of expressions with heterogenous components.
 hetChainl1 :: Stream s m t
