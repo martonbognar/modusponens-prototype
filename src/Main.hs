@@ -11,13 +11,13 @@ import Control.Monad.Except
 main :: IO ()
 main = do
   input <- getLine
-  case runExcept $ rnExpr $ parseExpr input of
-    Left err -> print err
-    Right (renamed, maxVar) -> do
+  case rnExpr $ parseExpr input of
+    Nothing -> print "error"
+    Just renamed -> do
       print renamed
-      case runExcept $ inference renamed maxVar of
-        Left err -> print err
-        Right ((ty, term), maxVar') -> do
+      case inference renamed of
+        Nothing -> print "error"
+        Just (ty, term) -> do
           print ty
           print term
           print $ eval term

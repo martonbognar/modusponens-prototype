@@ -3,17 +3,19 @@
 module Language.Source.Renamer where
 
 import Control.Monad.Renamer
+import Control.Monad.Trans.Maybe
 import Data.Variable
+import Unbound.Generics.LocallyNameless
 
 import qualified Language.Source.RawSyntax as Raw
 import Language.Source.Syntax
 
 -- | Convert a raw syntax type to a Source type.
-rnType :: RnEnv -> Raw.Type -> SubM Type
+rnType :: RnEnv -> Raw.Type -> MaybeT FreshM Type
 rnType _ Raw.TyNat         = return $ TyNat
 rnType _ Raw.TyTop         = return $ TyTop
 rnType _ Raw.TyBool        = return $ TyBool
-rnType env (Raw.TyVar x)   = case rnLookup x env of
+rnType env (Raw.TyVar x)   = case rnLookupTy x env of
   Nothing -> error $ "Unbound variable " ++ show x -- fail miserably here
   Just y  -> return (TyVar y)
 rnType env (Raw.TyArr t1 t2) = do
@@ -28,41 +30,49 @@ rnType env (Raw.TyRec l t)   = do
   t' <- rnType env t
   return $ TyRec l t'
 rnType env (Raw.TyAbs x a b) = do
-  y <- freshVar
+  y <- fresh (string2Name $ show x)
   a' <- rnType env a
-  b' <- rnType (SnocRnEnv env x y) b
-  return $ TyAbs y a' b'
+  b' <- rnType (SnocRnTyEnv env x y) b
+  return $ TyAbs (bind y b') a'
 
 -- | A stack for storing raw - Source variable assignments.
 data RnEnv = EmptyRnEnv  -- possible TODO: treat type/term variables separately?
-           | SnocRnEnv RnEnv Raw.RawVariable Variable
+           | SnocRnTyEnv RnEnv Raw.RawVariable TypeVar
+           | SnocRnTmEnv RnEnv Raw.RawVariable TermVar
 
 -- | Get the Source variable for a raw variable in a stack.
-rnLookup :: Raw.RawVariable -> RnEnv -> Maybe Variable
-rnLookup _ EmptyRnEnv = Nothing
-rnLookup v (SnocRnEnv env v' x)
+rnLookupTm :: Raw.RawVariable -> RnEnv -> Maybe TermVar
+rnLookupTm _ EmptyRnEnv = Nothing
+rnLookupTm v (SnocRnTmEnv env v' x)
   | Raw.eqRawVariable v v' = Just x
-  | otherwise              = rnLookup v env
+  | otherwise              = rnLookupTm v env
+
+-- | Get the Source variable for a raw variable in a stack.
+rnLookupTy :: Raw.RawVariable -> RnEnv -> Maybe TypeVar
+rnLookupTy _ EmptyRnEnv = Nothing
+rnLookupTy v (SnocRnTyEnv env v' x)
+  | Raw.eqRawVariable v v' = Just x
+  | otherwise              = rnLookupTy v env
 
 -- | Covert a full expression from raw syntax to Source syntax
 -- given an initial stack and state.
-rnExpr :: Raw.Expression -> Eith (Expression, Integer)
-rnExpr ex = runState (rnExprM EmptyRnEnv ex) 0
+rnExpr :: Raw.Expression -> Maybe (Expression)
+rnExpr ex = runFreshM $ runMaybeT (rnExprM EmptyRnEnv ex)
 
 -- | Convert a raw expression to Source syntax.
-rnExprM :: RnEnv -> Raw.Expression -> SubM Expression
+rnExprM :: RnEnv -> Raw.Expression -> MaybeT FreshM Expression
 rnExprM _ (Raw.ExLit i)  = return (ExLit i)
 rnExprM _ Raw.ExTop      = return ExTop
 rnExprM _ Raw.ExTrue     = return ExTrue
 rnExprM _ Raw.ExFalse    = return ExFalse
-rnExprM env (Raw.ExVar x) = case rnLookup x env of
+rnExprM env (Raw.ExVar x) = case rnLookupTm x env of
   Nothing -> error $ "Unbound variable " ++ show x -- fail miserably here
   Just y  -> return (ExVar y)
 
 rnExprM env (Raw.ExAbs x e) = do
-  y  <- freshVar
-  e' <- rnExprM (SnocRnEnv env x y) e
-  return (ExAbs y e')
+  y  <- fresh (string2Name $ show x)
+  e' <- rnExprM (SnocRnTmEnv env x y) e
+  return (ExAbs (bind y e'))
 
 rnExprM env (Raw.ExApp e1 e2) = do
   e1' <- rnExprM env e1
@@ -88,10 +98,10 @@ rnExprM env (Raw.ExRecFld e l) = do
   return (ExRecFld e' l)
 
 rnExprM env (Raw.ExTyAbs x a e) = do
-  y  <- freshVar
+  y  <- fresh (string2Name $ show x)
   a' <- rnType env a
-  e' <- rnExprM (SnocRnEnv env x y) e
-  return (ExTyAbs y a' e')
+  e' <- rnExprM (SnocRnTyEnv env x y) e
+  return (ExTyAbs (bind y e') a')
 
 rnExprM env (Raw.ExTyApp e t) = do
   e' <- rnExprM env e
