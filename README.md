@@ -1,9 +1,10 @@
-Dependencies (these can be installed with `cabal install --only-dependencies` hopefully):
+Dependencies (these can be installed with `cabal install --only-dependencies --lib`):
 
 - pretty
 - mtl
 - transformers
 - parsec
+- unbound-generics
 
 Running:
 
