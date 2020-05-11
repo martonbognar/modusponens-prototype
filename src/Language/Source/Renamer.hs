@@ -10,12 +10,12 @@ import Language.Source.Syntax
 
 -- | Convert a raw syntax type to a Source type.
 rnType :: RnEnv -> Raw.Type -> SubM Type
-rnType _ Raw.TyNat         = return $ TyMono TyNat
-rnType _ Raw.TyTop         = return $ TyMono TyTop
-rnType _ Raw.TyBool        = return $ TyMono TyBool
+rnType _ Raw.TyNat         = return $ TyNat
+rnType _ Raw.TyTop         = return $ TyTop
+rnType _ Raw.TyBool        = return $ TyBool
 rnType env (Raw.TyVar x)   = case rnLookup x env of
   Nothing -> error $ "Unbound variable " ++ show x -- fail miserably here
-  Just y  -> return (TyMono (TyVar y))
+  Just y  -> return (TyVar y)
 rnType env (Raw.TyArr t1 t2) = do
   t1' <- rnType env t1
   t2' <- rnType env t2

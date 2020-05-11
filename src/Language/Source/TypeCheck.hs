@@ -28,7 +28,7 @@ queueToCoercion (ExtraType q t) k a b = Target.CoComp (Target.CoArr (Target.CoId
 queueToCoercion (ExtraLabel _q _l) _k _a _b = undefined  -- TODO: ?
 
 queueTop :: Queue -> Target.Coercion
-queueTop Null = Target.CoTop (elabType (TyMono TyTop))
+queueTop Null = Target.CoTop (elabType ( TyTop))
 queueTop (ExtraType t a) = Target.CoComp (Target.CoArr (Target.CoTop a') (queueTop t)) Target.CoTopArr
   where a' = elabType a
 queueTop (ExtraLabel _q _l) = undefined  -- TODO: ?
@@ -45,37 +45,31 @@ data BaseType
 
 
 typeToBase :: Type -> SubM BaseType
-typeToBase (TyMono TyNat) = return BaseNat
-typeToBase (TyMono TyTop) = return BaseTop
-typeToBase (TyMono (TyVar v)) = return (BaseVar v)
-typeToBase (TyMono (TySubstVar v)) = return (BaseSubstVar v)
+typeToBase TyNat = return BaseNat
+typeToBase TyTop = return BaseTop
+typeToBase (TyVar v) = return (BaseVar v)
+typeToBase (TySubstVar v) = return (BaseSubstVar v)
 typeToBase _ = throwError ""
 
-baseToMono :: BaseType -> Monotype
-baseToMono BaseNat = TyNat
-baseToMono BaseBool = TyBool
-baseToMono BaseTop = TyTop
-baseToMono (BaseVar v) = TyVar v
-baseToMono (BaseSubstVar v) = TySubstVar v
+baseToType :: BaseType -> Type
+baseToType BaseNat          = TyNat
+baseToType BaseBool         = TyBool
+baseToType BaseTop          = TyTop
+baseToType (BaseVar v)      = TyVar v
+baseToType (BaseSubstVar v) = TySubstVar v
 
 
 -- | For a Source type, get the corresponding Target type.
 elabType :: Type -> Target.Type
-elabType (TyMono m) = elabMono m
-elabType (TyArr a b) = Target.TyArr (elabType a) (elabType b)
-elabType (TyIs a b)  = Target.TyTup (elabType a) (elabType b)
-elabType (TyRec l a) = Target.TyRec l (elabType a)
-elabType (TyAbs _v _a _b) = undefined  -- TODO: ?
-
-elabMono :: Monotype -> Target.Type
 elabMono TyNat = Target.TyNat
 elabMono TyTop = Target.TyTop
 elabMono TyBool = Target.TyBool
 elabMono (TyVar v) = Target.TyVar v
-elabMono (TySubstVar _v) = undefined
-elabMono (TyMonoArr a b) = Target.TyArr (elabMono a) (elabMono b)
-elabMono (TyMonoIs a b) = Target.TyTup (elabMono a) (elabMono b)
-elabMono (TyMonoRec l t) = Target.TyRec l (elabMono t)
+elabMono (TySubstVar _v) = undefined  -- TODO: ?
+elabType (TyArr a b) = Target.TyArr (elabType a) (elabType b)
+elabType (TyIs a b)  = Target.TyTup (elabType a) (elabType b)
+elabType (TyRec l a) = Target.TyRec l (elabType a)
+elabType (TyAbs _v _a _b) = undefined  -- TODO: ?
 
 -- * Coercion contexts
 -- ----------------------------------------------------------------------------
@@ -129,23 +123,23 @@ substType sub@(SVar _ _ s) t = let t' = substType s t in goT sub t'
 substType sub@(SSub _ _ s) t = let t' = substType s t in goT sub t'
 
 goT :: Substitution -> Type -> Type
-goT _sub@(SVar _ap _t _s) (TyMono TyNat)   = TyMono TyNat
-goT _sub@(SVar _ap _t _s) (TyMono TyTop)   = TyMono TyTop
-goT _sub@(SVar ap t _s) (TyMono (TyVar v))
-  | ap == v = TyMono t
-  | otherwise = (TyMono (TyVar v))
-goT _sub@(SVar _ap _t _s) (TyMono (TySubstVar ap')) = TyMono (TySubstVar ap')
+goT _sub@(SVar _ap _t _s) ( TyNat)   =  TyNat
+goT _sub@(SVar _ap _t _s) ( TyTop)   =  TyTop
+goT _sub@(SVar ap t _s) ( (TyVar v))
+  | ap == v =  t
+  | otherwise = ( (TyVar v))
+goT _sub@(SVar _ap _t _s) ( (TySubstVar ap')) =  (TySubstVar ap')
 goT sub@(SVar _ap _t _s) (TyArr a b)      = TyArr (goT sub a) (goT sub b)
 goT sub@(SVar _ap _t _s) (TyIs a b)       = TyIs (goT sub a) (goT sub b)
 goT sub@(SVar _ap _t _s) (TyAbs ap' a b)  = TyAbs ap' (goT sub a) (goT sub b)
 goT sub@(SVar _ap _t _s) (TyRec l a)      = TyRec l (goT sub a)
 
-goT _sub@(SSub _ap _t _s) (TyMono TyNat)   = TyMono TyNat
-goT _sub@(SSub _ap _t _s) (TyMono TyTop)   = TyMono TyTop
-goT _sub@(SSub _ap _t _s) (TyMono (TyVar v)) = TyMono (TyVar v)
-goT _sub@(SSub ap t _s) (TyMono (TySubstVar ap'))
-  | ap == ap' = TyMono t
-  | otherwise = TyMono (TySubstVar ap')
+goT _sub@(SSub _ap _t _s) ( TyNat)   =  TyNat
+goT _sub@(SSub _ap _t _s) ( TyTop)   =  TyTop
+goT _sub@(SSub _ap _t _s) ( (TyVar v)) =  (TyVar v)
+goT _sub@(SSub ap t _s) ( (TySubstVar ap'))
+  | ap == ap' =  t
+  | otherwise =  (TySubstVar ap')
 goT sub@(SSub _ap _t _s) (TyArr a b)      = TyArr (goT sub a) (goT sub b)
 goT sub@(SSub _ap _t _s) (TyIs a b)       = TyIs (goT sub a) (goT sub b)
 goT sub@(SSub _ap _t _s) (TyAbs ap' a b)  = TyAbs ap' (goT sub a) (goT sub b)
@@ -253,7 +247,7 @@ wellFormedSubst (CSub ctx ap b) (SVar ap' a sub)
   | ap == ap' = do
     s1 <- wellFormedSubst ctx sub
     let app = appendSubst s1 sub in do
-      s2 <- disjoint (substContext app ctx) (substType app (TyMono a)) (substType app b)
+      s2 <- disjoint (substContext app ctx) (substType app ( a)) (substType app b)
       return $ appendSubst s2 s1
   | otherwise = wellFormedSubst ctx (SVar ap' a sub)
 
@@ -282,23 +276,23 @@ unify ctx (BaseSubstVar a) (BaseSubstVar b)
       return $ SVar b (TySubstVar a) sub
 
 -- U-NatV
-unify ctx BaseNat (BaseSubstVar ap) = let nat = baseToMono BaseNat in do
+unify ctx BaseNat (BaseSubstVar ap) = let nat = baseToType BaseNat in do
   sub <- wellFormedSubst ctx (SVar ap nat EmptySubst)
   return $ SVar ap nat sub
 -- U-VNat
-unify ctx (BaseSubstVar ap) BaseNat = let nat = baseToMono BaseNat in do
+unify ctx (BaseSubstVar ap) BaseNat = let nat = baseToType BaseNat in do
   sub <- wellFormedSubst ctx (SVar ap nat EmptySubst)
   return $ SVar ap nat sub
 
 -- U-VC
 unify ctx (BaseSubstVar ap') (BaseVar ap)
-  | ap == ap' = let var = baseToMono (BaseVar ap) in do
+  | ap == ap' = let var = baseToType (BaseVar ap) in do
     sub <- wellFormedSubst ctx (SVar ap' var EmptySubst)
     return $ SVar ap' var sub
   | otherwise = throwError ""  -- TODO: ?
 -- U-CV
 unify ctx (BaseVar ap) (BaseSubstVar ap')
-  | ap == ap' = let var = baseToMono (BaseVar ap) in do
+  | ap == ap' = let var = baseToType (BaseVar ap) in do
     sub <- wellFormedSubst ctx (SVar ap' var EmptySubst)
     return $ SVar ap' var sub
   | otherwise = throwError ""  -- TODO: ?
@@ -308,36 +302,36 @@ unify ctx (BaseVar ap) (BaseSubstVar ap')
 
 disjoint :: TypeContext -> Type -> Type -> SubM Substitution
 -- AD-TopL
-disjoint _ctx (TyMono TyTop)         _a              = return EmptySubst
+disjoint _ctx ( TyTop)         _a              = return EmptySubst
 -- AD-TopR
-disjoint _ctx _a                      (TyMono TyTop) = return EmptySubst
+disjoint _ctx _a                      ( TyTop) = return EmptySubst
 -- AD-VarVar
-disjoint ctx (TyMono (TyVar ap))     (TyMono (TyVar bt)) = varL <|> varR where
+disjoint ctx ( (TyVar ap))     ( (TyVar bt)) = varL <|> varR where
   varL = do
     a <- typeFromContext ctx ap
-    (_c, s) <- subRight ctx Null a (TyMono (TyVar bt))
+    (_c, s) <- subRight ctx Null a ( (TyVar bt))
     return s
   varR = do
     b <- typeFromContext ctx bt
-    (_c, s) <- subRight ctx Null b (TyMono (TyVar ap))
+    (_c, s) <- subRight ctx Null b ( (TyVar ap))
     return s
 -- AD-VarL
-disjoint ctx (TyMono (TyVar ap))     b
+disjoint ctx ( (TyVar ap))     b
   = do a <- typeFromContext ctx ap
        (_c, s) <- subRight ctx Null a b
        return s
 -- AD-VarR
-disjoint ctx a                      (TyMono (TyVar bt))
+disjoint ctx a                      ( (TyVar bt))
   = do b <- typeFromContext ctx bt
        (_c, s) <- subRight ctx Null b a
        return s
 -- AD-UVarL
-disjoint ctx (TyMono (TySubstVar ap)) b
+disjoint ctx ( (TySubstVar ap)) b
   = do a <- typeFromContext ctx ap  -- TODO: this might be wrong
        (_c, s) <- subRight ctx Null a b
        return s
 -- AD-UVarR
-disjoint ctx a                      (TyMono (TySubstVar bt))
+disjoint ctx a                      ( (TySubstVar bt))
   = do b <- typeFromContext ctx bt  -- TODO: same as above
        (_c, s) <- subRight ctx Null b a
        return s
@@ -397,33 +391,33 @@ disjoint _ctx a                      b
 
 disjointAx :: Type -> Type -> Bool
 -- AX-NatBool
-disjointAx (TyMono TyNat) (TyMono TyBool) = True
+disjointAx ( TyNat) ( TyBool) = True
 -- AX-BoolNat
-disjointAx (TyMono TyBool) (TyMono TyNat) = True
+disjointAx ( TyBool) ( TyNat) = True
 -- AX-RcdNat
-disjointAx (TyRec _l _a) (TyMono TyNat) = True
+disjointAx (TyRec _l _a) ( TyNat) = True
 -- AX-NatRcd
-disjointAx (TyMono TyNat) (TyRec _l _a) = True
+disjointAx ( TyNat) (TyRec _l _a) = True
 -- AX-RcdBool
-disjointAx (TyRec _l _a) (TyMono TyBool) = True
+disjointAx (TyRec _l _a) ( TyBool) = True
 -- AX-BoolRcd
-disjointAx (TyMono TyBool) (TyRec _l _a) = True
+disjointAx ( TyBool) (TyRec _l _a) = True
 
 disjointAx _ _ = False
 
 disjointI :: TypeContext -> Type -> SubM Substitution
 -- UD-Nat
-disjointI ctx (TyMono TyNat) = return EmptySubst
+disjointI ctx ( TyNat) = return EmptySubst
 -- UD-Bool
-disjointI ctx (TyMono TyBool) = return EmptySubst
+disjointI ctx ( TyBool) = return EmptySubst
 -- UD-Top
-disjointI ctx (TyMono TyTop) = return EmptySubst
+disjointI ctx ( TyTop) = return EmptySubst
 -- UD-Var
-disjointI ctx (TyMono (TyVar v)) = do
+disjointI ctx ( (TyVar v)) = do
   t <- typeFromContext ctx v
   return EmptySubst
 -- UD-UVar
-disjointI ctx (TyMono (TySubstVar v)) = do
+disjointI ctx ( (TySubstVar v)) = do
   t <- typeFromContext ctx v
   return EmptySubst
 -- UD-Rcd
@@ -447,7 +441,7 @@ subtyping = subRight EmptyCtx Null
 
 subRight :: TypeContext -> Queue -> Type -> Type -> SubM (Target.Coercion, Substitution)
 -- AR-top
-subRight _ctx l a (TyMono TyTop) = let
+subRight _ctx l a ( TyTop) = let
   qc = queueTop l
   top = Target.CoTop (elabType a)
   in return (Target.CoComp qc top, EmptySubst)
@@ -474,44 +468,44 @@ subRight ctx l a b = do
 
 subLeft :: TypeContext -> Queue -> Queue -> Type -> CoContext -> Type -> BaseType -> SubM (CoContext, Substitution)
 -- AL-Base
-subLeft ctx Null _m _a0 c e1@(TyMono TyNat) e2 = do
+subLeft ctx Null _m _a0 c e1@( TyNat) e2 = do
   e1' <- typeToBase e1
   sub <- unify ctx e1' e2
   return (c, sub)
-subLeft ctx Null _m _a0 c e1@(TyMono TyBool) e2 = do
+subLeft ctx Null _m _a0 c e1@( TyBool) e2 = do
   e1' <- typeToBase e1
   sub <- unify ctx e1' e2
   return (c, sub)
-subLeft ctx Null _m _a0 c e1@(TyMono TyTop) e2 = do
+subLeft ctx Null _m _a0 c e1@( TyTop) e2 = do
   e1' <- typeToBase e1
   sub <- unify ctx e1' e2
   return (c, sub)
-subLeft ctx Null _m _a0 c e1@(TyMono (TyVar _x)) e2 = do
+subLeft ctx Null _m _a0 c e1@( (TyVar _x)) e2 = do
   e1' <- typeToBase e1
   sub <- unify ctx e1' e2
   return (c, sub)
-subLeft ctx Null _m _a0 c e1@(TyMono (TySubstVar _x)) e2 = do
+subLeft ctx Null _m _a0 c e1@( (TySubstVar _x)) e2 = do
   e1' <- typeToBase e1
   sub <- unify ctx e1' e2
   return (c, sub)
 -- AL-VarArr
-subLeft ctx (ExtraType l b1) m a0 c (TyMono (TySubstVar ap)) e = do
+subLeft ctx (ExtraType l b1) m a0 c ( (TySubstVar ap)) e = do
   ap1 <- freshVar
   ap2 <- freshVar
   (ctx1, a, ctx2) <- slicesFromContext ctx ap EmptyCtx
-  let sub = (SVar ap (TyMonoArr (TySubstVar ap1) (TySubstVar ap2)) EmptySubst) in do
+  let sub = (SVar ap (TyArr (TySubstVar ap1) (TySubstVar ap2)) EmptySubst) in do
     (c1, sub1) <- subRight
-                    (appendContext (substContext sub ctx2) (CSub (CSub ctx1 ap1 (TyMono TyTop)) ap2 a))  -- TODO: probably incorrect
+                    (appendContext (substContext sub ctx2) (CSub (CSub ctx1 ap1 ( TyTop)) ap2 a))  -- TODO: probably incorrect
                     Null
                     (substType sub b1)
-                    (TyMono (TySubstVar ap1))
+                    ( (TySubstVar ap1))
     (c', sub2) <- subLeft
                     ctx
                     l
                     (ExtraType m b1)
                     a0
                     (XCoArr c1 c)
-                    (TyMono (TySubstVar ap2))
+                    ( (TySubstVar ap2))
                     e
     return (c', appendSubst sub2 (appendSubst sub1 sub))
 -- AL-AndL & AL-AndR
@@ -528,7 +522,7 @@ subLeft ctx l m a0 c (TyArr a1 a2) e
     arr = case l of
       (ExtraType q b1) -> do
         (c1, sub1) <- subRight ctx Null b1 a1
-        e' <- typeToBase (substType sub1 (TyMono (baseToMono e)))
+        e' <- typeToBase (substType sub1 ( (baseToType e)))
         (c', sub2) <- subLeft
                         (substContext sub1 ctx)
                         (substQueue sub1 q)
@@ -542,7 +536,7 @@ subLeft ctx l m a0 c (TyArr a1 a2) e
 
     mp = do
       (c1, sub1) <- subRight ctx Null a0 (queueToType m a1)
-      e' <- typeToBase (substType sub1 (TyMono (baseToMono e)))
+      e' <- typeToBase (substType sub1 ( (baseToType e)))
       (c', sub2) <- subLeft
                       (substContext sub1 ctx)
                       (substQueue sub1 l)
@@ -560,7 +554,7 @@ subLeft ctx l m a0 c (TyAbs ap a b) e = do
     l
     m
     a0
-    (XCoAt (TyMono (TySubstVar ap')) c)
+    (XCoAt ( (TySubstVar ap')) c)
     (substType (SVar ap (TySubstVar ap') EmptySubst) b)
     e
 
@@ -575,9 +569,9 @@ inference expr maxVar = runState (inferenceWithContext EmptyCtx expr) maxVar
 -- | inferenceWithContext
 inferenceWithContext :: TypeContext -> Expression -> SubM (Type, Target.Expression)
 -- T-TOP
-inferenceWithContext _ ExTop = return ((TyMono TyTop), Target.ExTop)
+inferenceWithContext _ ExTop = return (( TyTop), Target.ExTop)
 -- T-LIT
-inferenceWithContext _ (ExLit i) = return ((TyMono TyNat), Target.ExLit i)
+inferenceWithContext _ (ExLit i) = return (( TyNat), Target.ExLit i)
 -- T-VAR
 inferenceWithContext c (ExVar v)
   = do t <- typeFromContext c v

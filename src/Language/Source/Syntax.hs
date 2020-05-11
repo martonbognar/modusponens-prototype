@@ -15,41 +15,28 @@ import PrettyPrinter
 -- * Main Source types
 -- ----------------------------------------------------------------------------
 
-data Monotype
+data Type
   = TyNat
   | TyTop
   | TyBool
   | TyVar Variable
   | TySubstVar Variable  -- should only be used during typechecking
-  | TyMonoArr Monotype Monotype
-  | TyMonoIs Monotype Monotype
-  | TyMonoRec Label Monotype
-
-instance Eq Monotype where
-  TyNat           == TyNat            = True
-  TyTop           == TyTop            = True
-  TyBool          == TyBool           = True
-  TyVar v         == TyVar v'         = v == v'
-  TySubstVar v    == TySubstVar v'    = v == v'
-  TyMonoArr a1 a2 == TyMonoArr b1 b2  = a1 == b1 && a2 == b2
-  TyMonoIs a1 a2  == TyMonoIs b1 b2   = a1 == b1 && a2 == b2
-  TyMonoRec l a   == TyMonoRec l' b   = l == l' && a == b
-  _               == _                = False
-
-data Type
-  = TyMono Monotype
   | TyArr Type Type
   | TyIs Type Type
   | TyAbs Variable Type Type
   | TyRec Label Type
 
 instance Eq Type where
-  TyMono m1     == TyMono m2      = m1 == m2
-  TyArr t1 t2   == TyArr t1' t2'  = t1 == t1' && t2 == t2'
-  TyIs t1 t2    == TyIs t1' t2'   = t1 == t1' && t2 == t2'
-  TyAbs v a1 a2 == TyAbs v' b1 b2 = v == v' && a1 == b1 && a2 == b2
-  TyRec l a     == TyRec l' b     = l == l' && a == b
-  _             == _              = False
+  TyNat           == TyNat            = True
+  TyTop           == TyTop            = True
+  TyBool          == TyBool           = True
+  TyVar v         == TyVar v'         = v == v'
+  TySubstVar v    == TySubstVar v'    = v == v'
+  TyArr t1 t2     == TyArr t1' t2'    = t1 == t1' && t2 == t2'
+  TyIs t1 t2      == TyIs t1' t2'     = t1 == t1' && t2 == t2'
+  TyAbs v a1 a2   == TyAbs v' b1 b2   = v == v' && a1 == b1 && a2 == b2
+  TyRec l a       == TyRec l' b       = l == l' && a == b
+  _               == _                = False
 
 data Expression
   = ExLit Integer
@@ -109,8 +96,8 @@ data Queue
 
 data Substitution
   = EmptySubst
-  | SVar Variable Monotype Substitution
-  | SSub Variable Monotype Substitution
+  | SVar Variable Type Substitution
+  | SSub Variable Type Substitution
   deriving (Eq)
 
 
@@ -145,18 +132,12 @@ appendType (ExtraType q t') t = ExtraType (appendType q t) t'
 -- * Pretty Printing
 -- ----------------------------------------------------------------------------
 
-instance PrettyPrint Monotype where
+instance PrettyPrint Type where
   ppr TyNat             = ppr "Nat"
   ppr TyTop             = ppr "Top"
   ppr TyBool            = ppr "Bool"
   ppr (TyVar v)         = ppr v
   ppr (TySubstVar v)    = hcat [ppr v, ppr "^"]
-  ppr (TyMonoArr t1 t2) = parens $ hsep [ppr t1, arrow, ppr t2]
-  ppr (TyMonoIs t1 t2)  = parens $ hsep [ppr t1, ppr "&", ppr t2]
-  ppr (TyMonoRec l t)   = braces (hsep [ppr l, colon, ppr t])
-
-instance PrettyPrint Type where
-  ppr (TyMono t)      = ppr t
   ppr (TyArr t1 t2)   = parens $ hsep [ppr t1, arrow, ppr t2]
   ppr (TyIs t1 t2)    = parens $ hsep [ppr t1, ppr "&", ppr t2]
   ppr (TyAbs v t1 t2) = parens $ hcat [ppr "\\/", parens (hsep [ppr v, ppr "*", ppr t1]), dot, ppr t2]
