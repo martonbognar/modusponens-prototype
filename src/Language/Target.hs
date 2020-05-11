@@ -1,10 +1,7 @@
 {-# OPTIONS_GHC -Wall #-}
-{-# LANGUAGE MultiParamTypeClasses
-           , TemplateHaskell
-           , ScopedTypeVariables
-           , FlexibleInstances
-           , FlexibleContexts
-           , UndecidableInstances
+{-# LANGUAGE DeriveDataTypeable
+           , DeriveGeneric
+           , MultiParamTypeClasses
            , LambdaCase
   #-}
 
@@ -20,6 +17,8 @@ import Data.Label
 import Text.PrettyPrint
 
 import Unbound.Generics.LocallyNameless
+import GHC.Generics (Generic)
+import Data.Typeable (Typeable)
 
 import PrettyPrinter
 
@@ -38,6 +37,7 @@ data Type
   | TyVar TypeVar
   | TyAll (Bind TypeVar Type)
   | TyRec Label Type
+  deriving (Generic)
 
 instance Eq Type where
   TyNat       == TyNat       = True
@@ -64,6 +64,7 @@ data Expression
   | ExTyApp Expression Type
   | ExRec Label Expression
   | ExRecFld Expression Label
+  deriving (Generic)
 
 -- | Coercions
 data Coercion
@@ -82,9 +83,7 @@ data Coercion
   | CoAt Coercion Type
   | CoTyAbs (Bind TypeVar Coercion)
   | CoRec Label Coercion
-
-
-$(derive [''Type, ''Expression, ''Coercion])
+  deriving (Generic)
 
 instance Alpha Type
 instance Alpha Expression
@@ -93,6 +92,10 @@ instance Alpha Coercion
 instance Subst Expression Expression where
   isvar (ExVar v) = Just (SubstName v)
   isvar _ = Nothing
+
+instance Subst Expression Type
+instance Subst Expression Coercion
+instance Subst Expression Label
 
 data TermContext
   = TermEmpty

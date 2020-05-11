@@ -12,6 +12,7 @@ import Data.Variable
 import Data.Label
 
 import Language.Source.Syntax
+import Unbound.Generics.LocallyNameless
 
 
 queueToType :: Queue -> Type -> Type
@@ -64,7 +65,7 @@ elabType :: Type -> Target.Type
 elabMono TyNat = Target.TyNat
 elabMono TyTop = Target.TyTop
 elabMono TyBool = Target.TyBool
-elabMono (TyVar v) = Target.TyVar v
+elabMono (TyVar v) = Target.TyVar (string2Name (show v))
 elabMono (TySubstVar _v) = undefined  -- TODO: ?
 elabType (TyArr a b) = Target.TyArr (elabType a) (elabType b)
 elabType (TyIs a b)  = Target.TyTup (elabType a) (elabType b)
@@ -459,7 +460,7 @@ subRight ctx l a (TyArr b1 b2) = subRight ctx (ExtraType l b1) a b2
 -- AR-all
 subRight ctx l a (TyAbs ap b1 b2) = do
   (c, s) <- subRight (CVar ctx ap b1) l a b2
-  return (Target.CoTyAbs ap c, s)
+  return (Target.CoTyAbs (bind (string2Name (show ap)) c), s)
 -- AR-base
 subRight ctx l a b = do
   bb <- typeToBase b
@@ -575,7 +576,7 @@ inferenceWithContext _ (ExLit i) = return (( TyNat), Target.ExLit i)
 -- T-VAR
 inferenceWithContext c (ExVar v)
   = do t <- typeFromContext c v
-       return (t, Target.ExVar v)
+       return (t, Target.ExVar (string2Name (show v)))
 -- T-APP
 inferenceWithContext c (ExApp e1 e2)
   = do ~(TyArr a1 a2, v1) <- inferenceWithContext c e1
@@ -612,7 +613,7 @@ checking :: TypeContext -> Expression -> Type -> SubM Target.Expression
 -- T-ABS
 checking c (ExAbs x e) (TyArr a b)
   = do v <- checking (CVar c x a) e b
-       return (Target.ExAbs x (elabType a) v)
+       return (Target.ExAbs (bind (string2Name (show x)) v) (elabType a))
 -- T-SUB
 checking c e a
   = do (b, v) <- inferenceWithContext c e

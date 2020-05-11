@@ -20,5 +20,5 @@ main = do
         Right ((ty, term), maxVar') -> do
           print ty
           print term
-          print $ eval maxVar' term
+          print $ eval term
           print $ tcTerm term
