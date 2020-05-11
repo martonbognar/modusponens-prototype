@@ -1,20 +1,32 @@
 {-# OPTIONS_GHC -Wall #-}
-{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE MultiParamTypeClasses
+           , TemplateHaskell
+           , ScopedTypeVariables
+           , FlexibleInstances
+           , FlexibleContexts
+           , UndecidableInstances
+           , LambdaCase
+  #-}
 
 module Language.Target where
 
 import Prelude hiding ((<>))
 
-import Control.Monad (guard)
+import Control.Applicative ((<|>))
+import Control.Monad (guard, mzero)
 import Control.Monad.Renamer
+import Control.Monad.Trans.Maybe
 import Data.Label
-import Data.Variable
 import Text.PrettyPrint
+
+import Unbound.Generics.LocallyNameless
 
 import PrettyPrinter
 
 -- * Main Target types
 -- ----------------------------------------------------------------------------
+
+type TypeVar = Name Type
 
 -- | Target types
 data Type
@@ -23,8 +35,8 @@ data Type
   | TyBool
   | TyArr Type Type
   | TyTup Type Type
-  | TyVar Variable
-  | TyAll Variable Type
+  | TyVar TypeVar
+  | TyAll (Bind TypeVar Type)
   | TyRec Label Type
 
 instance Eq Type where
@@ -36,16 +48,19 @@ instance Eq Type where
   TyRec l1 t1 == TyRec l2 t2 = t1 == t2 && l1 == l2
   _           == _           = False
 
+
+type TermVar = Name Expression
+
 -- | Target terms
 data Expression
   = ExLit Integer
   | ExTop
-  | ExVar Variable
-  | ExAbs Variable Type Expression
+  | ExVar TermVar
+  | ExAbs (Bind TermVar Expression) Type
   | ExApp Expression Expression
   | ExMerge Expression Expression
   | ExCoApp Coercion Expression
-  | ExTyAbs Variable Expression
+  | ExTyAbs (Bind TypeVar Expression)
   | ExTyApp Expression Type
   | ExRec Label Expression
   | ExRecFld Expression Label
@@ -65,17 +80,27 @@ data Coercion
   | CoPair Coercion Coercion
   | CoArr Coercion Coercion
   | CoAt Coercion Type
-  | CoTyAbs Variable Coercion
+  | CoTyAbs (Bind TypeVar Coercion)
   | CoRec Label Coercion
 
 
+$(derive [''Type, ''Expression, ''Coercion])
+
+instance Alpha Type
+instance Alpha Expression
+instance Alpha Coercion
+
+instance Subst Expression Expression where
+  isvar (ExVar v) = Just (SubstName v)
+  isvar _ = Nothing
+
 data TermContext
   = TermEmpty
-  | TermSnoc TermContext Variable Type
+  | TermSnoc TermContext TermVar Type
 
 data TypeContext
   = TypeEmpty
-  | TypeSnoc TypeContext Variable
+  | TypeSnoc TypeContext TypeVar
 
 -- * Pretty Printing
 -- ----------------------------------------------------------------------------
@@ -86,19 +111,19 @@ instance PrettyPrint Type where
   ppr TyBool        = ppr "Bool"
   ppr (TyArr t1 t2) = parens $ hsep [ppr t1, arrow, ppr t2]
   ppr (TyTup t1 t2) = parens $ hsep [ppr t1, ppr "✕", ppr t2]
-  ppr (TyVar v)     = ppr v
-  ppr (TyAll v t)   = parens $ hcat [ppr "\\/", ppr v, dot, ppr t]
+  ppr (TyVar v)     = ppr (name2String v)
+  -- ppr (TyAll b)   = ppr b  -- TODO
   ppr (TyRec l t)   = braces $ hsep [ppr l, colon, ppr t]
 
 instance PrettyPrint Expression where
   ppr (ExLit i)       = ppr i
   ppr (ExTop)         = parens empty
-  ppr (ExVar v)       = ppr v
-  ppr (ExAbs v t e)     = hcat [ppr "\\", parens $ hsep $ [ppr v, colon, ppr t, dot, ppr e]]
+  ppr (ExVar v)       = ppr (name2String v)
+  -- ppr (ExAbs b t)     = hcat [ppr "\\", parens $ hsep $ [ppr b, colon, ppr t, dot]]  -- TODO
   ppr (ExApp e1 e2)   = parens $ hsep [ppr e1, ppr e2]
   ppr (ExMerge e1 e2) = parens $ hcat [ppr e1, ppr ",,", ppr e2]
   ppr (ExCoApp c e)   = parens $ hsep [ppr c, ppr e]
-  ppr (ExTyAbs v e)   = parens $ hcat [ppr "/\\", ppr v, dot, ppr e]
+  -- ppr (ExTyAbs b)   = ppr b  -- TODO
   ppr (ExTyApp e t)   = parens $ hsep [ppr e, ppr t]
   ppr (ExRec l e)     = braces $ hsep [ppr l, equals, ppr e]
   ppr (ExRecFld e l)  = hcat [ppr e, dot, ppr l]
@@ -121,16 +146,16 @@ instance PrettyPrint Coercion where
   ppr (CoPair c1 c2)       = parensList [ppr c1, ppr c2]
   ppr (CoArr c1 c2)        = parens $ hsep [ppr c1, arrow, ppr c2]
   ppr (CoAt c t) = hcat [ppr c, ppr "@", ppr t]
-  ppr (CoTyAbs v c)   = parens $ hcat [ppr "/\\", ppr v, dot, ppr c]
+  -- ppr (CoTyAbs b)   = ppr b  -- TODO
   ppr (CoRec l c) = braces (hsep [ppr l, colon, ppr c])
 
 instance PrettyPrint TypeContext where
   ppr TypeEmpty        = ppr "•"
-  ppr (TypeSnoc c v) = hcat [ppr c, comma, ppr v]
+  ppr (TypeSnoc c v) = hcat [ppr c, comma, ppr (name2String v)]
 
 instance PrettyPrint TermContext where
   ppr TermEmpty        = ppr "•"
-  ppr (TermSnoc c v t) = hcat [ppr c, comma, ppr v, colon, ppr t]
+  ppr (TermSnoc c v t) = hcat [ppr c, comma, ppr (name2String v), colon, ppr t]
 
 instance Show Type where
   show = render . ppr
@@ -162,209 +187,121 @@ isValue (ExCoApp CoTopArr v)      = isValue v
 isValue _                        = False
 
 
-data RefreshEnv
-  = EmptyRefreshEnv
-  | SnocRnEnv RefreshEnv Variable Variable
-
-
-rnLookup :: Variable -> RefreshEnv -> Maybe Variable
-rnLookup _ EmptyRefreshEnv = Nothing
-rnLookup v (SnocRnEnv env v' x)
-  | v == v'   = Just x
-  | otherwise = rnLookup v env
-
-
--- | Replace a variable in a term with a fresh one.
-refreshTerm :: Expression -> SubM Expression
-refreshTerm = go EmptyRefreshEnv
-  where
-    go :: RefreshEnv -> Expression -> SubM Expression
-    go _ (ExLit i)  = return (ExLit i)
-    go _ ExTop      = return ExTop
-    go env (ExVar x) = case rnLookup x env of
-      Nothing -> return (ExVar x)
-      Just x' -> return (ExVar x')
-    go env (ExAbs b t e) = do
-      b' <- freshVar
-      e' <- go (SnocRnEnv env b b') e
-      return (ExAbs b' t e')
-    go env (ExApp e1 e2) = do
-      e1' <- go env e1
-      e2' <- go env e2
-      return (ExApp  e1' e2')
-    go env (ExMerge e1 e2) = do
-      e1' <- go env e1
-      e2' <- go env e2
-      return (ExMerge e1' e2')
-    go _env (ExTyAbs _v _e) = undefined
-    go _env (ExTyApp _e _t) = undefined
-    go env (ExRec l e) = do
-      e' <- go env e
-      return (ExRec l e')
-    go env (ExRecFld e l) = do
-      e' <- go env e
-      return (ExRecFld e' l)
-    go env (ExCoApp c e) = do
-      e' <- go env e
-      return (ExCoApp c e')
-
-
-subst :: Expression -> Variable -> Expression -> SubM Expression
-subst orig var term
-  = do term' <- refreshTerm term
-       go orig var term'
-    where
-      go :: Expression -> Variable -> Expression -> SubM Expression
-      go expr x v = case expr of
-        ExVar x' | x' == x   -> return v
-                 | otherwise -> return (ExVar x')
-        ExLit i        -> return (ExLit i)
-        ExTop          -> return ExTop
-        ExAbs b t e -> do
-          e' <- go e x v
-          return (ExAbs b t e')
-        ExApp e1 e2    -> do
-          e1' <- go e1 x v
-          e2' <- go e2 x v
-          return (ExApp  e1' e2')
-        ExMerge e1 e2    -> do
-          e1' <- go e1 x v
-          e2' <- go e2 x v
-          return (ExMerge e1' e2')
-        ExTyAbs _v _e -> undefined
-        ExTyApp _e _t -> undefined
-        ExRec l e   -> do
-          e' <- go e x v
-          return (ExRec l e')
-        ExRecFld e l   -> do
-          e' <- go e x v
-          return (ExRecFld e' l)
-        ExCoApp c e     -> do
-          e' <- go e x v
-          return (ExCoApp c e')
-
-
 -- | Evaluate a term given the current maximal variable.
-eval :: Integer -> Expression -> Eith (Expression, Integer)
-eval state0 t = runState (evalM t) state0
+eval :: Expression -> Expression
+eval t = runFreshM (evalM t)
 
 
 -- | Fully evaluate a term in signle steps.
-evalM :: Expression -> SubM Expression
-evalM t = step t >>= \case
+evalM :: Expression -> FreshM Expression
+evalM t = runMaybeT (step t) >>= \case
   Just st -> evalM st
   Nothing -> return t
 
 
 -- | Execute small-step reduction on a term.
-step :: Expression -> SubM (Maybe Expression)
+step :: Expression -> MaybeT FreshM Expression
 -- STEP-TOPARR
-step (ExApp (ExCoApp CoTopArr ExTop) ExTop) = return (Just ExTop)
+step (ExApp (ExCoApp CoTopArr ExTop) ExTop) = return ( ExTop)
 -- STEP-ARR
 step (ExApp (ExCoApp (CoArr c1 c2) v1) e2)
   | isValue v1
   , isValue e2
-  = return (Just (ExCoApp c2 (ExApp v1 (ExCoApp c1 e2))))
+  = return ( (ExCoApp c2 (ExApp v1 (ExCoApp c1 e2))))
 -- STEP-DISTARR
 step (ExApp (ExCoApp CoDistArr{} (ExMerge v1 v2)) e2)
   | isValue v1
   , isValue v2
   , isValue e2
-  = return (Just (ExMerge (ExApp v1 e2) (ExApp v2 e2)))
+  = return ( (ExMerge (ExApp v1 e2) (ExApp v2 e2)))
 -- STEP-BETA
-step (ExApp (ExAbs x _ e) e2)
+step (ExApp (ExAbs b _) e2)
   | isValue e2
   = do
-    t <- subst e x e2
-    return (Just t)
+    (x, e) <- unbind b
+    return $ subst x e2 e
 
-step (ExApp e1 e2) =
-  step e1 >>= \case
--- STEP-APP1
-    Just e1' -> return (Just (ExApp e1' e2))
-    Nothing -> step e2 >>= \case
--- STEP-APP2
-      Just e2' -> if isValue e1
-        then return (Just (ExApp e1 e2'))
-        else return Nothing
-      _                -> return Nothing
+step (ExApp e1 e2) = app1 <|> app2 where
+  app1 = do
+    e1' <- step e1
+    return ( (ExApp e1' e2))
+  app2 = do
+    e2' <- step e2
+    return ( (ExApp e1 e2'))
 
 -- STEP-PAIR1 & STEP-PAIR2
-step (ExMerge e1 e2) =
-  step e1 >>= \case
-    Just e1' -> return (Just (ExMerge e1' e2))
-    Nothing  -> step e2 >>= \case
-      Just e2' -> if isValue e1
-        then return (Just (ExMerge e1 e2'))
-        else return Nothing
-      _                -> return Nothing
+step (ExMerge e1 e2) = pair1 <|> pair2 where
+  pair1 = do
+    e1' <- step e1
+    return ( (ExMerge e1' e2))
+  pair2 = do
+    e2' <- step e2
+    guard (isValue e1)
+    return ( (ExMerge e1 e2'))
 
 -- STEP-PROJRCD
 step (ExRecFld (ExRec l v) l1)
   | l == l1
   , isValue v
-  = return (Just v)
+  = return ( v)
 
 
-step (ExTyAbs _v _e) = undefined
+step (ExTyAbs _b) = undefined
 step (ExTyApp _e _t) = undefined
 
 -- STEP-RCD1
-step (ExRec l e) =
-  step e >>= \case
-    Just e' -> return (Just (ExRec l e'))
-    _       -> return Nothing
+step (ExRec l e) = do
+  e' <- step e
+  return ( (ExRec l e'))
 
 -- STEP-RCD2
-step (ExRecFld e l) =
-  step e >>= \case
-    Just e' -> return (Just (ExRecFld e' l))
-    _       -> return Nothing
+step (ExRecFld e l) = do
+  e' <- step e
+  return ( (ExRecFld e' l))
 
   -- STEP-ID
 step (ExCoApp (CoId _) e)
   | isValue e
-  = return (Just e)
+  = return ( e)
 -- STEP-TRANS
 step (ExCoApp (CoComp c1 c2) e)
   | isValue e
-  = return (Just (ExCoApp c1 (ExCoApp c2 e)))
+  = return ( (ExCoApp c1 (ExCoApp c2 e)))
 -- SET-TOP
 step (ExCoApp (CoTop _) e)
   | isValue e
-  = return (Just ExTop)
+  = return ( ExTop)
 -- STEP-PAIR
 step (ExCoApp (CoPair c1 c2) e)
   | isValue e
-  = return (Just (ExMerge (ExCoApp c1 e) (ExCoApp c2 e)))
+  = return ( (ExMerge (ExCoApp c1 e) (ExCoApp c2 e)))
 -- STEP-PROJL
 step (ExCoApp (CoPr1 _ _) (ExMerge v1 v2))
   | isValue v1
   , isValue v2
-  = return (Just v1)
+  = return ( v1)
 -- STEP-PROJR
 step (ExCoApp (CoPr2 _ _) (ExMerge v1 v2))
   | isValue v1
   , isValue v2
-  = return (Just v2)
+  = return ( v2)
 
 -- STEP-CAPP
-step (ExCoApp c e) =
-  step e >>= \case
-    Just e' -> return (Just (ExCoApp c e'))
-    _       -> return Nothing
+step (ExCoApp c e) = do
+  e' <- step e
+  return ( (ExCoApp c e'))
 
-step (ExLit _) = return Nothing
-step ExTop = return Nothing
-step (ExVar _) = return Nothing
-step (ExAbs _ _ _) = return Nothing
+step (ExLit _) = mzero
+step ExTop = mzero
+step (ExVar _) = mzero
+step (ExAbs _ _) = mzero
 
 
 -- * Target Typing
 -- ----------------------------------------------------------------------------
 
 -- | Get the type of a variable from a context.
-typeFromContext :: TermContext -> Variable -> Maybe Type
+typeFromContext :: TermContext -> TermVar -> MaybeT FreshM Type
 typeFromContext TermEmpty _ = fail "Variable not in context"
 typeFromContext (TermSnoc c v vt) x
   | v == x    = return vt
@@ -373,17 +310,20 @@ typeFromContext (TermSnoc c v vt) x
 
 -- | In a given context, determine the type of a term.
 tcTerm :: Expression -> Maybe Type
-tcTerm = go TermEmpty
+tcTerm ex = runFreshM $ runMaybeT (go TermEmpty ex)
   where
-    go :: TermContext -> Expression -> Maybe Type
+    go :: TermContext -> Expression -> MaybeT FreshM Type
     -- TYP-UNIT
     go _ ExTop = return TyTop
     -- TYP-LIT
     go _ (ExLit _) = return TyNat
     -- TYP-ExVar
-    go c (ExVar x) = typeFromContext c x
+    go c (ExVar x) = do
+      t <- typeFromContext c x
+      return t
     -- TYP-ABS
-    go c (ExAbs x t1 e) = do
+    go c (ExAbs b t1) = do
+      (x, e) <- unbind b
       t2 <- go (TermSnoc c x t1) e
       return (TyArr t1 t2)
     -- TYP-APP
@@ -403,7 +343,7 @@ tcTerm = go TermEmpty
       (t1, t1') <- tcCoercion co
       guard (t == t1)
       return t1'
-    go _c (ExTyAbs _v _e) = undefined
+    go _c (ExTyAbs _b) = undefined
     go _c (ExTyApp _e _t) = undefined
     -- TYP-RCD
     go c (ExRec l e) = do
@@ -417,7 +357,7 @@ tcTerm = go TermEmpty
 
 
 -- | Determine the type of a coercion.
-tcCoercion :: Coercion -> Maybe (Type, Type)
+tcCoercion :: Coercion -> MaybeT FreshM (Type, Type)
 -- COTYP-REFL
 tcCoercion (CoId t)
   = return (t, t)
@@ -456,5 +396,5 @@ tcCoercion (CoArr c1 c2)
        (t2, t2') <- tcCoercion c2
        return (TyArr t1 t2, TyArr t1' t2')
 tcCoercion (CoAt _c _t) = undefined
-tcCoercion (CoTyAbs _v _c) = undefined
+tcCoercion (CoTyAbs _b) = undefined
 tcCoercion (CoRec _l _c) = undefined
